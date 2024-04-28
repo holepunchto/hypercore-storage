@@ -30,8 +30,19 @@ class ReadBatch {
     this.batch = batch
   }
 
-  async getTreeNode (index) {
-    return decodeTreeNode(await this.batch.add(encodeIndex(index), EMPTY))
+  async hasTreeNode (index) {
+    return (await this.batch.add(encodeIndex(index), EMPTY)) !== null
+  }
+
+  async getTreeNode (index, error) {
+    const buffer = await this.batch.add(encodeIndex(index), EMPTY)
+
+    if (buffer === null) {
+      if (error === true) throw new Error('Node not found: ' + index)
+      return null
+    }
+
+    return decodeTreeNode(buffer)
   }
 
   flush () {
@@ -57,9 +68,16 @@ module.exports = class RocksStorage {
     return new WriteBatch(this.db.batch())
   }
 
-  getTreeNode (index) {
+  hasTreeNode (index) {
     const b = this.createReadBatch()
-    const p = b.getTreeNode(index)
+    const p = b.hasTreeNode(index)
+    b.tryFlush()
+    return p
+  }
+
+  getTreeNode (index, error) {
+    const b = this.createReadBatch()
+    const p = b.getTreeNode(index, error)
     b.tryFlush()
     return p
   }
@@ -86,8 +104,6 @@ function encodeIndex (index) {
 }
 
 function decodeTreeNode (buffer) {
-  if (buffer === null) return null
-
   const state = { start: 0, end: buffer.byteLength, buffer }
 
   return {

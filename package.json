@@ -1,14 +1,19 @@
 {
-  "name": "rocksdb-storage",
+  "name": "hypercore-on-the-rocks",
   "version": "0.0.0",
   "main": "index.js",
+  "files": [
+    "index.js"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "standard"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "author": "Holepunch",
+  "license": "Apache-2.0",
+  "description": "RocksDB storage driver for Hypercore",
   "dependencies": {
-    "index-encoder": "^3.0.1"
+    "compact-encoding": "^2.15.0",
+    "index-encoder": "^3.0.1",
+    "rocksdb-native": "^1.0.0"
   }
 }

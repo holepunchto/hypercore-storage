@@ -60,6 +60,10 @@ module.exports = class RocksStorage {
     this.db = new RocksDB(dir)
   }
 
+  iterator (start, end, opts) {
+    return this.db.iterator(start, end, opts)
+  }
+
   createReadBatch () {
     return new ReadBatch(this.db.batch())
   }

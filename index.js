@@ -20,6 +20,10 @@ class WriteBatch {
     this.batch.add(encodeIndex(node.index), encodeTreeNode(node)).catch(noop)
   }
 
+  deleteTreeNode (index) {
+    this.batch.add(encodeIndex(node.index), EMPTY)
+  }
+
   flush () {
     return this.batch.write()
   }
@@ -85,6 +89,13 @@ module.exports = class RocksStorage {
   getTreeNode (index, error) {
     const b = this.createReadBatch()
     const p = b.getTreeNode(index, error)
+    b.tryFlush()
+    return p
+  }
+
+  deleteTreeNode (index) {
+    const b = this.createWriteBatch()
+    const p = b.add(encodeIndex(node.index), EMPTY)
     b.tryFlush()
     return p
   }

@@ -60,16 +60,19 @@ module.exports = class RocksStorage {
     this.db = new RocksDB(dir)
   }
 
-  iterator (start, end, opts) {
-    return this.db.iterator(start, end, opts)
-  }
-
   createReadBatch () {
     return new ReadBatch(this.db.batch())
   }
 
   createWriteBatch () {
     return new WriteBatch(this.db.batch())
+  }
+
+  createTreeNodeStream (opts = {}) {
+    const r = encodeIndexRange(opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamTreeNode
+    return s
   }
 
   hasTreeNode (index) {
@@ -91,6 +94,10 @@ module.exports = class RocksStorage {
   }
 }
 
+function mapStreamTreeNode (data) {
+  return decodeTreeNode(data.value)
+}
+
 function ensureSmallSlab () {
   if (SMALL_SLAB.buffer.byteLength - SMALL_SLAB.start < 64) {
     SMALL_SLAB.buffer = Buffer.allocUnsafe(SMALL_SLAB.end)
@@ -98,6 +105,20 @@ function ensureSmallSlab () {
   }
 
   return SMALL_SLAB
+}
+
+function encodeIndexRange (opts) {
+  const bounded = { gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: opts.limit || Infinity }
+
+  if (opts.gt || opts.gt === 0) bounded.gt = encodeIndex(opts.gt)
+  else if (opts.gte) bounded.gte = encodeIndex(opts.gte)
+  else bounded.gte = encodeIndex(0)
+
+  if (opts.lt || opts.lt === 0) bounded.lt = encodeIndex(opts.lt)
+  else if (opts.lte) bounded.lte = encodeIndex(opts.lte)
+  else bounded.lte = Buffer.from([0xff]) // infinity
+
+  return bounded
 }
 
 function encodeIndex (index) {

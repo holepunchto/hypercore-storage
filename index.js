@@ -2,23 +2,44 @@ const RocksDB = require('rocksdb-native')
 const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
 
+const INF = Buffer.from([0xff])
+const DKEYS = Buffer.from([0x1])
+
 const SMALL_SLAB = {
   start: 0,
   end: 65536,
   buffer: Buffer.allocUnsafe(65536)
 }
 
+const DiscoveryKeyRecord = {
+  preencode (state, m) {
+    c.uint.preencode(state, m.header)
+    c.uint.preencode(state, m.data)
+  },
+  encode (state, m) {
+    c.uint.encode(state, m.header)
+    c.uint.encode(state, m.data)
+  },
+  decode (state) {
+    return {
+      header: c.uint.decode(state),
+      data: c.uint.decode(state)
+    }
+  }
+}
+
 class WriteBatch {
-  constructor (batch) {
+  constructor (storage, batch) {
+    this.storage = storage
     this.batch = batch
   }
 
   addTreeNode (node) {
-    this.batch.tryPut(encodeIndex(node.index), encodeTreeNode(node))
+    this.batch.tryPut(encodeIndex(this.storage.dataPrefix, node.index), encodeTreeNode(node))
   }
 
   deleteTreeNode (index) {
-    this.batch.tryDelete(encodeIndex(index))
+    this.batch.tryDelete(encodeIndex(this.storage.dataPrefix, index))
   }
 
   flush () {
@@ -27,16 +48,17 @@ class WriteBatch {
 }
 
 class ReadBatch {
-  constructor (batch) {
+  constructor (storage, batch) {
+    this.storage = storage
     this.batch = batch
   }
 
   async hasTreeNode (index) {
-    return (await this.batch.get(encodeIndex(index))) !== null
+    return (await this.batch.get(encodeIndex(this.storage.dataPrefix, index))) !== null
   }
 
   async getTreeNode (index, error) {
-    const buffer = await this.batch.get(encodeIndex(index))
+    const buffer = await this.batch.get(encodeIndex(this.storage.dataPrefix, index))
 
     if (buffer === null) {
       if (error === true) throw new Error('Node not found: ' + index)
@@ -55,21 +77,58 @@ class ReadBatch {
   }
 }
 
-module.exports = class RocksStorage {
+module.exports = class CoreStorage {
   constructor (dir) {
     this.db = new RocksDB(dir)
   }
 
+  get (discoveryKey) {
+    return new HypercoreStorage(this.db, discoveryKey)
+  }
+}
+
+class HypercoreStorage {
+  constructor (db, discoveryKey) {
+    this.db = db
+    this.discoveryKey = discoveryKey
+    this.headerPrefix = null
+    this.dataPrefix = null
+  }
+
+  async open () {
+    const b = this.db.read()
+    const p = b.get(Buffer.concat([DKEYS, this.discoveryKey]))
+    b.tryFlush()
+    const val = await p
+    if (val === null) return false
+    this._onopen(c.decode(DiscoveryKeyRecord, val))
+    return true
+  }
+
+  async create () {
+    const b = this.db.write()
+    const header = 16 // TODO
+    const data = 16 // TODO
+    b.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(DiscoveryKeyRecord, { header, data }))
+    await b.flush()
+    this._onopen({ header, data })
+  }
+
+  _onopen ({ header, data }) {
+    this.headerPrefix = c.encode(UINT, header)
+    this.dataPrefix = c.encode(UINT, data)
+  }
+
   createReadBatch () {
-    return new ReadBatch(this.db.write())
+    return new ReadBatch(this, this.db.read())
   }
 
   createWriteBatch () {
-    return new WriteBatch(this.db.read())
+    return new WriteBatch(this, this.db.write())
   }
 
   createTreeNodeStream (opts = {}) {
-    const r = encodeIndexRange(opts)
+    const r = encodeIndexRange(this.dataPrefix, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamTreeNode
     return s
@@ -89,9 +148,9 @@ module.exports = class RocksStorage {
     return p
   }
 
-  async peakTreeNode (opts = {}) {
+  async peakLastTreeNode (opts = {}) {
     let last = null
-    for await (const data of this.createTreeNodeStream({ ...opts, limit: 1 })) {
+    for await (const data of this.createTreeNodeStream({ reverse: true, limit: 1 })) {
       last = data
     }
     return last
@@ -107,7 +166,7 @@ function mapStreamTreeNode (data) {
 }
 
 function ensureSmallSlab () {
-  if (SMALL_SLAB.buffer.byteLength - SMALL_SLAB.start < 64) {
+  if (SMALL_SLAB.buffer.byteLength - SMALL_SLAB.start < 128) {
     SMALL_SLAB.buffer = Buffer.allocUnsafe(SMALL_SLAB.end)
     SMALL_SLAB.start = 0
   }
@@ -115,23 +174,25 @@ function ensureSmallSlab () {
   return SMALL_SLAB
 }
 
-function encodeIndexRange (opts) {
+function encodeIndexRange (prefix, opts) {
   const bounded = { gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: opts.limit || Infinity }
 
-  if (opts.gt || opts.gt === 0) bounded.gt = encodeIndex(opts.gt)
-  else if (opts.gte) bounded.gte = encodeIndex(opts.gte)
-  else bounded.gte = encodeIndex(0)
+  if (opts.gt || opts.gt === 0) bounded.gt = encodeIndex(prefix, opts.gt)
+  else if (opts.gte) bounded.gte = encodeIndex(prefix, opts.gte)
+  else bounded.gte = encodeIndex(prefix, 0)
 
-  if (opts.lt || opts.lt === 0) bounded.lt = encodeIndex(opts.lt)
-  else if (opts.lte) bounded.lte = encodeIndex(opts.lte)
-  else bounded.lte = Buffer.from([0xff]) // infinity
+  if (opts.lt || opts.lt === 0) bounded.lt = encodeIndex(prefix, opts.lt)
+  else if (opts.lte) bounded.lte = encodeIndex(prefix, opts.lte)
+  else bounded.lte = Buffer.concat([prefix, INF]) // infinity
 
   return bounded
 }
 
-function encodeIndex (index) {
+function encodeIndex (prefix, index) {
   const state = ensureSmallSlab()
   const start = state.start
+  state.buffer.set(prefix, start)
+  state.start += prefix.byteLength
   UINT.encode(state, index)
   return state.buffer.subarray(start, state.start)
 }

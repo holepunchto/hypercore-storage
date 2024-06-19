@@ -1,8 +1,11 @@
-import Rocks from './index.js'
+import CoreStorage from './index.js'
 
-const r = new Rocks('/tmp/rocks')
+const s = new CoreStorage('/tmp/rocks')
+const c = s.get(Buffer.alloc(32))
 
-const w = r.createWriteBatch()
+if (!(await c.open())) await c.create()
+
+const w = c.createWriteBatch()
 
 w.addTreeNode({
   index: 42,
@@ -18,18 +21,21 @@ w.addTreeNode({
 
 await w.flush()
 
-for await (const node of r.createTreeNodeStream()) {
+console.log('node 42:', await c.getTreeNode(42))
+console.log('node 43:', await c.getTreeNode(43))
+
+for await (const node of c.createTreeNodeStream()) {
   console.log('tree node', node)
 }
 
 console.log('reversing')
 
-for await (const node of r.createTreeNodeStream({ reverse: true })) {
+for await (const node of c.createTreeNodeStream({ reverse: true })) {
   console.log('tree node', node)
 }
 
 console.log('peek')
 
-for await (const node of r.createTreeNodeStream({ reverse: true, limit: 1 })) {
+for await (const node of c.createTreeNodeStream({ reverse: true, limit: 1 })) {
   console.log('peak last tree node', node)
 }

@@ -16,8 +16,7 @@ class WriteBatch {
   }
 
   addTreeNode (node) {
-    // TODO: add tryAdd to rocks
-    this.batch.add(encodeIndex(node.index), encodeTreeNode(node)).catch(noop)
+    this.batch.tryPut(encodeIndex(node.index), encodeTreeNode(node))
   }
 
   deleteTreeNode (index) {
@@ -25,7 +24,7 @@ class WriteBatch {
   }
 
   flush () {
-    return this.batch.write()
+    return this.batch.flush()
   }
 }
 
@@ -35,11 +34,11 @@ class ReadBatch {
   }
 
   async hasTreeNode (index) {
-    return (await this.batch.add(encodeIndex(index), EMPTY)) !== null
+    return (await this.batch.get(encodeIndex(index))) !== null
   }
 
   async getTreeNode (index, error) {
-    const buffer = await this.batch.add(encodeIndex(index), EMPTY)
+    const buffer = await this.batch.get(encodeIndex(index))
 
     if (buffer === null) {
       if (error === true) throw new Error('Node not found: ' + index)
@@ -50,12 +49,11 @@ class ReadBatch {
   }
 
   flush () {
-    return this.batch.read()
+    return this.batch.flush()
   }
 
   tryFlush () {
-    // TODO: add tryFlush to rocks
-    this.flush().catch(noop)
+    this.batch.tryFlush()
   }
 }
 
@@ -65,11 +63,11 @@ module.exports = class RocksStorage {
   }
 
   createReadBatch () {
-    return new ReadBatch(this.db.batch())
+    return new ReadBatch(this.db.write())
   }
 
   createWriteBatch () {
-    return new WriteBatch(this.db.batch())
+    return new WriteBatch(this.db.read())
   }
 
   createTreeNodeStream (opts = {}) {

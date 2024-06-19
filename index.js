@@ -2,8 +2,6 @@ const RocksDB = require('rocksdb-native')
 const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
 
-const EMPTY = Buffer.alloc(0)
-
 const SMALL_SLAB = {
   start: 0,
   end: 65536,
@@ -20,7 +18,7 @@ class WriteBatch {
   }
 
   deleteTreeNode (index) {
-    this.batch.add(encodeIndex(node.index), EMPTY)
+    this.batch.tryDelete(encodeIndex(index))
   }
 
   flush () {
@@ -91,11 +89,12 @@ module.exports = class RocksStorage {
     return p
   }
 
-  deleteTreeNode (index) {
-    const b = this.createWriteBatch()
-    const p = b.add(encodeIndex(node.index), EMPTY)
-    b.tryFlush()
-    return p
+  async peakTreeNode (opts = {}) {
+    let last = null
+    for await (const data of this.createTreeNodeStream({ ...opts, limit: 1 })) {
+      last = data
+    }
+    return last
   }
 
   close () {
@@ -155,5 +154,3 @@ function encodeTreeNode (node) {
   c.fixed32.encode(state, node.hash)
   return state.buffer.subarray(start, state.start)
 }
-
-function noop () {}

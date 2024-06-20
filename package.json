@@ -15,7 +15,7 @@
   "dependencies": {
     "compact-encoding": "^2.15.0",
     "index-encoder": "^3.0.1",
-    "rocksdb-native": "^2.0.0"
+    "rocksdb-native": "^2.2.0"
   },
   "devDependencies": {
     "brittle": "^3.5.2",

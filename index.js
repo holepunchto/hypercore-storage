@@ -74,6 +74,16 @@ module.exports = class CoreStorage {
     return s
   }
 
+  list () {
+    const s = this.db.iterator({
+      gt: DKEYS,
+      lt: Buffer.from([DKEYS[0] + 1])
+    })
+
+    s._readableState.map = mapOnlyDiscoveryKey
+    return s
+  }
+
   ready () {
     return this.db.ready()
   }
@@ -102,10 +112,7 @@ class HypercoreStorage {
   }
 
   async open () {
-    const b = this.db.read()
-    const p = b.get(Buffer.concat([DKEYS, this.discoveryKey]))
-    b.tryFlush()
-    const val = await p
+    const val = await this.db.get(Buffer.concat([DKEYS, this.discoveryKey]))
     if (val === null) return false
     this._onopen(c.decode(m.DiscoveryKey, val))
     return true
@@ -155,11 +162,9 @@ class HypercoreStorage {
   }
 
   async peakLastTreeNode (opts = {}) {
-    let last = null
-    for await (const data of this.createTreeNodeStream({ reverse: true, limit: 1 })) {
-      last = data
-    }
-    return last
+    const last = await this.db.peek(encodeIndexRange(this.dataPrefix, { reverse: true }))
+    if (last === null) return null
+    return decodeTreeNode(last.value)
   }
 
   close () {
@@ -169,6 +174,10 @@ class HypercoreStorage {
 
 function mapStreamTreeNode (data) {
   return decodeTreeNode(data.value)
+}
+
+function mapOnlyDiscoveryKey (data) {
+  return data.key.subarray(1)
 }
 
 function ensureSmallSlab () {

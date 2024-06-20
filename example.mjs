@@ -39,3 +39,7 @@ console.log('peek')
 for await (const node of c.createTreeNodeStream({ reverse: true, limit: 1 })) {
   console.log('peak last tree node', node)
 }
+
+for await (const dkey of s.list()) {
+  console.log(dkey, '<-- dkey')
+}

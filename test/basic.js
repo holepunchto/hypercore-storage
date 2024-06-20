@@ -77,6 +77,40 @@ test('delete nodes', async function (t) {
   }
 })
 
+test('peek last tree node', async function (t) {
+  const c = await getCore(t)
+
+  {
+    const b = c.createWriteBatch()
+
+    b.addTreeNode({
+      index: 10000000,
+      hash: HASH,
+      size: 10
+    })
+
+    b.addTreeNode({
+      index: 1,
+      hash: HASH,
+      size: 10
+    })
+
+    b.addTreeNode({
+      index: 10,
+      hash: HASH,
+      size: 10
+    })
+
+    await b.flush()
+  }
+
+  {
+    const node = await c.peakLastTreeNode()
+
+    t.alike(await node, { index: 10000000, hash: HASH, size: 10 })
+  }
+})
+
 async function getCore (t) {
   const dir = await tmp(t)
 

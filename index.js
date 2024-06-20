@@ -36,6 +36,13 @@ class WriteBatch {
     this.batch.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
   }
 
+  deleteTreeNodeRange (start, end) {
+    const s = encodeIndex(this.storage.dataPrefix, start)
+    const e = encodeIndex(this.storage.dataPrefix, end)
+
+    this.batch.deleteRange(s, e)
+  }
+
   flush () {
     return this.batch.flush()
   }

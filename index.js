@@ -1,6 +1,7 @@
 const RocksDB = require('rocksdb-native')
 const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
+const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
 const DKEYS = Buffer.from([0x1])
@@ -9,23 +10,6 @@ const SMALL_SLAB = {
   start: 0,
   end: 65536,
   buffer: Buffer.allocUnsafe(65536)
-}
-
-const DiscoveryKeyRecord = {
-  preencode (state, m) {
-    c.uint.preencode(state, m.header)
-    c.uint.preencode(state, m.data)
-  },
-  encode (state, m) {
-    c.uint.encode(state, m.header)
-    c.uint.encode(state, m.data)
-  },
-  decode (state) {
-    return {
-      header: c.uint.decode(state),
-      data: c.uint.decode(state)
-    }
-  }
 }
 
 class WriteBatch {
@@ -101,7 +85,7 @@ class HypercoreStorage {
     b.tryFlush()
     const val = await p
     if (val === null) return false
-    this._onopen(c.decode(DiscoveryKeyRecord, val))
+    this._onopen(c.decode(m.DiscoveryKey, val))
     return true
   }
 
@@ -109,7 +93,7 @@ class HypercoreStorage {
     const b = this.db.write()
     const header = 16 // TODO
     const data = 16 // TODO
-    b.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(DiscoveryKeyRecord, { header, data }))
+    b.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { header, data }))
     await b.flush()
     this._onopen({ header, data })
   }
@@ -198,20 +182,12 @@ function encodeIndex (prefix, index) {
 }
 
 function decodeTreeNode (buffer) {
-  const state = { start: 0, end: buffer.byteLength, buffer }
-
-  return {
-    index: c.uint.decode(state),
-    size: c.uint.decode(state),
-    hash: c.fixed32.decode(state)
-  }
+  return m.TreeNode.decode({ start: 0, end: buffer.byteLength, buffer })
 }
 
 function encodeTreeNode (node) {
   const state = ensureSmallSlab()
   const start = state.start
-  c.uint.encode(state, node.index)
-  c.uint.encode(state, node.size)
-  c.fixed32.encode(state, node.hash)
+  m.TreeNode.encode(state, node)
   return state.buffer.subarray(start, state.start)
 }

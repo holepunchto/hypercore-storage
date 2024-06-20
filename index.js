@@ -4,6 +4,7 @@ const { UINT } = require('index-encoder')
 const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
+const META = Buffer.from([0x00])
 const DKEYS = Buffer.from([0x1])
 
 const SMALL_SLAB = {
@@ -64,6 +65,27 @@ class ReadBatch {
 module.exports = class CoreStorage {
   constructor (dir) {
     this.db = new RocksDB(dir)
+  }
+
+  // just a helper to make tests easier
+  static async clear (dir) {
+    const s = new this(dir)
+    await s.clear()
+    return s
+  }
+
+  ready () {
+    return this.db.ready()
+  }
+
+  close () {
+    return this.db.close()
+  }
+
+  async clear () {
+    const b = this.db.write()
+    b.tryDeleteRange(META, INF)
+    await b.flush()
   }
 
   get (discoveryKey) {

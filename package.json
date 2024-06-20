@@ -3,10 +3,11 @@
   "version": "0.0.2",
   "main": "index.js",
   "files": [
-    "index.js"
+    "index.js",
+    "lib/*.js"
   ],
   "scripts": {
-    "test": "standard"
+    "test": "standard && brittle test/*.js"
   },
   "author": "Holepunch",
   "license": "Apache-2.0",
@@ -15,5 +16,9 @@
     "compact-encoding": "^2.15.0",
     "index-encoder": "^3.0.1",
     "rocksdb-native": "^2.0.0"
+  },
+  "devDependencies": {
+    "brittle": "^3.5.2",
+    "test-tmp": "^1.2.1"
   }
 }

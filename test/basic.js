@@ -173,7 +173,7 @@ test('delete tree node range: no end', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.deleteTreeNodeRange(BATCH, 10244242)
+    b.deleteTreeNodeRange(BATCH, 10244242, -1)
 
     await b.flush()
   }
@@ -368,7 +368,7 @@ test('delete block range: no end', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.deleteBlockRange(BATCH, 10244242)
+    b.deleteBlockRange(BATCH, 10244242, -1)
 
     await b.flush()
   }

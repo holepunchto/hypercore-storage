@@ -112,6 +112,49 @@ test('peek last tree node', async function (t) {
   }
 })
 
+test('put blocks', async function (t) {
+  const c = await getCore(t)
+
+  const data = Buffer.alloc(32, 1)
+
+  {
+    const b = c.createWriteBatch()
+
+    b.addBlock(BATCH, 10244242, data)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+
+    const has = b.hasBlock(BATCH, 10244242)
+    const node = b.getBlock(BATCH, 10244242)
+    const treeNode = b.getTreeNode(BATCH, 10244242)
+    b.tryFlush()
+
+    t.alike(await has, true)
+    t.alike(await node, data)
+    t.alike(await treeNode, null)
+  }
+
+  {
+    const b = c.createWriteBatch()
+
+    b.deleteBlock(BATCH, 10244242)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+    const node = b.getBlock(BATCH, 10244242)
+    b.tryFlush()
+
+    t.is(await node, null)
+  }
+})
+
 async function getCore (t) {
   const dir = await tmp(t)
 

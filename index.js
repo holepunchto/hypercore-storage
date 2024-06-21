@@ -10,6 +10,8 @@ const DKEYS = Buffer.from([0x01])
 const CORE_META = 0
 const CORE_TREE = 1
 
+const META_UPDATE = 0
+
 const SLAB = {
   start: 0,
   end: 65536,
@@ -25,7 +27,7 @@ class WriteBatch {
   }
 
   setUpgrade (batch, upgrade) {
-    this.batch.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, 0), encodeUpgrade(upgrade))
+    this.batch.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
   }
 
   addTreeNode (batch, node) {
@@ -48,7 +50,7 @@ class ReadBatch {
   }
 
   async getUpgrade (batch) {
-    const buffer = await this.batch.get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, 0))
+    const buffer = await this.batch.get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE))
     return buffer === null ? null : decodeUpgrade(buffer)
   }
 

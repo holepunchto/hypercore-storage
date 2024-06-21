@@ -9,6 +9,7 @@ const DKEYS = Buffer.from([0x01])
 
 const CORE_META = 0
 const CORE_TREE = 1
+const CORE_BLOCK = 2
 
 const META_UPDATE = 0
 
@@ -28,6 +29,14 @@ class WriteBatch {
 
   setUpgrade (batch, upgrade) {
     this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
+  }
+
+  addBlock (batch, index, data) {
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index), data)
+  }
+
+  deleteBlock (batch, index) {
+    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
   }
 
   addTreeNode (batch, node) {
@@ -57,23 +66,50 @@ class ReadBatch {
   }
 
   async getUpgrade (batch) {
-    const buffer = await this.read.get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE))
-    return buffer === null ? null : decodeUpgrade(buffer)
+    return this._get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), m.Upgrade, false)
+  }
+
+  async hasBlock (batch, index) {
+    return this._has(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
+  }
+
+  async getBlock (batch, index, error) {
+    const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index)
+    const block = await this._get(key, null, error)
+
+    if (block === null && error === true) {
+      throw new Error('Node not found: ' + index)
+    }
+
+    return block
   }
 
   async hasTreeNode (batch, index) {
-    return (await this.read.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))) !== null
+    return this._has(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
   }
 
   async getTreeNode (batch, index, error) {
-    const buffer = await this.read.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+    const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index)
+    const node = this._get(key, m.TreeNode, error)
 
-    if (buffer === null) {
-      if (error === true) throw new Error('Node not found: ' + index)
-      return null
+    if (node === null && error === true) {
+      throw new Error('Node not found: ' + index)
     }
 
-    return decodeTreeNode(buffer)
+    return node
+  }
+
+  async _has (key) {
+    return (await this.read.get(key)) !== null
+  }
+
+  async _get (key, enc) {
+    const buffer = await this.read.get(key)
+    if (buffer === null) return null
+
+    if (enc) return c.decode(enc, buffer)
+
+    return buffer
   }
 
   flush () {
@@ -194,7 +230,7 @@ class HypercoreStorage {
   async peakLastTreeNode (batch, opts = {}) {
     const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), { reverse: true }))
     if (last === null) return null
-    return decodeTreeNode(last.value)
+    return c.decode(m.TreeNode, last.value)
   }
 
   close () {
@@ -203,7 +239,7 @@ class HypercoreStorage {
 }
 
 function mapStreamTreeNode (data) {
-  return decodeTreeNode(data.value)
+  return c.decode(m.TreeNode, data.value)
 }
 
 function mapOnlyDiscoveryKey (data) {
@@ -263,10 +299,6 @@ function encodeIndex (prefix, index) {
   return state.buffer.subarray(start, state.start)
 }
 
-function decodeTreeNode (buffer) {
-  return m.TreeNode.decode({ start: 0, end: buffer.byteLength, buffer })
-}
-
 function encodeTreeNode (node) {
   const state = ensureSlab(64)
   const start = state.start
@@ -279,8 +311,4 @@ function encodeUpgrade (upgrade) {
   const start = state.start
   m.Upgrade.encode(state, upgrade)
   return state.buffer.subarray(start, state.start)
-}
-
-function decodeUpgrade (buffer) {
-  return m.Upgrade.decode({ start: 0, end: buffer.byteLength, buffer })
 }

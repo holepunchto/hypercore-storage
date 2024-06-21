@@ -1,10 +1,12 @@
 const RocksDB = require('rocksdb-native')
 const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
+const RW = require('read-write-mutexify')
 const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
-const META = Buffer.from([0x00])
+
+const STORAGE_INFO = Buffer.from([0x00])
 const DKEYS = Buffer.from([0x01])
 
 const CORE_META = 0
@@ -132,6 +134,7 @@ class ReadBatch {
 module.exports = class CoreStorage {
   constructor (dir) {
     this.db = new RocksDB(dir)
+    this.mutex = new RW()
   }
 
   // just a helper to make tests easier
@@ -139,6 +142,10 @@ module.exports = class CoreStorage {
     const s = new this(dir)
     await s.clear()
     return s
+  }
+
+  info () {
+    return getStorageInfo(this.db)
   }
 
   list () {
@@ -161,18 +168,19 @@ module.exports = class CoreStorage {
 
   async clear () {
     const b = this.db.write()
-    b.tryDeleteRange(META, INF)
+    b.tryDeleteRange(STORAGE_INFO, INF)
     await b.flush()
   }
 
   get (discoveryKey) {
-    return new HypercoreStorage(this.db, discoveryKey)
+    return new HypercoreStorage(this.db, this.mutex, discoveryKey)
   }
 }
 
 class HypercoreStorage {
-  constructor (db, discoveryKey) {
+  constructor (db, mutex, discoveryKey) {
     this.db = db
+    this.mutex = mutex
     this.discoveryKey = discoveryKey
     this.authPrefix = null
     this.dataPrefix = null
@@ -186,12 +194,25 @@ class HypercoreStorage {
   }
 
   async create ({ key, manifest, localKeyPair }) {
-    const b = this.db.write()
-    const auth = 16 // TODO
-    const data = 16 // TODO
-    b.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { auth, data }))
-    await b.flush()
-    this._onopen({ auth, data })
+    await this.mutex.write.lock()
+    try {
+      const write = this.db.write()
+      const info = (await getStorageInfo(this.db)) || { free: 16, total: 0 }
+
+      const auth = info.free++
+      const data = auth // separating these only relavent for re-keying
+
+      info.total++
+
+      write.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { auth, data }))
+      write.tryPut(STORAGE_INFO, c.encode(m.StorageInfo, info))
+
+      await write.flush()
+
+      this._onopen({ auth, data })
+    } finally {
+      this.mutex.write.unlock()
+    }
   }
 
   _onopen ({ auth, data }) {
@@ -252,6 +273,12 @@ function mapStreamTreeNode (data) {
 
 function mapOnlyDiscoveryKey (data) {
   return data.key.subarray(1)
+}
+
+async function getStorageInfo (db) {
+  const value = await db.get(STORAGE_INFO)
+  if (value === null) return null
+  return c.decode(m.StorageInfo, value)
 }
 
 function ensureSlab (size) {

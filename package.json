@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "brittle": "^3.5.2",
+    "standard": "^17.1.0",
     "test-tmp": "^1.2.1"
   }
 }

@@ -170,14 +170,14 @@ class HypercoreStorage {
 
   hasTreeNode (batch, index) {
     const b = this.createReadBatch()
-    const p = b.hasTreeNode(index)
+    const p = b.hasTreeNode(batch, index)
     b.tryFlush()
     return p
   }
 
   getTreeNode (batch, index, error) {
     const b = this.createReadBatch()
-    const p = b.getTreeNode(index, error)
+    const p = b.getTreeNode(batch, index, error)
     b.tryFlush()
     return p
   }

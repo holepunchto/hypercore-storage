@@ -179,7 +179,7 @@ test('put blocks', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.addBlock(BATCH, 10244242, data)
+    b.putBlock(BATCH, 10244242, data)
 
     await b.flush()
   }
@@ -225,10 +225,10 @@ test('delete block range', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.addBlock(BATCH, 10244242, data1)
-    b.addBlock(BATCH, 10244243, data2)
-    b.addBlock(BATCH, 10244244, data3)
-    b.addBlock(BATCH, 10244245, data4)
+    b.putBlock(BATCH, 10244242, data1)
+    b.putBlock(BATCH, 10244243, data2)
+    b.putBlock(BATCH, 10244244, data3)
+    b.putBlock(BATCH, 10244245, data4)
 
     await b.flush()
   }

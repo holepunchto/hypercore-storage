@@ -31,7 +31,7 @@ class WriteBatch {
     this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
   }
 
-  addBlock (batch, index, data) {
+  putBlock (batch, index, data) {
     this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index), data)
   }
 

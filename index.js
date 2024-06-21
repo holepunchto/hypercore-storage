@@ -45,7 +45,7 @@ class WriteBatch {
     return this._deleteRange(batch, CORE_BLOCK, start, end)
   }
 
-  addTreeNode (batch, node) {
+  putTreeNode (batch, node) {
     this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
   }
 

@@ -13,13 +13,13 @@ test('basic', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.addTreeNode(BATCH, {
+    b.putTreeNode(BATCH, {
       index: 42,
       hash: HASH,
       size: 10
     })
 
-    b.addTreeNode(BATCH, {
+    b.putTreeNode(BATCH, {
       index: 43,
       hash: HASH,
       size: 2
@@ -45,7 +45,7 @@ test('delete nodes', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.addTreeNode(BATCH, {
+    b.putTreeNode(BATCH, {
       index: 10244242,
       hash: HASH,
       size: 10
@@ -87,10 +87,10 @@ test('delete tree node range', async function (t) {
 
     const b = c.createWriteBatch()
 
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
 
     await b.flush()
   }
@@ -146,10 +146,10 @@ test('delete tree node range: no end', async function (t) {
 
     const b = c.createWriteBatch()
 
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
-    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.putTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
 
     await b.flush()
   }
@@ -203,19 +203,19 @@ test('peek last tree node', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.addTreeNode(BATCH, {
+    b.putTreeNode(BATCH, {
       index: 10000000,
       hash: HASH,
       size: 10
     })
 
-    b.addTreeNode(BATCH, {
+    b.putTreeNode(BATCH, {
       index: 1,
       hash: HASH,
       size: 10
     })
 
-    b.addTreeNode(BATCH, {
+    b.putTreeNode(BATCH, {
       index: 10,
       hash: HASH,
       size: 10

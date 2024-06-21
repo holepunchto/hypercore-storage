@@ -39,6 +39,10 @@ class WriteBatch {
     this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
   }
 
+  deleteBlockRange (batch, start, end) {
+    return this._deleteRange(batch, CORE_BLOCK, start, end)
+  }
+
   addTreeNode (batch, node) {
     this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
   }
@@ -48,8 +52,12 @@ class WriteBatch {
   }
 
   deleteTreeNodeRange (batch, start, end) {
-    const s = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, start)
-    const e = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, end)
+    return this._deleteRange(batch, CORE_TREE, start, end)
+  }
+
+  _deleteRange (batch, type, start, end) {
+    const s = encodeBatchIndex(this.storage.dataPrefix, batch, type, start)
+    const e = encodeBatchIndex(this.storage.dataPrefix, batch, type, end)
 
     return this.write.deleteRange(s, e)
   }

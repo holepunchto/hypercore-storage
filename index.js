@@ -21,52 +21,52 @@ const SLAB = {
 // PREFIX + BATCH + TYPE + INDEX
 
 class WriteBatch {
-  constructor (storage, batch) {
+  constructor (storage, write) {
     this.storage = storage
-    this.batch = batch
+    this.write = write
   }
 
   setUpgrade (batch, upgrade) {
-    this.batch.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
+    this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
   }
 
   addTreeNode (batch, node) {
-    this.batch.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
   }
 
   deleteTreeNode (batch, index) {
-    this.batch.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
   }
 
   deleteTreeNodeRange (batch, start, end) {
     const s = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, start)
     const e = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, end)
 
-    return this.batch.deleteRange(s, e)
+    return this.write.deleteRange(s, e)
   }
 
   flush () {
-    return this.batch.flush()
+    return this.write.flush()
   }
 }
 
 class ReadBatch {
-  constructor (storage, batch) {
+  constructor (storage, read) {
     this.storage = storage
-    this.batch = batch
+    this.read = read
   }
 
   async getUpgrade (batch) {
-    const buffer = await this.batch.get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE))
+    const buffer = await this.read.get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE))
     return buffer === null ? null : decodeUpgrade(buffer)
   }
 
   async hasTreeNode (batch, index) {
-    return (await this.batch.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))) !== null
+    return (await this.read.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))) !== null
   }
 
   async getTreeNode (batch, index, error) {
-    const buffer = await this.batch.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+    const buffer = await this.read.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
 
     if (buffer === null) {
       if (error === true) throw new Error('Node not found: ' + index)
@@ -77,11 +77,11 @@ class ReadBatch {
   }
 
   flush () {
-    return this.batch.flush()
+    return this.read.flush()
   }
 
   tryFlush () {
-    this.batch.tryFlush()
+    this.read.tryFlush()
   }
 }
 

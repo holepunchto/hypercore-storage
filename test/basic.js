@@ -137,6 +137,65 @@ test('delete tree node range', async function (t) {
   }
 })
 
+test('delete tree node range: no end', async function (t) {
+  const c = await getCore(t)
+
+  {
+    let index = 10244242
+
+    const b = c.createWriteBatch()
+
+    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+    b.addTreeNode(BATCH, { index: index++, hash: HASH, size: 10 })
+
+    await b.flush()
+  }
+
+  {
+    let index = 10244242
+
+    const b = c.createReadBatch()
+
+    const node1 = b.getTreeNode(BATCH, index++)
+    const node2 = b.getTreeNode(BATCH, index++)
+    const node3 = b.getTreeNode(BATCH, index++)
+    const node4 = b.getTreeNode(BATCH, index++)
+    b.tryFlush()
+
+    t.alike(await node1, { index: 10244242, hash: HASH, size: 10 })
+    t.alike(await node2, { index: 10244243, hash: HASH, size: 10 })
+    t.alike(await node3, { index: 10244244, hash: HASH, size: 10 })
+    t.alike(await node4, { index: 10244245, hash: HASH, size: 10 })
+  }
+
+  {
+    const b = c.createWriteBatch()
+
+    b.deleteTreeNodeRange(BATCH, 10244242)
+
+    await b.flush()
+  }
+
+  {
+    let index = 10244242
+
+    const b = c.createReadBatch()
+
+    const node1 = b.getTreeNode(BATCH, index++)
+    const node2 = b.getTreeNode(BATCH, index++)
+    const node3 = b.getTreeNode(BATCH, index++)
+    const node4 = b.getTreeNode(BATCH, index++)
+    b.tryFlush()
+
+    t.alike(await node1, null)
+    t.alike(await node2, null)
+    t.alike(await node3, null)
+    t.alike(await node4, null)
+  }
+})
+
 test('peek last tree node', async function (t) {
   const c = await getCore(t)
 
@@ -252,6 +311,64 @@ test('delete block range', async function (t) {
     const b = c.createWriteBatch()
 
     b.deleteBlockRange(BATCH, 10244242, 10244246)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+
+    const node1 = b.getBlock(BATCH, 10244242)
+    const node2 = b.getBlock(BATCH, 10244243)
+    const node3 = b.getBlock(BATCH, 10244244)
+    const node4 = b.getBlock(BATCH, 10244245)
+    b.tryFlush()
+
+    t.alike(await node1, null)
+    t.alike(await node2, null)
+    t.alike(await node3, null)
+    t.alike(await node4, null)
+  }
+})
+
+test('delete block range: no end', async function (t) {
+  const c = await getCore(t)
+
+  const data1 = Buffer.alloc(32, 1)
+  const data2 = Buffer.alloc(32, 2)
+  const data3 = Buffer.alloc(32, 3)
+  const data4 = Buffer.alloc(32, 4)
+
+  {
+    const b = c.createWriteBatch()
+
+    b.putBlock(BATCH, 10244242, data1)
+    b.putBlock(BATCH, 10244243, data2)
+    b.putBlock(BATCH, 10244244, data3)
+    b.putBlock(BATCH, 10244245, data4)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+
+    const node1 = b.getBlock(BATCH, 10244242)
+    const node2 = b.getBlock(BATCH, 10244243)
+    const node3 = b.getBlock(BATCH, 10244244)
+    const node4 = b.getBlock(BATCH, 10244245)
+    b.tryFlush()
+
+    t.alike(await node1, data1)
+    t.alike(await node2, data2)
+    t.alike(await node3, data3)
+    t.alike(await node4, data4)
+  }
+
+  {
+    const b = c.createWriteBatch()
+
+    b.deleteBlockRange(BATCH, 10244242)
 
     await b.flush()
   }

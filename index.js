@@ -39,7 +39,7 @@ class WriteBatch {
     this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
   }
 
-  deleteBlockRange (batch, start, end) {
+  deleteBlockRange (batch, start, end = Infinity) {
     return this._deleteRange(batch, CORE_BLOCK, start, end)
   }
 
@@ -51,11 +51,15 @@ class WriteBatch {
     this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
   }
 
-  deleteTreeNodeRange (batch, start, end) {
+  deleteTreeNodeRange (batch, start, end = Infinity) {
     return this._deleteRange(batch, CORE_TREE, start, end)
   }
 
   _deleteRange (batch, type, start, end) {
+    if (start === undefined || typeof start !== 'number' || end === undefined || typeof end !== 'number') {
+      throw new Error('Invalid range')
+    }
+
     const s = encodeBatchIndex(this.storage.dataPrefix, batch, type, start)
     const e = encodeBatchIndex(this.storage.dataPrefix, batch, type, end)
 

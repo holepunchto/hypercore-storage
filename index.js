@@ -100,7 +100,7 @@ class ReadBatch {
 
   async getTreeNode (batch, index, error) {
     const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index)
-    const node = this._get(key, m.TreeNode, error)
+    const node = await this._get(key, m.TreeNode, error)
 
     if (node === null && error === true) {
       throw new Error('Node not found: ' + index)

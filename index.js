@@ -40,7 +40,7 @@ class WriteBatch {
     const s = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, start)
     const e = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, end)
 
-    this.batch.deleteRange(s, e)
+    return this.batch.deleteRange(s, e)
   }
 
   flush () {

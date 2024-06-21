@@ -5,13 +5,18 @@ const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
 const META = Buffer.from([0x00])
-const DKEYS = Buffer.from([0x1])
+const DKEYS = Buffer.from([0x01])
 
-const SMALL_SLAB = {
+const CORE_META = 0
+const CORE_TREE = 1
+
+const SLAB = {
   start: 0,
   end: 65536,
   buffer: Buffer.allocUnsafe(65536)
 }
+
+// PREFIX + BATCH + TYPE + INDEX
 
 class WriteBatch {
   constructor (storage, batch) {
@@ -19,12 +24,16 @@ class WriteBatch {
     this.batch = batch
   }
 
-  addTreeNode (node) {
-    this.batch.tryPut(encodeIndex(this.storage.dataPrefix, node.index), encodeTreeNode(node))
+  setUpgrade (batch, upgrade) {
+    this.batch.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, 0), encodeUpgrade(upgrade))
   }
 
-  deleteTreeNode (index) {
-    this.batch.tryDelete(encodeIndex(this.storage.dataPrefix, index))
+  addTreeNode (batch, node) {
+    this.batch.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
+  }
+
+  deleteTreeNode (batch, index) {
+    this.batch.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
   }
 
   flush () {
@@ -38,12 +47,17 @@ class ReadBatch {
     this.batch = batch
   }
 
-  async hasTreeNode (index) {
-    return (await this.batch.get(encodeIndex(this.storage.dataPrefix, index))) !== null
+  async getUpgrade (batch) {
+    const buffer = await this.batch.get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, 0))
+    return buffer === null ? null : decodeUpgrade(buffer)
   }
 
-  async getTreeNode (index, error) {
-    const buffer = await this.batch.get(encodeIndex(this.storage.dataPrefix, index))
+  async hasTreeNode (batch, index) {
+    return (await this.batch.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))) !== null
+  }
+
+  async getTreeNode (batch, index, error) {
+    const buffer = await this.batch.get(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
 
     if (buffer === null) {
       if (error === true) throw new Error('Node not found: ' + index)
@@ -107,7 +121,7 @@ class HypercoreStorage {
   constructor (db, discoveryKey) {
     this.db = db
     this.discoveryKey = discoveryKey
-    this.headerPrefix = null
+    this.authPrefix = null
     this.dataPrefix = null
   }
 
@@ -118,17 +132,17 @@ class HypercoreStorage {
     return true
   }
 
-  async create () {
+  async create ({ key, manifest, localKeyPair }) {
     const b = this.db.write()
-    const header = 16 // TODO
+    const auth = 16 // TODO
     const data = 16 // TODO
-    b.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { header, data }))
+    b.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { auth, data }))
     await b.flush()
-    this._onopen({ header, data })
+    this._onopen({ auth, data })
   }
 
-  _onopen ({ header, data }) {
-    this.headerPrefix = c.encode(UINT, header)
+  _onopen ({ auth, data }) {
+    this.authPrefix = c.encode(UINT, auth)
     this.dataPrefix = c.encode(UINT, data)
   }
 
@@ -140,29 +154,36 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write())
   }
 
-  createTreeNodeStream (opts = {}) {
-    const r = encodeIndexRange(this.dataPrefix, opts)
+  createTreeNodeStream (batch, opts = {}) {
+    const r = encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamTreeNode
     return s
   }
 
-  hasTreeNode (index) {
+  getUpgrade (batch) {
+    const b = this.createReadBatch()
+    const p = b.getUpgrade(batch)
+    b.tryFlush()
+    return p
+  }
+
+  hasTreeNode (batch, index) {
     const b = this.createReadBatch()
     const p = b.hasTreeNode(index)
     b.tryFlush()
     return p
   }
 
-  getTreeNode (index, error) {
+  getTreeNode (batch, index, error) {
     const b = this.createReadBatch()
     const p = b.getTreeNode(index, error)
     b.tryFlush()
     return p
   }
 
-  async peakLastTreeNode (opts = {}) {
-    const last = await this.db.peek(encodeIndexRange(this.dataPrefix, { reverse: true }))
+  async peakLastTreeNode (batch, opts = {}) {
+    const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), { reverse: true }))
     if (last === null) return null
     return decodeTreeNode(last.value)
   }
@@ -180,13 +201,13 @@ function mapOnlyDiscoveryKey (data) {
   return data.key.subarray(1)
 }
 
-function ensureSmallSlab () {
-  if (SMALL_SLAB.buffer.byteLength - SMALL_SLAB.start < 128) {
-    SMALL_SLAB.buffer = Buffer.allocUnsafe(SMALL_SLAB.end)
-    SMALL_SLAB.start = 0
+function ensureSlab (size) {
+  if (SLAB.buffer.byteLength - SLAB.start < size) {
+    SLAB.buffer = Buffer.allocUnsafe(SLAB.end)
+    SLAB.start = 0
   }
 
-  return SMALL_SLAB
+  return SLAB
 }
 
 function encodeIndexRange (prefix, opts) {
@@ -203,8 +224,29 @@ function encodeIndexRange (prefix, opts) {
   return bounded
 }
 
+function encodeBatchPrefix (prefix, batchId, type) {
+  const state = ensureSlab(128)
+  const start = state.start
+  state.buffer.set(prefix, start)
+  state.start += prefix.byteLength
+  UINT.encode(state, batchId)
+  UINT.encode(state, type)
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeBatchIndex (prefix, batchId, type, index) {
+  const state = ensureSlab(128)
+  const start = state.start
+  state.buffer.set(prefix, start)
+  state.start += prefix.byteLength
+  UINT.encode(state, batchId)
+  UINT.encode(state, type)
+  UINT.encode(state, index)
+  return state.buffer.subarray(start, state.start)
+}
+
 function encodeIndex (prefix, index) {
-  const state = ensureSmallSlab()
+  const state = ensureSlab(128)
   const start = state.start
   state.buffer.set(prefix, start)
   state.start += prefix.byteLength
@@ -217,8 +259,19 @@ function decodeTreeNode (buffer) {
 }
 
 function encodeTreeNode (node) {
-  const state = ensureSmallSlab()
+  const state = ensureSlab(64)
   const start = state.start
   m.TreeNode.encode(state, node)
   return state.buffer.subarray(start, state.start)
+}
+
+function encodeUpgrade (upgrade) {
+  const state = ensureSlab(128)
+  const start = state.start
+  m.Upgrade.encode(state, upgrade)
+  return state.buffer.subarray(start, state.start)
+}
+
+function decodeUpgrade (buffer) {
+  return m.Upgrade.decode({ start: 0, end: buffer.byteLength, buffer })
 }

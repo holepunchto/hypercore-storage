@@ -29,37 +29,37 @@ class WriteBatch {
     this.write = write
   }
 
-  setUpgrade (batch, upgrade) {
-    this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
+  setUpgrade (upgrade) {
+    this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
   }
 
-  putBlock (batch, index, data) {
-    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index), data)
+  putBlock (index, data) {
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index), data)
   }
 
-  deleteBlock (batch, index) {
-    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
+  deleteBlock (index) {
+    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index))
   }
 
-  deleteBlockRange (batch, start, end) {
-    return this._deleteRange(batch, CORE_BLOCK, start, end)
+  deleteBlockRange (start, end) {
+    return this._deleteRange(CORE_BLOCK, start, end)
   }
 
-  putTreeNode (batch, node) {
-    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
+  putTreeNode (node) {
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, node.index), encodeTreeNode(node))
   }
 
-  deleteTreeNode (batch, index) {
-    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+  deleteTreeNode (index) {
+    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, index))
   }
 
-  deleteTreeNodeRange (batch, start, end) {
-    return this._deleteRange(batch, CORE_TREE, start, end)
+  deleteTreeNodeRange (start, end) {
+    return this._deleteRange(CORE_TREE, start, end)
   }
 
-  _deleteRange (batch, type, start, end) {
-    const s = encodeBatchIndex(this.storage.dataPrefix, batch, type, start)
-    const e = encodeBatchIndex(this.storage.dataPrefix, batch, type, end === -1 ? Infinity : end)
+  _deleteRange (type, start, end) {
+    const s = encodeBatchIndex(this.storage.dataPrefix, type, start)
+    const e = encodeBatchIndex(this.storage.dataPrefix, type, end === -1 ? Infinity : end)
 
     return this.write.deleteRange(s, e)
   }
@@ -75,16 +75,16 @@ class ReadBatch {
     this.read = read
   }
 
-  async getUpgrade (batch) {
-    return this._get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), m.Upgrade, false)
+  async getUpgrade () {
+    return this._get(encodeBatchIndex(this.storage.authPrefix, CORE_META, META_UPDATE), m.Upgrade, false)
   }
 
-  async hasBlock (batch, index) {
-    return this._has(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
+  async hasBlock (index) {
+    return this._has(encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index))
   }
 
-  async getBlock (batch, index, error) {
-    const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index)
+  async getBlock (index, error) {
+    const key = encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index)
     const block = await this._get(key, null, error)
 
     if (block === null && error === true) {
@@ -94,12 +94,12 @@ class ReadBatch {
     return block
   }
 
-  async hasTreeNode (batch, index) {
-    return this._has(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+  async hasTreeNode (index) {
+    return this._has(encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, index))
   }
 
-  async getTreeNode (batch, index, error) {
-    const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index)
+  async getTreeNode (index, error) {
+    const key = encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, index)
     const node = await this._get(key, m.TreeNode, error)
 
     if (node === null && error === true) {
@@ -228,36 +228,36 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write())
   }
 
-  createTreeNodeStream (batch, opts = {}) {
-    const r = encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), opts)
+  createTreeNodeStream (opts = {}) {
+    const r = encodeIndexRange(encodeBatchPrefix(this.dataPrefix, CORE_TREE), opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamTreeNode
     return s
   }
 
-  getUpgrade (batch) {
+  getUpgrade () {
     const b = this.createReadBatch()
-    const p = b.getUpgrade(batch)
+    const p = b.getUpgrade()
     b.tryFlush()
     return p
   }
 
-  hasTreeNode (batch, index) {
+  hasTreeNode (index) {
     const b = this.createReadBatch()
-    const p = b.hasTreeNode(batch, index)
+    const p = b.hasTreeNode(index)
     b.tryFlush()
     return p
   }
 
-  getTreeNode (batch, index, error) {
+  getTreeNode (index, error) {
     const b = this.createReadBatch()
-    const p = b.getTreeNode(batch, index, error)
+    const p = b.getTreeNode(index, error)
     b.tryFlush()
     return p
   }
 
-  async peakLastTreeNode (batch, opts = {}) {
-    const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), { reverse: true }))
+  async peakLastTreeNode (opts = {}) {
+    const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, CORE_TREE), { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
   }
@@ -304,22 +304,20 @@ function encodeIndexRange (prefix, opts) {
   return bounded
 }
 
-function encodeBatchPrefix (prefix, batchId, type) {
+function encodeBatchPrefix (prefix, type) {
   const state = ensureSlab(128)
   const start = state.start
   state.buffer.set(prefix, start)
   state.start += prefix.byteLength
-  UINT.encode(state, batchId)
   UINT.encode(state, type)
   return state.buffer.subarray(start, state.start)
 }
 
-function encodeBatchIndex (prefix, batchId, type, index) {
+function encodeBatchIndex (prefix, type, index) {
   const state = ensureSlab(128)
   const start = state.start
   state.buffer.set(prefix, start)
   state.start += prefix.byteLength
-  UINT.encode(state, batchId)
   UINT.encode(state, type)
   UINT.encode(state, index)
   return state.buffer.subarray(start, state.start)

@@ -6,14 +6,56 @@ const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
 
-const STORAGE_INFO = Buffer.from([0x00])
-const DKEYS = Buffer.from([0x01])
+// <TL_INFO> = { version, free, total }
+// <TL_LOCAL_SEED> = seed
+// <TL_CORE_INFO><discovery-key-32-bytes> = { version, owner, core, data }
 
-const CORE_META = 0
-const CORE_TREE = 1
-const CORE_BLOCK = 2
+// <core><CORE_MANIFEST>        = { key, manifest? }
+// <core><CORE_LOCAL_SEED>      = seed
+// <core><CORE_ENCRYPTION_KEY>  = encryptionKey // should come later, not important initially
+// <core><CORE_HEAD><data>      = { fork, length, byteLength, signature }
+// <core><CORE_BATCHES><name>   = <data>
 
-const META_UPDATE = 0
+// <data><CORE_INFO>            = { version }
+// <data><CORE_UPDATES>         = { contiguousLength, blocks }
+// <data><CORE_DEPENDENCY       = { data, length, roots }
+// <data><CORE_HINTS>           = { reorg } // should come later, not important initially
+// <data><CORE_TREE><index>     = { index, size, hash }
+// <data><CORE_BITFIELD><index> = <4kb buffer>
+// <data><CORE_BLOCKS><index>   = <buffer>
+// <data><CORE_USER_DATA><key>  = <value>
+
+// top level prefixes
+const TL = {
+  STORAGE_INFO: 0,
+  LOCAL_SEED: 2,
+  DKEYS: 2,
+  CORE: 3,
+  DATA: 4
+}
+
+// core prefixes
+const CORE = {
+  MANIFEST: 0,
+  LOCAL_SEED: 1,
+  ENCRYPTION_KEY: 2,
+  HEAD: 3,
+  BATCHES: 4
+}
+
+// data prefixes
+const DATA = {
+  INFO: 0,
+  UPDATES: 1,
+  DEPENDENCY: 2,
+  HINTS: 3,
+  TREE: 4,
+  BITFIELD: 5,
+  BLOCK: 6,
+  USERDATA: 7
+}
+
+const UPGRADE = 0
 
 const SLAB = {
   start: 0,
@@ -30,31 +72,31 @@ class WriteBatch {
   }
 
   setUpgrade (upgrade) {
-    this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, DATA.UPDATES, UPGRADE), encodeUpgrade(upgrade))
   }
 
   putBlock (index, data) {
-    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index), data)
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, DATA.BLOCK, index), data)
   }
 
   deleteBlock (index) {
-    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index))
+    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, DATA.BLOCK, index))
   }
 
   deleteBlockRange (start, end) {
-    return this._deleteRange(CORE_BLOCK, start, end)
+    return this._deleteRange(DATA.BLOCK, start, end)
   }
 
   putTreeNode (node) {
-    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, node.index), encodeTreeNode(node))
+    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, DATA.TREE, node.index), encodeTreeNode(node))
   }
 
   deleteTreeNode (index) {
-    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, index))
+    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, DATA.TREE, index))
   }
 
   deleteTreeNodeRange (start, end) {
-    return this._deleteRange(CORE_TREE, start, end)
+    return this._deleteRange(DATA.TREE, start, end)
   }
 
   _deleteRange (type, start, end) {
@@ -76,15 +118,15 @@ class ReadBatch {
   }
 
   async getUpgrade () {
-    return this._get(encodeBatchIndex(this.storage.authPrefix, CORE_META, META_UPDATE), m.Upgrade, false)
+    return this._get(encodeBatchIndex(this.storage.dataPrefix, DATA.META, META_UPDATE), m.Upgrade, false)
   }
 
   async hasBlock (index) {
-    return this._has(encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index))
+    return this._has(encodeBatchIndex(this.storage.dataPrefix, DATA.BLOCK, index))
   }
 
   async getBlock (index, error) {
-    const key = encodeBatchIndex(this.storage.dataPrefix, CORE_BLOCK, index)
+    const key = encodeBatchIndex(this.storage.dataPrefix, DATA.BLOCK, index)
     const block = await this._get(key, null, error)
 
     if (block === null && error === true) {
@@ -95,11 +137,11 @@ class ReadBatch {
   }
 
   async hasTreeNode (index) {
-    return this._has(encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, index))
+    return this._has(encodeBatchIndex(this.storage.dataPrefix, DATA.TREE, index))
   }
 
   async getTreeNode (index, error) {
-    const key = encodeBatchIndex(this.storage.dataPrefix, CORE_TREE, index)
+    const key = encodeBatchIndex(this.storage.dataPrefix, DATA.TREE, index)
     const node = await this._get(key, m.TreeNode, error)
 
     if (node === null && error === true) {
@@ -150,8 +192,8 @@ module.exports = class CoreStorage {
 
   list () {
     const s = this.db.iterator({
-      gt: DKEYS,
-      lt: Buffer.from([DKEYS[0] + 1])
+      gt: TL.DKEYS,
+      lt: Buffer.from([TL.DKEYS + 1])
     })
 
     s._readableState.map = mapOnlyDiscoveryKey
@@ -168,7 +210,7 @@ module.exports = class CoreStorage {
 
   async clear () {
     const b = this.db.write()
-    b.tryDeleteRange(STORAGE_INFO, INF)
+    b.tryDeleteRange(TL.STORAGE_INFO, INF)
     await b.flush()
   }
 
@@ -182,42 +224,75 @@ class HypercoreStorage {
     this.db = db
     this.mutex = mutex
     this.discoveryKey = discoveryKey
-    this.authPrefix = null
+
+    this.corePrefix = null
     this.dataPrefix = null
   }
 
   async open () {
-    const val = await this.db.get(Buffer.concat([DKEYS, this.discoveryKey]))
+    const val = await this.db.get(encodeDiscoveryKey(this.discoveryKey))
     if (val === null) return false
     this._onopen(c.decode(m.DiscoveryKey, val))
     return true
   }
 
-  async create ({ key, manifest, localKeyPair }) {
+  async create ({ key, manifest, seed, encryptionKey, version }) {
+    const existing = await this.open()
+
+    if (existing) {
+      // todo: verify key/manifest etc.
+      return
+    }
+
     await this.mutex.write.lock()
     try {
       const write = this.db.write()
-      const info = (await getStorageInfo(this.db)) || { free: 16, total: 0 }
+      const info = (await getStorageInfo(this.db)) || { free: 0, total: 0 }
 
-      const auth = info.free++
-      const data = auth // separating these only relavent for re-keying
+      const core = info.total++
+      const data = info.free++
 
-      info.total++
-
-      write.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { auth, data }))
-      write.tryPut(STORAGE_INFO, c.encode(m.StorageInfo, info))
+      write.tryPut(encodeDiscoveryKey(this.discoveryKey), c.encode(m.CorePointer, { core, data }))
+      write.tryPut(TL.STORAGE_INFO, c.encode(m.StorageInfo, info))
 
       await write.flush()
 
-      this._onopen({ auth, data })
+      this._onopen({ core, data })
     } finally {
       this.mutex.write.unlock()
     }
+
+    const write = this.db.write()
+
+    this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
+    this.initialiseCoreData(write, { version })
+
+    await write.flush()
+
+    return true
   }
 
-  _onopen ({ auth, data }) {
-    this.authPrefix = c.encode(UINT, auth)
-    this.dataPrefix = c.encode(UINT, data)
+  initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
+    db.tryPut(this._core(CORE.MANIFEST), c.encode(m.CoreAuth, { key, manifest }))
+    // db.tryPut(this._core(CORE.LOCAL_SEED), c.encode(m.CoreSeed, { seed }))
+    // db.tryPut(this._core(CORE.ENCRYPTION_KEY), c.encode(m.CoreEncryptionKey, { encryptionKey }))
+  }
+
+  initialiseCoreData (db, { version }) {
+    db.tryPut(this._core(DATA.INFO), c.encode(m.DataInfo, { version }))
+  }
+
+  _onopen ({ core, data }) {
+    this.corePrefix = encodePrefix(TL.CORE, core)
+    this.dataPrefix = encodePrefix(TL.DATA, data)
+  }
+
+  _core (type) {
+    return encodeBatchPrefix(this.corePrefix, type)
+  }
+
+  _data (type) {
+    return encodeBatchPrefix(this.dataPrefix, type)
   }
 
   createReadBatch () {
@@ -229,7 +304,7 @@ class HypercoreStorage {
   }
 
   createTreeNodeStream (opts = {}) {
-    const r = encodeIndexRange(encodeBatchPrefix(this.dataPrefix, CORE_TREE), opts)
+    const r = encodeIndexRange(encodeBatchPrefix(this.dataPrefix, DATA.TREE), opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamTreeNode
     return s
@@ -257,7 +332,7 @@ class HypercoreStorage {
   }
 
   async peakLastTreeNode (opts = {}) {
-    const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, CORE_TREE), { reverse: true }))
+    const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, DATA.TREE), { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
   }
@@ -276,7 +351,7 @@ function mapOnlyDiscoveryKey (data) {
 }
 
 async function getStorageInfo (db) {
-  const value = await db.get(STORAGE_INFO)
+  const value = await db.get(TL.STORAGE_INFO)
   if (value === null) return null
   return c.decode(m.StorageInfo, value)
 }
@@ -343,5 +418,21 @@ function encodeUpgrade (upgrade) {
   const state = ensureSlab(128)
   const start = state.start
   m.Upgrade.encode(state, upgrade)
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodePrefix (prefix, pointer) {
+  const state = ensureSlab(128)
+  const start = state.start
+  UINT.encode(state, prefix)
+  UINT.encode(state, pointer)
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeDiscoveryKey (discoveryKey) {
+  const state = ensureSlab(128)
+  const start = state.start
+  UINT.encode(state, TL.DKEYS)
+  c.fixed32.encode(state, discoveryKey)
   return state.buffer.subarray(start, state.start)
 }

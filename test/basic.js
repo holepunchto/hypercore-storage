@@ -397,7 +397,7 @@ test('make two cores', async function (t) {
   if (!(await c1.open())) await c1.create({ key: DK_0 })
   if (!(await c2.open())) await c2.create({ key: DK_1 })
 
-  t.unlike(c1.corePrefix, c2.corePrefix)
+  t.unlike(c1.corePointer, c2.corePointer)
 })
 
 test('make lots of cores in parallel', async function (t) {

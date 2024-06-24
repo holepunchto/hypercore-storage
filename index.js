@@ -28,7 +28,7 @@ const INF = Buffer.from([0xff])
 // top level prefixes
 const TL = {
   STORAGE_INFO: 0,
-  LOCAL_SEED: 2,
+  LOCAL_SEED: 1,
   DKEYS: 2,
   CORE: 3,
   DATA: 4

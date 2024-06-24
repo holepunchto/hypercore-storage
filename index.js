@@ -72,7 +72,7 @@ class WriteBatch {
   }
 
   setUpgrade (upgrade) {
-    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.UPDATES, UPGRADE), c.encode(m.Upgrade, upgrade))
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.UPDATES, UPGRADE), encode(m.Upgrade, upgrade))
   }
 
   putBlock (index, data) {
@@ -88,7 +88,7 @@ class WriteBatch {
   }
 
   putTreeNode (node) {
-    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.TREE, node.index), c.encode(m.TreeNode, node))
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.TREE, node.index), encode(m.TreeNode, node))
   }
 
   deleteTreeNode (index) {
@@ -253,8 +253,8 @@ class HypercoreStorage {
       const core = info.total++
       const data = info.free++
 
-      write.tryPut(encodeDiscoveryKey(this.discoveryKey), c.encode(m.CorePointer, { core, data }))
-      write.tryPut(TL.STORAGE_INFO, c.encode(m.StorageInfo, info))
+      write.tryPut(encodeDiscoveryKey(this.discoveryKey), encode(m.CorePointer, { core, data }))
+      write.tryPut(TL.STORAGE_INFO, encode(m.StorageInfo, info))
 
       await write.flush()
 
@@ -274,13 +274,13 @@ class HypercoreStorage {
   }
 
   initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
-    db.tryPut(encodeCorePrefix(this.corePointer, CORE.MANIFEST), c.encode(m.CoreAuth, { key, manifest }))
-    // db.tryPut(encodeCorePrefix(this.corePointer, CORE.LOCAL_SEED), c.encode(m.CoreSeed, { seed }))
-    // db.tryPut(encodeCorePrefix(this.corePointer, CORE.ENCRYPTION_KEY), c.encode(m.CoreEncryptionKey, { encryptionKey }))
+    db.tryPut(encodeCorePrefix(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
+    // db.tryPut(encodeCorePrefix(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
+    // db.tryPut(encodeCorePrefix(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
   }
 
   initialiseCoreData (db, { version }) {
-    db.tryPut(encodeCorePrefix(this.corePointer, DATA.INFO), c.encode(m.DataInfo, { version }))
+    db.tryPut(encodeCorePrefix(this.corePointer, DATA.INFO), encode(m.DataInfo, { version }))
   }
 
   _onopen ({ core, data }) {
@@ -370,6 +370,24 @@ function encodeIndexRange (pointer, type, opts) {
   else bounded.lte = encodeDataIndex(pointer, type, Infinity) // infinity
 
   return bounded
+}
+
+function encode (encoding, value) {
+  let slab = 128
+  while (slab <= SLAB.end) {
+    const state = ensureSlab(slab)
+    const start = state.start
+    encoding.encode(state, value)
+    if (state.start > state.end) {
+      slab *= 2
+      continue
+    }
+
+    return state.buffer.subarray(start, state.start)
+  }
+
+  // fallback if slab is not big enough
+  return c.encode(encoding, value)
 }
 
 function encodeCorePrefix (pointer, type) {

@@ -74,8 +74,8 @@ class WriteBatch {
     this.write = write
   }
 
-  setUpgrade (upgrade) {
-    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.UPDATES, UPDATE.UPGRADE), encode(m.Upgrade, upgrade))
+  setHead (upgrade) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), encode(m.CoreHead, upgrade))
   }
 
   putBlock (index, data) {
@@ -120,8 +120,8 @@ class ReadBatch {
     this.read = read
   }
 
-  async getUpgrade () {
-    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.META, UPDATE.UPGRADE), m.Upgrade, false)
+  async getHead () {
+    return this._get(encodeCorePrefix(this.storage.dataPointer, CORE.HEAD), m.CoreHead, false)
   }
 
   async hasBlock (index) {
@@ -275,15 +275,15 @@ class HypercoreStorage {
   initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
     assert(this.corePointer >= 0)
 
-    db.tryPut(encodeCorePrefix(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
-    // db.tryPut(encodeCorePrefix(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
-    // db.tryPut(encodeCorePrefix(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
+    db.tryPut(encodeCoreIndex(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
+    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
+    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
   }
 
   initialiseCoreData (db, { version }) {
     assert(this.corePointer >= 0)
 
-    db.tryPut(encodeCorePrefix(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
+    db.tryPut(encodeCoreIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
   }
 
   _onopen ({ core, data }) {
@@ -306,9 +306,9 @@ class HypercoreStorage {
     return s
   }
 
-  getUpgrade () {
+  getHead () {
     const b = this.createReadBatch()
-    const p = b.getUpgrade()
+    const p = b.getHead()
     b.tryFlush()
     return p
   }
@@ -393,12 +393,14 @@ function encode (encoding, value) {
   return c.encode(encoding, value)
 }
 
-function encodeCorePrefix (pointer, type) {
+function encodeCoreIndex (pointer, type, index) {
   const state = ensureSlab(128)
   const start = state.start
   UINT.encode(state, TL.CORE)
   UINT.encode(state, pointer)
   UINT.encode(state, type)
+  if (index !== undefined) UINT.encode(state, index)
+
   return state.buffer.subarray(start, state.start)
 }
 
@@ -408,7 +410,8 @@ function encodeDataIndex (pointer, type, index) {
   UINT.encode(state, TL.DATA)
   UINT.encode(state, pointer)
   UINT.encode(state, type)
-  UINT.encode(state, index)
+  if (index !== undefined) UINT.encode(state, index)
+
   return state.buffer.subarray(start, state.start)
 }
 

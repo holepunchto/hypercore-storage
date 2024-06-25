@@ -256,19 +256,15 @@ class HypercoreStorage {
       write.tryPut(encodeDiscoveryKey(this.discoveryKey), encode(m.CorePointer, { core, data }))
       write.tryPut(TL.STORAGE_INFO, encode(m.StorageInfo, info))
 
+      this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
+      this.initialiseCoreData(write, { version })
+
       await write.flush()
 
       this._onopen({ core, data })
     } finally {
       this.mutex.write.unlock()
     }
-
-    const write = this.db.write()
-
-    this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
-    this.initialiseCoreData(write, { version })
-
-    await write.flush()
 
     return true
   }

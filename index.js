@@ -163,7 +163,7 @@ class ReadBatch {
     const node = await this._get(key, null, error)
 
     if (node === null && error === true) {
-      throw new Error('Node not found: ' + index)
+      throw new Error('Page not found: ' + index)
     }
 
     return node

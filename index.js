@@ -75,7 +75,7 @@ class WriteBatch {
   }
 
   setUpgrade (upgrade) {
-    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.UPDATES, UPGRADE), encode(m.Upgrade, upgrade))
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.UPDATES, UPDATE.UPGRADE), encode(m.Upgrade, upgrade))
   }
 
   putBlock (index, data) {

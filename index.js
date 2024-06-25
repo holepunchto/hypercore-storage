@@ -70,8 +70,20 @@ class WriteBatch {
     this.write = write
   }
 
-  setHead (upgrade) {
-    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), encode(m.CoreHead, upgrade))
+  setCoreHead (head) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), encode(m.CoreHead, head))
+  }
+
+  setCoreAuth ({ key, manifest }) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
+  }
+
+  setLocalKeyPair (keyPair) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED), encode(m.KeyPair, keyPair))
+  }
+
+  setEncryptionKey (encryptionKey) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY), encryptionKey)
   }
 
   putBlock (index, data) {
@@ -124,8 +136,20 @@ class ReadBatch {
     this.read = read
   }
 
-  async getHead () {
-    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead, false)
+  async getCoreHead () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead)
+  }
+
+  async getCoreAuth () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), m.CoreAuth)
+  }
+
+  async getLocalKeyPair () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED), m.KeyPair)
+  }
+
+  async getEncryptionKey () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY), null)
   }
 
   async hasBlock (index) {
@@ -134,7 +158,7 @@ class ReadBatch {
 
   async getBlock (index, error) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index)
-    const block = await this._get(key, null, error)
+    const block = await this._get(key, null)
 
     if (block === null && error === true) {
       throw new Error('Node not found: ' + index)
@@ -149,7 +173,7 @@ class ReadBatch {
 
   async getTreeNode (index, error) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.TREE, index)
-    const node = await this._get(key, m.TreeNode, error)
+    const node = await this._get(key, m.TreeNode)
 
     if (node === null && error === true) {
       throw new Error('Node not found: ' + index)
@@ -158,9 +182,26 @@ class ReadBatch {
     return node
   }
 
+  async getManifest () {
+    const key = encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST)
+    return this._get(key, m.CoreAuth)
+  }
+
+  async getLocalKeyPair () {
+    const key = encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED)
+    return this._get(key, m.KeyPair)
+
+    return keyPair
+  }
+
+  async getEncryptionKey () {
+    const key = encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY)
+    return this._get(key, null)
+  }
+
   async getBitfieldPage (index, error) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index)
-    const node = await this._get(key, null, error)
+    const node = await this._get(key, null)
 
     if (node === null && error === true) {
       throw new Error('Page not found: ' + index)
@@ -305,7 +346,7 @@ class HypercoreStorage {
   initialiseCoreData (db, { version }) {
     assert(this.corePointer >= 0)
 
-    db.tryPut(encodeCoreIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
+    db.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
   }
 
   createReadBatch () {
@@ -340,6 +381,27 @@ class HypercoreStorage {
   hasTreeNode (index) {
     const b = this.createReadBatch()
     const p = b.hasTreeNode(index)
+    b.tryFlush()
+    return p
+  }
+
+  getManifest () {
+    const b = this.createReadBatch()
+    const p = b.getManifest()
+    b.tryFlush()
+    return p
+  }
+
+  async getLocalKeyPair () {
+    const b = this.createReadBatch()
+    const p = b.getLocalKeyPair()
+    b.tryFlush()
+    return p
+  }
+
+  async getEncryptionKey () {
+    const b = this.createReadBatch()
+    const p = b.getEncryptionKey()
     b.tryFlush()
     return p
   }

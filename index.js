@@ -226,8 +226,8 @@ class HypercoreStorage {
     this.discoveryKey = discoveryKey
 
     // pointers
-    this.corePointer = null
-    this.dataPointer = null
+    this.corePointer = -1
+    this.dataPointer = -1
   }
 
   async open () {
@@ -274,13 +274,17 @@ class HypercoreStorage {
   }
 
   initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
+    assert(this.corePointer >= 0)
+
     db.tryPut(encodeCorePrefix(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
     // db.tryPut(encodeCorePrefix(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
     // db.tryPut(encodeCorePrefix(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
   }
 
   initialiseCoreData (db, { version }) {
-    db.tryPut(encodeCorePrefix(this.corePointer, DATA.INFO), encode(m.DataInfo, { version }))
+    assert(this.corePointer >= 0)
+
+    db.tryPut(encodeCorePrefix(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
   }
 
   _onopen ({ core, data }) {

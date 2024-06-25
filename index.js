@@ -2,6 +2,7 @@ const RocksDB = require('rocksdb-native')
 const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
+const assert = require('nanoassert')
 const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
@@ -55,7 +56,9 @@ const DATA = {
   USERDATA: 7
 }
 
-const UPGRADE = 0
+const UPDATE = {
+  UPGRADE: 0
+}
 
 const SLAB = {
   start: 0,
@@ -118,7 +121,7 @@ class ReadBatch {
   }
 
   async getUpgrade () {
-    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.META, META_UPDATE), m.Upgrade, false)
+    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.META, UPDATE.UPGRADE), m.Upgrade, false)
   }
 
   async hasBlock (index) {
@@ -399,15 +402,6 @@ function encodeCorePrefix (pointer, type) {
   return state.buffer.subarray(start, state.start)
 }
 
-function encodeDataPrefix (pointer, type) {
-  const state = ensureSlab(128)
-  const start = state.start
-  UINT.encode(state, TL.DATA)
-  UINT.encode(state, pointer)
-  UINT.encode(state, type)
-  return state.buffer.subarray(start, state.start)
-}
-
 function encodeDataIndex (pointer, type, index) {
   const state = ensureSlab(128)
   const start = state.start
@@ -415,14 +409,6 @@ function encodeDataIndex (pointer, type, index) {
   UINT.encode(state, pointer)
   UINT.encode(state, type)
   UINT.encode(state, index)
-  return state.buffer.subarray(start, state.start)
-}
-
-function encodePrefix (prefix, pointer) {
-  const state = ensureSlab(128)
-  const start = state.start
-  UINT.encode(state, prefix)
-  UINT.encode(state, pointer)
   return state.buffer.subarray(start, state.start)
 }
 

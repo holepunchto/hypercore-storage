@@ -195,7 +195,7 @@ module.exports = class CoreStorage {
 
   list () {
     const s = this.db.iterator({
-      gt: TL.DKEYS,
+      gt: Buffer.from([TL.DKEYS]),
       lt: Buffer.from([TL.DKEYS + 1])
     })
 
@@ -213,7 +213,7 @@ module.exports = class CoreStorage {
 
   async clear () {
     const b = this.db.write()
-    b.tryDeleteRange(TL.STORAGE_INFO, INF)
+    b.tryDeleteRange(Buffer.from([TL.STORAGE_INFO]), INF)
     await b.flush()
   }
 
@@ -236,20 +236,24 @@ class HypercoreStorage {
   async open () {
     const val = await this.db.get(encodeDiscoveryKey(this.discoveryKey))
     if (val === null) return false
-    this._onopen(c.decode(m.DiscoveryKey, val))
+
+    this.corePointer = val.core
+    this.dataPointer = val.data
+
     return true
   }
 
   async create ({ key, manifest, seed, encryptionKey, version }) {
-    const existing = await this.open()
-
-    if (existing) {
-      // todo: verify key/manifest etc.
-      return
-    }
-
     await this.mutex.write.lock()
+
     try {
+      const existing = await this.open()
+
+      if (existing) {
+        // todo: verify key/manifest etc.
+        return false
+      }
+
       const write = this.db.write()
       const info = (await getStorageInfo(this.db)) || { free: 0, total: 0 }
 
@@ -257,9 +261,10 @@ class HypercoreStorage {
       const data = info.free++
 
       write.tryPut(encodeDiscoveryKey(this.discoveryKey), encode(m.CorePointer, { core, data }))
-      write.tryPut(TL.STORAGE_INFO, encode(m.StorageInfo, info))
+      write.tryPut(Buffer.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
 
-      this._onopen({ core, data })
+      this.corePointer = core
+      this.dataPointer = data
 
       this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
       this.initialiseCoreData(write, { version })
@@ -284,11 +289,6 @@ class HypercoreStorage {
     assert(this.corePointer >= 0)
 
     db.tryPut(encodeCoreIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
-  }
-
-  _onopen ({ core, data }) {
-    this.corePointer = core
-    this.dataPointer = data
   }
 
   createReadBatch () {
@@ -347,7 +347,7 @@ function mapOnlyDiscoveryKey (data) {
 }
 
 async function getStorageInfo (db) {
-  const value = await db.get(TL.STORAGE_INFO)
+  const value = await db.get(Buffer.from([TL.STORAGE_INFO]))
   if (value === null) return null
   return c.decode(m.StorageInfo, value)
 }
@@ -376,21 +376,15 @@ function encodeIndexRange (pointer, type, opts) {
 }
 
 function encode (encoding, value) {
-  let slab = 128
-  while (slab <= SLAB.end) {
-    const state = ensureSlab(slab)
-    const start = state.start
-    encoding.encode(state, value)
-    if (state.start > state.end) {
-      slab *= 2
-      continue
-    }
+  const state = ensureSlab(128)
+  const start = state.start
+  encoding.encode(state, value)
 
-    return state.buffer.subarray(start, state.start)
+  if (state.start > state.end) {
+    throw new Error('Encoding failed')
   }
 
-  // fallback if slab is not big enough
-  return c.encode(encoding, value)
+  return state.buffer.subarray(start, state.start)
 }
 
 function encodeCoreIndex (pointer, type, index) {

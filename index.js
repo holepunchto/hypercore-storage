@@ -233,8 +233,10 @@ class HypercoreStorage {
     const val = await this.db.get(encodeDiscoveryKey(this.discoveryKey))
     if (val === null) return false
 
-    this.corePointer = val.core
-    this.dataPointer = val.data
+    const { core, data } = c.decode(m.CorePointer, val)
+
+    this.corePointer = core
+    this.dataPointer = data
 
     return true
   }

@@ -378,7 +378,7 @@ function encode (encoding, value) {
   const start = state.start
   encoding.encode(state, value)
 
-  assert(state.start > state.end)
+  assert(state.start <= state.end)
 
   return state.buffer.subarray(start, state.start)
 }

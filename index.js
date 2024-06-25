@@ -121,7 +121,7 @@ class ReadBatch {
   }
 
   async getHead () {
-    return this._get(encodeCorePrefix(this.storage.dataPointer, CORE.HEAD), m.CoreHead, false)
+    return this._get(encodeCorePrefix(this.storage.corePointer, CORE.HEAD), m.CoreHead, false)
   }
 
   async hasBlock (index) {

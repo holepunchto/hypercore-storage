@@ -56,10 +56,6 @@ const DATA = {
   USERDATA: 7
 }
 
-const UPDATE = {
-  UPGRADE: 0
-}
-
 const SLAB = {
   start: 0,
   end: 65536,
@@ -121,7 +117,7 @@ class ReadBatch {
   }
 
   async getHead () {
-    return this._get(encodeCorePrefix(this.storage.corePointer, CORE.HEAD), m.CoreHead, false)
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead, false)
   }
 
   async hasBlock (index) {
@@ -380,9 +376,7 @@ function encode (encoding, value) {
   const start = state.start
   encoding.encode(state, value)
 
-  if (state.start > state.end) {
-    throw new Error('Encoding failed')
-  }
+  assert(state.start > state.end)
 
   return state.buffer.subarray(start, state.start)
 }

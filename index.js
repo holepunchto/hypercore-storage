@@ -548,7 +548,7 @@ function encodeDataIndex (pointer, type, index) {
 }
 
 function encodeUserDataIndex (pointer, type, key) {
-  const state = ensureSlab(128 + key.byteLength)
+  const state = Buffer.alloc(128 + key.byteLength)
   const start = state.start
   UINT.encode(state, TL.DATA)
   UINT.encode(state, pointer)

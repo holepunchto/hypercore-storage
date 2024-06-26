@@ -190,15 +190,9 @@ class ReadBatch {
     return node
   }
 
-  async getBitfieldPage (index, error) {
+  async getBitfieldPage (index) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index)
-    const node = await this._get(key, null)
-
-    if (node === null && error === true) {
-      throw new Error('Page not found: ' + index)
-    }
-
-    return node
+    return this._get(key, null)
   }
 
   async _has (key) {
@@ -413,20 +407,20 @@ class HypercoreStorage {
     return p
   }
 
-  getBitfieldPage (index, error) {
+  getBitfieldPage (index) {
     const b = this.createReadBatch()
-    const p = b.getBitfieldPage(index, error)
+    const p = b.getBitfieldPage(index)
     b.tryFlush()
     return p
   }
 
-  async peakLastTreeNode (opts = {}) {
+  async peakLastTreeNode () {
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
   }
 
-  async peakLastBitfieldPage (opts = {}) {
+  async peakLastBitfieldPage () {
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, { reverse: true }))
     if (last === null) return null
     return mapStreamBitfieldPage(last)

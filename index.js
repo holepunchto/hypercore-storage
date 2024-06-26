@@ -354,9 +354,9 @@ class HypercoreStorage {
     return s
   }
 
-  getHead () {
+  getCoreHead () {
     const b = this.createReadBatch()
-    const p = b.getHead()
+    const p = b.getCoreHead()
     b.tryFlush()
     return p
   }

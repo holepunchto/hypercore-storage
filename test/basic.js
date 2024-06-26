@@ -555,16 +555,16 @@ test('user data', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.setUserData(Buffer.from('hello'), Buffer.from('world'))
-    b.setUserData(Buffer.from('hej'), Buffer.from('verden'))
+    b.setUserData('hello', Buffer.from('world'))
+    b.setUserData('hej', Buffer.from('verden'))
 
     await b.flush()
   }
 
   {
     const b = c.createReadBatch()
-    const data1 = b.getUserData(Buffer.from('hello'))
-    const data2 = b.getUserData(Buffer.from('hej'))
+    const data1 = b.getUserData('hello')
+    const data2 = b.getUserData('hej')
     b.tryFlush()
 
     t.alike(await data1, Buffer.from('world'))
@@ -574,14 +574,14 @@ test('user data', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.setUserData(Buffer.from('hello'), null)
-    b.setUserData(Buffer.from('hej'), Buffer.from('verden'))
+    b.setUserData('hello', null)
+    b.setUserData('hej', Buffer.from('verden'))
 
     await b.flush()
   }
 
-  t.alike(await c.getUserData(Buffer.from('hello')), null)
-  t.alike(await c.getUserData(Buffer.from('hej')), Buffer.from('verden'))
+  t.alike(await c.getUserData('hello'), null)
+  t.alike(await c.getUserData('hej'), Buffer.from('verden'))
 })
 
 async function getStorage (t, dir) {

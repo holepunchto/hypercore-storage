@@ -534,7 +534,7 @@ function encodeUserDataIndex (pointer, type, key) {
   UINT.encode(state, TL.DATA)
   UINT.encode(state, pointer)
   UINT.encode(state, type)
-  c.buffer.encode(state, key)
+  c.string.encode(state, key)
 
   return state.buffer.subarray(start, state.start)
 }

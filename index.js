@@ -87,6 +87,7 @@ class WriteBatch {
   }
 
   setDataInfo (info) {
+    if (info.version !== 0) throw new Error('Version > 0 is not supported')
     this.write.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, info))
   }
 
@@ -330,10 +331,10 @@ class HypercoreStorage {
     if (encryptionKey) db.setEncryptionKey(encryptionKey)
   }
 
-  initialiseCoreData (db, { version }) {
+  initialiseCoreData (db) {
     assert(this.dataPointer >= 0)
 
-    db.setDataInfo({ version })
+    db.setDataInfo({ version: 0 })
   }
 
   createReadBatch () {

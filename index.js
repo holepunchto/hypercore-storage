@@ -158,15 +158,9 @@ class ReadBatch {
     return node
   }
 
-  async getBitfieldPage (index, error) {
+  async getBitfieldPage (index) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index)
-    const node = await this._get(key, null, error)
-
-    if (node === null && error === true) {
-      throw new Error('Page not found: ' + index)
-    }
-
-    return node
+    return this._get(key, null, error)
   }
 
   async _has (key) {

@@ -88,11 +88,11 @@ class WriteBatch {
 
   setDataInfo (info) {
     if (info.version !== 0) throw new Error('Version > 0 is not supported')
-    this.write.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, info))
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.INFO), encode(m.DataInfo, info))
   }
 
   setUserData (key, value) {
-    this.write.tryPut(encodeUserDataIndex(this.dataPointer, DATA.USER_DATA, key), value)
+    this.write.tryPut(encodeUserDataIndex(this.storage.dataPointer, DATA.USER_DATA, key), value)
   }
 
   putBlock (index, data) {
@@ -162,11 +162,11 @@ class ReadBatch {
   }
 
   getDataInfo (info) {
-    return this._get(encodeDataIndex(this.dataPointer, DATA.INFO), m.DataInfo)
+    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.INFO), m.DataInfo)
   }
 
   getUserData (key) {
-    return this._get(encodeUserDataIndex(this.dataPointer, DATA.USER_DATA, key), null)
+    return this._get(encodeUserDataIndex(this.storage.dataPointer, DATA.USER_DATA, key), null)
   }
 
   async hasBlock (index) {

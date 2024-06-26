@@ -182,23 +182,6 @@ class ReadBatch {
     return node
   }
 
-  async getManifest () {
-    const key = encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST)
-    return this._get(key, m.CoreAuth)
-  }
-
-  async getLocalKeyPair () {
-    const key = encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED)
-    return this._get(key, m.KeyPair)
-
-    return keyPair
-  }
-
-  async getEncryptionKey () {
-    const key = encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY)
-    return this._get(key, null)
-  }
-
   async getBitfieldPage (index, error) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index)
     const node = await this._get(key, null)

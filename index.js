@@ -287,7 +287,7 @@ class HypercoreStorage {
     return true
   }
 
-  async create ({ key, manifest, keyPair, encryptionKey, version }) {
+  async create ({ key, manifest, keyPair, encryptionKey }) {
     await this.mutex.write.lock()
 
     try {
@@ -313,7 +313,7 @@ class HypercoreStorage {
       const batch = new WriteBatch(this, write)
 
       this.initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
-      this.initialiseCoreData(batch, { version })
+      this.initialiseCoreData(batch)
 
       await write.flush()
     } finally {

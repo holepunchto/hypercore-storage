@@ -463,7 +463,7 @@ function mapStreamUserData (data) {
 
   const key = c.string.decode(state)
 
-  return [key, data.value]
+  return { key, value: data.value }
 }
 
 function mapStreamTreeNode (data) {
@@ -548,7 +548,8 @@ function encodeDataIndex (pointer, type, index) {
 }
 
 function encodeUserDataIndex (pointer, type, key) {
-  const state = Buffer.alloc(128 + key.byteLength)
+  const end = 128 + key.length
+  const state = { start: 0, end, buffer: Buffer.alloc(end) }
   const start = state.start
   UINT.encode(state, TL.DATA)
   UINT.encode(state, pointer)

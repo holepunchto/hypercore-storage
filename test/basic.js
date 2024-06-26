@@ -572,8 +572,8 @@ test('user data', async function (t) {
   }
 
   const exp = [
-    ['hej', Buffer.from('verden')],
-    ['hello', Buffer.from('world')]
+    { key: 'hej', value: Buffer.from('verden') },
+    { key: 'hello', value: Buffer.from('world') }
   ]
 
   const userData = []

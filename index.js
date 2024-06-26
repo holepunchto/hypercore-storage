@@ -160,7 +160,7 @@ class ReadBatch {
 
   async getBitfieldPage (index) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index)
-    return this._get(key, null, error)
+    return this._get(key, null)
   }
 
   async _has (key) {

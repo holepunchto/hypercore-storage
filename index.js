@@ -2,18 +2,59 @@ const RocksDB = require('rocksdb-native')
 const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
+const assert = require('nanoassert')
 const m = require('./lib/messages')
 
 const INF = Buffer.from([0xff])
 
-const STORAGE_INFO = Buffer.from([0x00])
-const DKEYS = Buffer.from([0x01])
+// <TL_INFO> = { version, free, total }
+// <TL_LOCAL_SEED> = seed
+// <TL_CORE_INFO><discovery-key-32-bytes> = { version, owner, core, data }
 
-const CORE_META = 0
-const CORE_TREE = 1
-const CORE_BLOCK = 2
+// <core><CORE_MANIFEST>        = { key, manifest? }
+// <core><CORE_LOCAL_SEED>      = seed
+// <core><CORE_ENCRYPTION_KEY>  = encryptionKey // should come later, not important initially
+// <core><CORE_HEAD><data>      = { fork, length, byteLength, signature }
+// <core><CORE_BATCHES><name>   = <data>
 
-const META_UPDATE = 0
+// <data><CORE_INFO>            = { version }
+// <data><CORE_UPDATES>         = { contiguousLength, blocks }
+// <data><CORE_DEPENDENCY       = { data, length, roots }
+// <data><CORE_HINTS>           = { reorg } // should come later, not important initially
+// <data><CORE_TREE><index>     = { index, size, hash }
+// <data><CORE_BITFIELD><index> = <4kb buffer>
+// <data><CORE_BLOCKS><index>   = <buffer>
+// <data><CORE_USER_DATA><key>  = <value>
+
+// top level prefixes
+const TL = {
+  STORAGE_INFO: 0,
+  LOCAL_SEED: 1,
+  DKEYS: 2,
+  CORE: 3,
+  DATA: 4
+}
+
+// core prefixes
+const CORE = {
+  MANIFEST: 0,
+  LOCAL_SEED: 1,
+  ENCRYPTION_KEY: 2,
+  HEAD: 3,
+  BATCHES: 4
+}
+
+// data prefixes
+const DATA = {
+  INFO: 0,
+  UPDATES: 1,
+  DEPENDENCY: 2,
+  HINTS: 3,
+  TREE: 4,
+  BITFIELD: 5,
+  BLOCK: 6,
+  USERDATA: 7
+}
 
 const SLAB = {
   start: 0,
@@ -29,37 +70,37 @@ class WriteBatch {
     this.write = write
   }
 
-  setUpgrade (batch, upgrade) {
-    this.write.tryPut(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), encodeUpgrade(upgrade))
+  setHead (upgrade) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), encode(m.CoreHead, upgrade))
   }
 
-  putBlock (batch, index, data) {
-    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index), data)
+  putBlock (index, data) {
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index), data)
   }
 
-  deleteBlock (batch, index) {
-    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
+  deleteBlock (index) {
+    this.write.tryDelete(encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index))
   }
 
-  deleteBlockRange (batch, start, end) {
-    return this._deleteRange(batch, CORE_BLOCK, start, end)
+  deleteBlockRange (start, end) {
+    return this._deleteRange(DATA.BLOCK, start, end)
   }
 
-  putTreeNode (batch, node) {
-    this.write.tryPut(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, node.index), encodeTreeNode(node))
+  putTreeNode (node) {
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.TREE, node.index), encode(m.TreeNode, node))
   }
 
-  deleteTreeNode (batch, index) {
-    this.write.tryDelete(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+  deleteTreeNode (index) {
+    this.write.tryDelete(encodeDataIndex(this.storage.dataPointer, DATA.TREE, index))
   }
 
-  deleteTreeNodeRange (batch, start, end) {
-    return this._deleteRange(batch, CORE_TREE, start, end)
+  deleteTreeNodeRange (start, end) {
+    return this._deleteRange(DATA.TREE, start, end)
   }
 
-  _deleteRange (batch, type, start, end) {
-    const s = encodeBatchIndex(this.storage.dataPrefix, batch, type, start)
-    const e = encodeBatchIndex(this.storage.dataPrefix, batch, type, end === -1 ? Infinity : end)
+  _deleteRange (type, start, end) {
+    const s = encodeDataIndex(this.storage.dataPointer, type, start)
+    const e = encodeDataIndex(this.storage.dataPointer, type, end === -1 ? Infinity : end)
 
     return this.write.deleteRange(s, e)
   }
@@ -75,16 +116,16 @@ class ReadBatch {
     this.read = read
   }
 
-  async getUpgrade (batch) {
-    return this._get(encodeBatchIndex(this.storage.authPrefix, batch, CORE_META, META_UPDATE), m.Upgrade, false)
+  async getHead () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead, false)
   }
 
-  async hasBlock (batch, index) {
-    return this._has(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index))
+  async hasBlock (index) {
+    return this._has(encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index))
   }
 
-  async getBlock (batch, index, error) {
-    const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_BLOCK, index)
+  async getBlock (index, error) {
+    const key = encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index)
     const block = await this._get(key, null, error)
 
     if (block === null && error === true) {
@@ -94,12 +135,12 @@ class ReadBatch {
     return block
   }
 
-  async hasTreeNode (batch, index) {
-    return this._has(encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index))
+  async hasTreeNode (index) {
+    return this._has(encodeDataIndex(this.storage.dataPointer, DATA.TREE, index))
   }
 
-  async getTreeNode (batch, index, error) {
-    const key = encodeBatchIndex(this.storage.dataPrefix, batch, CORE_TREE, index)
+  async getTreeNode (index, error) {
+    const key = encodeDataIndex(this.storage.dataPointer, DATA.TREE, index)
     const node = await this._get(key, m.TreeNode, error)
 
     if (node === null && error === true) {
@@ -150,8 +191,8 @@ module.exports = class CoreStorage {
 
   list () {
     const s = this.db.iterator({
-      gt: DKEYS,
-      lt: Buffer.from([DKEYS[0] + 1])
+      gt: Buffer.from([TL.DKEYS]),
+      lt: Buffer.from([TL.DKEYS + 1])
     })
 
     s._readableState.map = mapOnlyDiscoveryKey
@@ -168,7 +209,7 @@ module.exports = class CoreStorage {
 
   async clear () {
     const b = this.db.write()
-    b.tryDeleteRange(STORAGE_INFO, INF)
+    b.tryDeleteRange(Buffer.from([TL.STORAGE_INFO]), INF)
     await b.flush()
   }
 
@@ -182,42 +223,70 @@ class HypercoreStorage {
     this.db = db
     this.mutex = mutex
     this.discoveryKey = discoveryKey
-    this.authPrefix = null
-    this.dataPrefix = null
+
+    // pointers
+    this.corePointer = -1
+    this.dataPointer = -1
   }
 
   async open () {
-    const val = await this.db.get(Buffer.concat([DKEYS, this.discoveryKey]))
+    const val = await this.db.get(encodeDiscoveryKey(this.discoveryKey))
     if (val === null) return false
-    this._onopen(c.decode(m.DiscoveryKey, val))
+
+    const { core, data } = c.decode(m.CorePointer, val)
+
+    this.corePointer = core
+    this.dataPointer = data
+
     return true
   }
 
-  async create ({ key, manifest, localKeyPair }) {
+  async create ({ key, manifest, seed, encryptionKey, version }) {
     await this.mutex.write.lock()
+
     try {
+      const existing = await this.open()
+
+      if (existing) {
+        // todo: verify key/manifest etc.
+        return false
+      }
+
       const write = this.db.write()
-      const info = (await getStorageInfo(this.db)) || { free: 16, total: 0 }
+      const info = (await getStorageInfo(this.db)) || { free: 0, total: 0 }
 
-      const auth = info.free++
-      const data = auth // separating these only relavent for re-keying
+      const core = info.total++
+      const data = info.free++
 
-      info.total++
+      write.tryPut(encodeDiscoveryKey(this.discoveryKey), encode(m.CorePointer, { core, data }))
+      write.tryPut(Buffer.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
 
-      write.tryPut(Buffer.concat([DKEYS, this.discoveryKey]), c.encode(m.DiscoveryKey, { auth, data }))
-      write.tryPut(STORAGE_INFO, c.encode(m.StorageInfo, info))
+      this.corePointer = core
+      this.dataPointer = data
+
+      this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
+      this.initialiseCoreData(write, { version })
 
       await write.flush()
-
-      this._onopen({ auth, data })
     } finally {
       this.mutex.write.unlock()
     }
+
+    return true
   }
 
-  _onopen ({ auth, data }) {
-    this.authPrefix = c.encode(UINT, auth)
-    this.dataPrefix = c.encode(UINT, data)
+  initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
+    assert(this.corePointer >= 0)
+
+    db.tryPut(encodeCoreIndex(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
+    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
+    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
+  }
+
+  initialiseCoreData (db, { version }) {
+    assert(this.corePointer >= 0)
+
+    db.tryPut(encodeCoreIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
   }
 
   createReadBatch () {
@@ -228,36 +297,36 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write())
   }
 
-  createTreeNodeStream (batch, opts = {}) {
-    const r = encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), opts)
+  createTreeNodeStream (opts = {}) {
+    const r = encodeIndexRange(this.dataPointer, DATA.TREE, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamTreeNode
     return s
   }
 
-  getUpgrade (batch) {
+  getHead () {
     const b = this.createReadBatch()
-    const p = b.getUpgrade(batch)
+    const p = b.getHead()
     b.tryFlush()
     return p
   }
 
-  hasTreeNode (batch, index) {
+  hasTreeNode (index) {
     const b = this.createReadBatch()
-    const p = b.hasTreeNode(batch, index)
+    const p = b.hasTreeNode(index)
     b.tryFlush()
     return p
   }
 
-  getTreeNode (batch, index, error) {
+  getTreeNode (index, error) {
     const b = this.createReadBatch()
-    const p = b.getTreeNode(batch, index, error)
+    const p = b.getTreeNode(index, error)
     b.tryFlush()
     return p
   }
 
-  async peakLastTreeNode (batch, opts = {}) {
-    const last = await this.db.peek(encodeIndexRange(encodeBatchPrefix(this.dataPrefix, batch, CORE_TREE), { reverse: true }))
+  async peakLastTreeNode (opts = {}) {
+    const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
   }
@@ -276,7 +345,7 @@ function mapOnlyDiscoveryKey (data) {
 }
 
 async function getStorageInfo (db) {
-  const value = await db.get(STORAGE_INFO)
+  const value = await db.get(Buffer.from([TL.STORAGE_INFO]))
   if (value === null) return null
   return c.decode(m.StorageInfo, value)
 }
@@ -290,60 +359,56 @@ function ensureSlab (size) {
   return SLAB
 }
 
-function encodeIndexRange (prefix, opts) {
+function encodeIndexRange (pointer, type, opts) {
   const bounded = { gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: opts.limit || Infinity }
 
-  if (opts.gt || opts.gt === 0) bounded.gt = encodeIndex(prefix, opts.gt)
-  else if (opts.gte) bounded.gte = encodeIndex(prefix, opts.gte)
-  else bounded.gte = encodeIndex(prefix, 0)
+  if (opts.gt || opts.gt === 0) bounded.gt = encodeDataIndex(pointer, type, opts.gt)
+  else if (opts.gte) bounded.gte = encodeDataIndex(pointer, type, opts.gte)
+  else bounded.gte = encodeDataIndex(pointer, type, 0)
 
-  if (opts.lt || opts.lt === 0) bounded.lt = encodeIndex(prefix, opts.lt)
-  else if (opts.lte) bounded.lte = encodeIndex(prefix, opts.lte)
-  else bounded.lte = Buffer.concat([prefix, INF]) // infinity
+  if (opts.lt || opts.lt === 0) bounded.lt = encodeDataIndex(pointer, type, opts.lt)
+  else if (opts.lte) bounded.lte = encodeDataIndex(pointer, type, opts.lte)
+  else bounded.lte = encodeDataIndex(pointer, type, Infinity) // infinity
 
   return bounded
 }
 
-function encodeBatchPrefix (prefix, batchId, type) {
+function encode (encoding, value) {
   const state = ensureSlab(128)
   const start = state.start
-  state.buffer.set(prefix, start)
-  state.start += prefix.byteLength
-  UINT.encode(state, batchId)
+  encoding.encode(state, value)
+
+  assert(state.start <= state.end)
+
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeCoreIndex (pointer, type, index) {
+  const state = ensureSlab(128)
+  const start = state.start
+  UINT.encode(state, TL.CORE)
+  UINT.encode(state, pointer)
   UINT.encode(state, type)
+  if (index !== undefined) UINT.encode(state, index)
+
   return state.buffer.subarray(start, state.start)
 }
 
-function encodeBatchIndex (prefix, batchId, type, index) {
+function encodeDataIndex (pointer, type, index) {
   const state = ensureSlab(128)
   const start = state.start
-  state.buffer.set(prefix, start)
-  state.start += prefix.byteLength
-  UINT.encode(state, batchId)
+  UINT.encode(state, TL.DATA)
+  UINT.encode(state, pointer)
   UINT.encode(state, type)
-  UINT.encode(state, index)
+  if (index !== undefined) UINT.encode(state, index)
+
   return state.buffer.subarray(start, state.start)
 }
 
-function encodeIndex (prefix, index) {
+function encodeDiscoveryKey (discoveryKey) {
   const state = ensureSlab(128)
   const start = state.start
-  state.buffer.set(prefix, start)
-  state.start += prefix.byteLength
-  UINT.encode(state, index)
-  return state.buffer.subarray(start, state.start)
-}
-
-function encodeTreeNode (node) {
-  const state = ensureSlab(64)
-  const start = state.start
-  m.TreeNode.encode(state, node)
-  return state.buffer.subarray(start, state.start)
-}
-
-function encodeUpgrade (upgrade) {
-  const state = ensureSlab(128)
-  const start = state.start
-  m.Upgrade.encode(state, upgrade)
+  UINT.encode(state, TL.DKEYS)
+  c.fixed32.encode(state, discoveryKey)
   return state.buffer.subarray(start, state.start)
 }

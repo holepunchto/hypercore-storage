@@ -86,6 +86,10 @@ class WriteBatch {
     this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY), encryptionKey)
   }
 
+  setDataInfo (info) {
+    this.write.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, info))
+  }
+
   putBlock (index, data) {
     this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index), data)
   }
@@ -150,6 +154,10 @@ class ReadBatch {
 
   async getEncryptionKey () {
     return this._get(encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY), null)
+  }
+
+  getDataInfo (info) {
+    return this._get(encodeDataIndex(this.dataPointer, DATA.INFO), m.DataInfo)
   }
 
   async hasBlock (index) {
@@ -284,7 +292,7 @@ class HypercoreStorage {
     return true
   }
 
-  async create ({ key, manifest, seed, encryptionKey, version }) {
+  async create ({ key, manifest, keyPair, encryptionKey, version }) {
     await this.mutex.write.lock()
 
     try {
@@ -307,8 +315,10 @@ class HypercoreStorage {
       this.corePointer = core
       this.dataPointer = data
 
-      this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
-      this.initialiseCoreData(write, { version })
+      const batch = new WriteBatch(this, write)
+
+      this.initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
+      this.initialiseCoreData(batch, { version })
 
       await write.flush()
     } finally {
@@ -318,18 +328,18 @@ class HypercoreStorage {
     return true
   }
 
-  initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
+  initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
     assert(this.corePointer >= 0)
 
-    db.tryPut(encodeCoreIndex(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
-    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
-    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
+    db.setCoreAuth({ key, manifest })
+    if (keyPair) db.setLocalKeyPair(keyPair)
+    if (encryptionKey) db.setEncryptionKey(encryptionKey)
   }
 
   initialiseCoreData (db, { version }) {
-    assert(this.corePointer >= 0)
+    assert(this.dataPointer >= 0)
 
-    db.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
+    db.setDataInfo({ version })
   }
 
   createReadBatch () {
@@ -368,21 +378,28 @@ class HypercoreStorage {
     return p
   }
 
-  getManifest () {
+  getCoreAuth () {
     const b = this.createReadBatch()
-    const p = b.getManifest()
+    const p = b.getCoreAuth()
     b.tryFlush()
     return p
   }
 
-  async getLocalKeyPair () {
+  getDataInfo () {
+    const b = this.createReadBatch()
+    const p = b.getDataInfo()
+    b.tryFlush()
+    return p
+  }
+
+  getLocalKeyPair () {
     const b = this.createReadBatch()
     const p = b.getLocalKeyPair()
     b.tryFlush()
     return p
   }
 
-  async getEncryptionKey () {
+  getEncryptionKey () {
     const b = this.createReadBatch()
     const p = b.getEncryptionKey()
     b.tryFlush()

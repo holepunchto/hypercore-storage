@@ -549,6 +549,41 @@ test('header', async function (t) {
   t.alike(await c2.getCoreHead(), head)
 })
 
+test('user data', async function (t) {
+  const c = await getCore(t)
+
+  {
+    const b = c.createWriteBatch()
+
+    b.setUserData(Buffer.from('hello'), Buffer.from('world'))
+    b.setUserData(Buffer.from('hej'), Buffer.from('verden'))
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+    const data1 = b.getUserData(Buffer.from('hello'))
+    const data2 = b.getUserData(Buffer.from('hej'))
+    b.tryFlush()
+
+    t.alike(await data1, Buffer.from('world'))
+    t.alike(await data2, Buffer.from('verden'))
+  }
+
+  {
+    const b = c.createWriteBatch()
+
+    b.setUserData(Buffer.from('hello'), null)
+    b.setUserData(Buffer.from('hej'), Buffer.from('verden'))
+
+    await b.flush()
+  }
+
+  t.alike(await c.getUserData(Buffer.from('hello')), null)
+  t.alike(await c.getUserData(Buffer.from('hej')), Buffer.from('verden'))
+})
+
 async function getStorage (t, dir) {
   if (!dir) dir = await tmp(t)
   const s = new CoreStorage(dir)

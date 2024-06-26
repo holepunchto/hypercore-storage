@@ -91,6 +91,10 @@ class WriteBatch {
     this.write.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, info))
   }
 
+  setUserData (key, value) {
+    this.write.tryPut(encodeUserDataIndex(this.dataPointer, DATA.INFO, key), value)
+  }
+
   putBlock (index, data) {
     this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index), data)
   }
@@ -159,6 +163,10 @@ class ReadBatch {
 
   getDataInfo (info) {
     return this._get(encodeDataIndex(this.dataPointer, DATA.INFO), m.DataInfo)
+  }
+
+  getUserData (key) {
+    return this._get(encodeUserDataIndex(this.dataPointer, DATA.INFO, key), null)
   }
 
   async hasBlock (index) {
@@ -387,6 +395,13 @@ class HypercoreStorage {
     return p
   }
 
+  getUserData (key) {
+    const b = this.createReadBatch()
+    const p = b.getUserData(key)
+    b.tryFlush()
+    return p
+  }
+
   getLocalKeyPair () {
     const b = this.createReadBatch()
     const p = b.getLocalKeyPair()
@@ -509,6 +524,17 @@ function encodeDataIndex (pointer, type, index) {
   UINT.encode(state, pointer)
   UINT.encode(state, type)
   if (index !== undefined) UINT.encode(state, index)
+
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeUserDataIndex (pointer, type, key) {
+  const state = ensureSlab(128 + key.byteLength)
+  const start = state.start
+  UINT.encode(state, TL.DATA)
+  UINT.encode(state, pointer)
+  UINT.encode(state, type)
+  c.buffer.encode(state, key)
 
   return state.buffer.subarray(start, state.start)
 }

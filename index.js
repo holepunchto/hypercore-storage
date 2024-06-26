@@ -70,8 +70,25 @@ class WriteBatch {
     this.write = write
   }
 
-  setHead (upgrade) {
-    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), encode(m.CoreHead, upgrade))
+  setCoreHead (head) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), encode(m.CoreHead, head))
+  }
+
+  setCoreAuth ({ key, manifest }) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
+  }
+
+  setLocalKeyPair (keyPair) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED), encode(m.KeyPair, keyPair))
+  }
+
+  setEncryptionKey (encryptionKey) {
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY), encryptionKey)
+  }
+
+  setDataInfo (info) {
+    if (info.version !== 0) throw new Error('Version > 0 is not supported')
+    this.write.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, info))
   }
 
   putBlock (index, data) {
@@ -124,8 +141,24 @@ class ReadBatch {
     this.read = read
   }
 
-  async getHead () {
-    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead, false)
+  async getCoreHead () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead)
+  }
+
+  async getCoreAuth () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), m.CoreAuth)
+  }
+
+  async getLocalKeyPair () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED), m.KeyPair)
+  }
+
+  async getEncryptionKey () {
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.ENCRYPTION_KEY), null)
+  }
+
+  getDataInfo (info) {
+    return this._get(encodeDataIndex(this.dataPointer, DATA.INFO), m.DataInfo)
   }
 
   async hasBlock (index) {
@@ -134,7 +167,7 @@ class ReadBatch {
 
   async getBlock (index, error) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index)
-    const block = await this._get(key, null, error)
+    const block = await this._get(key, null)
 
     if (block === null && error === true) {
       throw new Error('Node not found: ' + index)
@@ -149,7 +182,7 @@ class ReadBatch {
 
   async getTreeNode (index, error) {
     const key = encodeDataIndex(this.storage.dataPointer, DATA.TREE, index)
-    const node = await this._get(key, m.TreeNode, error)
+    const node = await this._get(key, m.TreeNode)
 
     if (node === null && error === true) {
       throw new Error('Node not found: ' + index)
@@ -254,7 +287,7 @@ class HypercoreStorage {
     return true
   }
 
-  async create ({ key, manifest, seed, encryptionKey, version }) {
+  async create ({ key, manifest, keyPair, encryptionKey }) {
     await this.mutex.write.lock()
 
     try {
@@ -277,8 +310,10 @@ class HypercoreStorage {
       this.corePointer = core
       this.dataPointer = data
 
-      this.initialiseCoreInfo(write, { key, manifest, seed, encryptionKey })
-      this.initialiseCoreData(write, { version })
+      const batch = new WriteBatch(this, write)
+
+      this.initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
+      this.initialiseCoreData(batch)
 
       await write.flush()
     } finally {
@@ -288,18 +323,18 @@ class HypercoreStorage {
     return true
   }
 
-  initialiseCoreInfo (db, { key, manifest, seed, encryptionKey }) {
+  initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
     assert(this.corePointer >= 0)
 
-    db.tryPut(encodeCoreIndex(this.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
-    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.LOCAL_SEED), encode(m.CoreSeed, { seed }))
-    // db.tryPut(encodeCoreIndex(this.corePointer, CORE.ENCRYPTION_KEY), encode(m.CoreEncryptionKey, { encryptionKey }))
+    db.setCoreAuth({ key, manifest })
+    if (keyPair) db.setLocalKeyPair(keyPair)
+    if (encryptionKey) db.setEncryptionKey(encryptionKey)
   }
 
-  initialiseCoreData (db, { version }) {
-    assert(this.corePointer >= 0)
+  initialiseCoreData (db) {
+    assert(this.dataPointer >= 0)
 
-    db.tryPut(encodeCoreIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, { version }))
+    db.setDataInfo({ version: 0 })
   }
 
   createReadBatch () {
@@ -324,9 +359,9 @@ class HypercoreStorage {
     return s
   }
 
-  getHead () {
+  getCoreHead () {
     const b = this.createReadBatch()
-    const p = b.getHead()
+    const p = b.getCoreHead()
     b.tryFlush()
     return p
   }
@@ -334,6 +369,34 @@ class HypercoreStorage {
   hasTreeNode (index) {
     const b = this.createReadBatch()
     const p = b.hasTreeNode(index)
+    b.tryFlush()
+    return p
+  }
+
+  getCoreAuth () {
+    const b = this.createReadBatch()
+    const p = b.getCoreAuth()
+    b.tryFlush()
+    return p
+  }
+
+  getDataInfo () {
+    const b = this.createReadBatch()
+    const p = b.getDataInfo()
+    b.tryFlush()
+    return p
+  }
+
+  getLocalKeyPair () {
+    const b = this.createReadBatch()
+    const p = b.getLocalKeyPair()
+    b.tryFlush()
+    return p
+  }
+
+  getEncryptionKey () {
+    const b = this.createReadBatch()
+    const p = b.getEncryptionKey()
     b.tryFlush()
     return p
   }

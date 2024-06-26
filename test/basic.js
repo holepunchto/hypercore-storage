@@ -504,8 +504,53 @@ test('make lots of cores in parallel', async function (t) {
   t.is(info.total, 1024)
 })
 
-async function getStorage (t) {
-  const dir = await tmp(t)
+test('header', async function (t) {
+  const dir = await tmp()
+
+  const keyPair = {
+    publicKey: Buffer.alloc(32, 0),
+    secretKey: Buffer.alloc(32, 1)
+  }
+
+  const encryptionKey = Buffer.alloc(32, 2)
+
+  const s1 = await getStorage(t, dir)
+  const c1 = s1.get(DK_0)
+
+  if (!(await c1.open())) await c1.create({ key: DK_0, keyPair, encryptionKey })
+
+  const head = {
+    fork: 1,
+    length: 2,
+    byteLength: 100099032,
+    signature: Buffer.alloc(32, 4)
+  }
+
+  const w = c1.createWriteBatch()
+  w.setCoreHead(head)
+  await w.flush()
+
+  await s1.close()
+
+  const s2 = await getStorage(t, dir)
+  const c2 = s2.get(DK_0)
+
+  t.ok(await c2.open())
+
+  const { key, manifest } = await c2.getCoreAuth()
+  const kp = await c2.getLocalKeyPair()
+  const enc = await c2.getEncryptionKey()
+
+  t.alike(key, DK_0)
+  t.alike(manifest, null)
+  t.alike(kp, keyPair)
+  t.alike(enc, encryptionKey)
+
+  t.alike(await c2.getCoreHead(), head)
+})
+
+async function getStorage (t, dir) {
+  if (!dir) dir = await tmp(t)
   const s = new CoreStorage(dir)
 
   t.teardown(() => s.close())

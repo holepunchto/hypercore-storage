@@ -53,7 +53,7 @@ const DATA = {
   TREE: 4,
   BITFIELD: 5,
   BLOCK: 6,
-  USERDATA: 7
+  USER_DATA: 7
 }
 
 const SLAB = {
@@ -88,7 +88,11 @@ class WriteBatch {
 
   setDataInfo (info) {
     if (info.version !== 0) throw new Error('Version > 0 is not supported')
-    this.write.tryPut(encodeDataIndex(this.dataPointer, DATA.INFO), encode(m.DataInfo, info))
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.INFO), encode(m.DataInfo, info))
+  }
+
+  setUserData (key, value) {
+    this.write.tryPut(encodeUserDataIndex(this.storage.dataPointer, DATA.USER_DATA, key), value)
   }
 
   putBlock (index, data) {
@@ -158,7 +162,11 @@ class ReadBatch {
   }
 
   getDataInfo (info) {
-    return this._get(encodeDataIndex(this.dataPointer, DATA.INFO), m.DataInfo)
+    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.INFO), m.DataInfo)
+  }
+
+  getUserData (key) {
+    return this._get(encodeUserDataIndex(this.storage.dataPointer, DATA.USER_DATA, key), null)
   }
 
   async hasBlock (index) {
@@ -345,6 +353,13 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write())
   }
 
+  createUserDataStream (opts = {}) {
+    const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamUserData
+    return s
+  }
+
   createTreeNodeStream (opts = {}) {
     const r = encodeIndexRange(this.dataPointer, DATA.TREE, opts)
     const s = this.db.iterator(r)
@@ -383,6 +398,13 @@ class HypercoreStorage {
   getDataInfo () {
     const b = this.createReadBatch()
     const p = b.getDataInfo()
+    b.tryFlush()
+    return p
+  }
+
+  getUserData (key) {
+    const b = this.createReadBatch()
+    const p = b.getUserData(key)
     b.tryFlush()
     return p
   }
@@ -430,6 +452,18 @@ class HypercoreStorage {
   close () {
     return this.db.close()
   }
+}
+
+function mapStreamUserData (data) {
+  const state = { start: 0, end: data.key.byteLength, buffer: data.key }
+
+  UINT.decode(state) // TL.DATA
+  UINT.decode(state) // pointer
+  UINT.decode(state) // DATA.USER_DATA
+
+  const key = c.string.decode(state)
+
+  return { key, value: data.value }
 }
 
 function mapStreamTreeNode (data) {
@@ -509,6 +543,18 @@ function encodeDataIndex (pointer, type, index) {
   UINT.encode(state, pointer)
   UINT.encode(state, type)
   if (index !== undefined) UINT.encode(state, index)
+
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeUserDataIndex (pointer, type, key) {
+  const end = 128 + key.length
+  const state = { start: 0, end, buffer: Buffer.alloc(end) }
+  const start = state.start
+  UINT.encode(state, TL.DATA)
+  UINT.encode(state, pointer)
+  UINT.encode(state, type)
+  c.string.encode(state, key)
 
   return state.buffer.subarray(start, state.start)
 }

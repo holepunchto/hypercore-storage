@@ -571,6 +571,18 @@ test('user data', async function (t) {
     t.alike(await data2, Buffer.from('verden'))
   }
 
+  const exp = [
+    ['hej', Buffer.from('verden')],
+    ['hello', Buffer.from('world')]
+  ]
+
+  const userData = []
+  for await (const e of c.createUserDataStream()) {
+    userData.push(e)
+  }
+
+  t.alike(userData, exp)
+
   {
     const b = c.createWriteBatch()
 

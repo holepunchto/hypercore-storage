@@ -353,6 +353,13 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write())
   }
 
+  createUserDataStream (opts = {}) {
+    const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamUserData
+    return s
+  }
+
   createTreeNodeStream (opts = {}) {
     const r = encodeIndexRange(this.dataPointer, DATA.TREE, opts)
     const s = this.db.iterator(r)
@@ -445,6 +452,18 @@ class HypercoreStorage {
   close () {
     return this.db.close()
   }
+}
+
+function mapStreamUserData (data) {
+  const state = { start: 0, end: data.key.byteLength, buffer: data.key }
+
+  UINT.decode(state) // TL.DATA
+  UINT.decode(state) // pointer
+  UINT.decode(state) // DATA.USER_DATA
+
+  const key = c.string.decode(state)
+
+  return [key, data.value]
 }
 
 function mapStreamTreeNode (data) {

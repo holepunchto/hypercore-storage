@@ -98,6 +98,14 @@ class WriteBatch {
     return this._deleteRange(DATA.TREE, start, end)
   }
 
+  putBitfieldPage (index, page) {
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index), page)
+  }
+
+  deleteBitfieldPage (index) {
+    this.write.tryDelete(encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index))
+  }
+
   _deleteRange (type, start, end) {
     const s = encodeDataIndex(this.storage.dataPointer, type, start)
     const e = encodeDataIndex(this.storage.dataPointer, type, end === -1 ? Infinity : end)
@@ -148,6 +156,11 @@ class ReadBatch {
     }
 
     return node
+  }
+
+  async getBitfieldPage (index) {
+    const key = encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index)
+    return this._get(key, null)
   }
 
   async _has (key) {
@@ -304,6 +317,13 @@ class HypercoreStorage {
     return s
   }
 
+  createBitfieldPageStream (opts = {}) {
+    const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamBitfieldPage
+    return s
+  }
+
   getHead () {
     const b = this.createReadBatch()
     const p = b.getHead()
@@ -325,10 +345,23 @@ class HypercoreStorage {
     return p
   }
 
-  async peakLastTreeNode (opts = {}) {
+  getBitfieldPage (index) {
+    const b = this.createReadBatch()
+    const p = b.getBitfieldPage(index)
+    b.tryFlush()
+    return p
+  }
+
+  async peakLastTreeNode () {
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
+  }
+
+  async peakLastBitfieldPage () {
+    const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, { reverse: true }))
+    if (last === null) return null
+    return mapStreamBitfieldPage(last)
   }
 
   close () {
@@ -338,6 +371,18 @@ class HypercoreStorage {
 
 function mapStreamTreeNode (data) {
   return c.decode(m.TreeNode, data.value)
+}
+
+function mapStreamBitfieldPage (data) {
+  const state = { start: 0, end: data.key.byteLength, buffer: data.key }
+
+  UINT.decode(state) // TL.DATA
+  UINT.decode(state) // pointer
+  UINT.decode(state) // DATA.BITFIELD
+
+  const index = UINT.decode(state)
+
+  return { index, page: data.value }
 }
 
 function mapOnlyDiscoveryKey (data) {

@@ -53,7 +53,7 @@ const DATA = {
   TREE: 4,
   BITFIELD: 5,
   BLOCK: 6,
-  USERDATA: 7
+  USER_DATA: 7
 }
 
 const SLAB = {
@@ -92,7 +92,7 @@ class WriteBatch {
   }
 
   setUserData (key, value) {
-    this.write.tryPut(encodeUserDataIndex(this.dataPointer, DATA.INFO, key), value)
+    this.write.tryPut(encodeUserDataIndex(this.dataPointer, DATA.USER_DATA, key), value)
   }
 
   putBlock (index, data) {
@@ -166,7 +166,7 @@ class ReadBatch {
   }
 
   getUserData (key) {
-    return this._get(encodeUserDataIndex(this.dataPointer, DATA.INFO, key), null)
+    return this._get(encodeUserDataIndex(this.dataPointer, DATA.USER_DATA, key), null)
   }
 
   async hasBlock (index) {

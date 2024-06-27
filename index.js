@@ -32,7 +32,8 @@ const TL = {
   LOCAL_SEED: 1,
   DKEYS: 2,
   CORE: 3,
-  DATA: 4
+  DATA: 4,
+  DEFAULT_KEY: 5
 }
 
 // core prefixes
@@ -276,6 +277,7 @@ class HypercoreStorage {
   constructor (db, mutex, discoveryKey) {
     this.db = db
     this.mutex = mutex
+
     this.discoveryKey = discoveryKey
 
     // pointers
@@ -284,15 +286,22 @@ class HypercoreStorage {
   }
 
   async open () {
+    if (!this.discoveryKey) {
+      const discoveryKey = await getDefaultKey(this.db)
+      if (!discoveryKey) throw new Error('No discovery key was provided')
+
+      this.discoveryKey = discoveryKey
+    }
+
     const val = await this.db.get(encodeDiscoveryKey(this.discoveryKey))
-    if (val === null) return false
+    if (val === null) return null
 
     const { core, data } = c.decode(m.CorePointer, val)
 
     this.corePointer = core
     this.dataPointer = data
 
-    return true
+    return this.getCoreInfo()
   }
 
   async create ({ key, manifest, keyPair, encryptionKey }) {
@@ -306,8 +315,16 @@ class HypercoreStorage {
         return false
       }
 
+      if (!key) throw new Error('No key was provided')
+
+      let info = await getStorageInfo(this.db)
+
       const write = this.db.write()
-      const info = (await getStorageInfo(this.db)) || { free: 0, total: 0 }
+
+      if (!info) {
+        write.tryPut(Buffer.from([TL.DEFAULT_KEY]), this.discoveryKey)
+        info = { free: 0, total: 0 }
+      }
 
       const core = info.total++
       const data = info.free++
@@ -430,6 +447,24 @@ class HypercoreStorage {
     return p
   }
 
+  async getCoreInfo () {
+    const r = this.createReadBatch()
+
+    const auth = r.getCoreAuth()
+    const localKeyPair = r.getLocalKeyPair()
+    const encryptionKey = r.getEncryptionKey()
+    const head = r.getCoreHead()
+
+    await r.flush()
+
+    return {
+      auth: await auth,
+      localKeyPair: await localKeyPair,
+      encryptionKey: await encryptionKey,
+      head: await head
+    }
+  }
+
   getBitfieldPage (index) {
     const b = this.createReadBatch()
     const p = b.getBitfieldPage(index)
@@ -484,6 +519,10 @@ function mapStreamBitfieldPage (data) {
 
 function mapOnlyDiscoveryKey (data) {
   return data.key.subarray(1)
+}
+
+async function getDefaultKey (db) {
+  return db.get(Buffer.from([TL.DEFAULT_KEY]))
 }
 
 async function getStorageInfo (db) {

@@ -289,7 +289,7 @@ class HypercoreStorage {
   async open () {
     if (!this.discoveryKey) {
       const discoveryKey = await getDefaultKey(this.db)
-      if (!discoveryKey) throw new Error('No discovery key was provided')
+      if (!discoveryKey) return null
 
       this.discoveryKey = discoveryKey
     }
@@ -305,7 +305,7 @@ class HypercoreStorage {
     return this.getCoreInfo()
   }
 
-  async create ({ key, manifest, keyPair, encryptionKey }) {
+  async create ({ key, manifest, keyPair, encryptionKey, discoveryKey }) {
     await this.mutex.write.lock()
 
     try {
@@ -315,6 +315,16 @@ class HypercoreStorage {
         // todo: verify key/manifest etc.
         return false
       }
+
+      if (this.discoveryKey && discoveryKey && !b4a.equals(this.discoveryKey, discoveryKey)) {
+        throw new Error('Discovery key does correspond')
+      }
+
+      if (!this.discoveryKey && !discoveryKey) {
+        throw new Error('No discovery key is provided')
+      }
+
+      if (!this.discoveryKey) this.discoveryKey = discoveryKey
 
       if (!key) throw new Error('No key was provided')
 

@@ -279,7 +279,7 @@ class HypercoreStorage {
     this.db = db
     this.mutex = mutex
 
-    this.discoveryKey = discoveryKey
+    this.discoveryKey = discoveryKey || null
 
     // pointers
     this.corePointer = -1

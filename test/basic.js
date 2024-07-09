@@ -488,6 +488,94 @@ test('bitfield pages', async function (t) {
   }
 })
 
+test('bitfield page: delete range', async function (t) {
+  const c = await getCore(t)
+
+  const empty = Buffer.alloc(4096)
+  const full = Buffer.alloc(4096, 0xff)
+
+  {
+    const b = c.createWriteBatch()
+
+    b.putBitfieldPage(0, empty)
+    b.putBitfieldPage(1, full)
+    b.putBitfieldPage(10244243, empty)
+    b.putBitfieldPage(10244244, full)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+
+    const page1 = b.getBitfieldPage(0)
+    const page2 = b.getBitfieldPage(1)
+    const page3 = b.getBitfieldPage(10244243)
+    const page4 = b.getBitfieldPage(10244244)
+    const pageNull = b.getBitfieldPage(2)
+    b.tryFlush()
+
+    t.alike(await page1, empty)
+    t.alike(await page2, full)
+    t.alike(await page3, empty)
+    t.alike(await page4, full)
+    t.alike(await pageNull, null)
+  }
+
+  {
+    const b = c.createWriteBatch()
+
+    b.deleteBitfieldPageRange(1, 10244244)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+
+    const page1 = b.getBitfieldPage(0)
+    const page2 = b.getBitfieldPage(1)
+    const page3 = b.getBitfieldPage(10244243)
+    const page4 = b.getBitfieldPage(10244244)
+    b.tryFlush()
+
+    t.alike(await page1, empty)
+    t.alike(await page2, null)
+    t.alike(await page3, null)
+    t.alike(await page4, full)
+  }
+
+  {
+    const b = c.createWriteBatch()
+
+    b.deleteBitfieldPageRange(0, -1)
+
+    await b.flush()
+  }
+
+  {
+    const b = c.createReadBatch()
+
+    const page1 = b.getBitfieldPage(0)
+    const page4 = b.getBitfieldPage(10244244)
+    b.tryFlush()
+
+    t.alike(await page1, null)
+    t.alike(await page4, null)
+  }
+
+  t.alike(await c.peakLastBitfieldPage(), null)
+
+  {
+    const pages = []
+    for await (const page of c.createBitfieldPageStream()) {
+      pages.push(page)
+    }
+
+    t.alike(pages, [])
+  }
+})
+
 test('make lots of cores in parallel', async function (t) {
   const s = await getStorage(t)
   const promises = []

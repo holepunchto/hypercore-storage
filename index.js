@@ -128,6 +128,10 @@ class WriteBatch {
     this.write.tryDelete(encodeDataIndex(this.storage.dataPointer, DATA.BITFIELD, index))
   }
 
+  deleteBitfieldPageRange (start, end) {
+    return this._deleteRange(DATA.BITFIELD, start, end)
+  }
+
   _deleteRange (type, start, end) {
     const s = encodeDataIndex(this.storage.dataPointer, type, start)
     const e = encodeDataIndex(this.storage.dataPointer, type, end === -1 ? Infinity : end)

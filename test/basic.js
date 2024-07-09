@@ -367,7 +367,7 @@ test('delete block range: no end', async function (t) {
   {
     const b = c.createWriteBatch()
 
-    b.deleteBlockRange(10244242, -1)
+    b.deleteBlockRange(10244243, -1)
 
     await b.flush()
   }
@@ -381,7 +381,7 @@ test('delete block range: no end', async function (t) {
     const node4 = b.getBlock(10244245)
     b.tryFlush()
 
-    t.alike(await node1, null)
+    t.alike(await node1, data1)
     t.alike(await node2, null)
     t.alike(await node3, null)
     t.alike(await node4, null)

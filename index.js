@@ -599,7 +599,7 @@ function encodeDataIndex (pointer, type, index) {
 
 function encodeUserDataIndex (pointer, type, key) {
   const end = 128 + key.length
-  const state = { start: 0, end, buffer: b4a.alloc(end) }
+  const state = { start: 0, end, buffer: b4a.allocUnsafe(end) }
   const start = state.start
   UINT.encode(state, TL.DATA)
   UINT.encode(state, pointer)

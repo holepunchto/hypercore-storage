@@ -80,6 +80,14 @@ class WriteBatch {
     this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), c.encode(m.CoreAuth, { key, manifest }))
   }
 
+  setBatchPointer (name, pointer) {
+    this.write.tryPut(encodeBatch(this.storage.corePointer, CORE.BATCHES, name), encode(m.DataPointer, pointer))
+  }
+
+  setDataDependency ({ data, length }) {
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.DEPENDENCY), encode(m.DataDependency, { data, length }))
+  }
+
   setLocalKeyPair (keyPair) {
     this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.LOCAL_SEED), encode(m.KeyPair, keyPair))
   }
@@ -575,6 +583,18 @@ function encode (encoding, value) {
   encoding.encode(state, value)
 
   assert(state.start <= state.end)
+
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeBatch (pointer, type, name) {
+  const end = 128 + name.length
+  const state = { start: 0, end, buffer: b4a.allocUnsafe(end) }
+  const start = state.start
+  UINT.encode(state, TL.CORE)
+  UINT.encode(state, pointer)
+  UINT.encode(state, type)
+  c.string.encode(state, name)
 
   return state.buffer.subarray(start, state.start)
 }

@@ -293,6 +293,8 @@ class HypercoreStorage {
 
     this.discoveryKey = discoveryKey || null
 
+    this.dependencies = []
+
     // pointers
     this.corePointer = -1
     this.dataPointer = -1
@@ -369,6 +371,44 @@ class HypercoreStorage {
     }
 
     return true
+  }
+
+  async registerBatch (name, length) {
+    // todo: make sure opened
+    const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
+    const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey)
+
+    if (existing) {
+      storage.dataPointer = c.decode(m.DataPointer, existing)
+      return storage
+    }
+
+    await this.mutex.write.lock()
+
+    try {
+      const info = await getStorageInfo(this.db)
+
+      const write = this.db.write()
+
+      storage.dataPointer = info.free++
+
+      write.tryPut(b4a.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
+
+      const batch = new WriteBatch(storage, write)
+
+      this.initialiseCoreData(batch)
+
+      batch.setDataDependency({ data: this.dataPointer, length })
+      batch.setBatchPointer(name, storage.dataPointer)
+
+      await write.flush()
+
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer)
+
+      return storage
+    } finally {
+      this.mutex.write.unlock()
+    }
   }
 
   initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
@@ -639,4 +679,18 @@ function encodeDiscoveryKey (discoveryKey) {
   UINT.encode(state, TL.DKEYS)
   c.fixed32.encode(state, discoveryKey)
   return state.buffer.subarray(start, state.start)
+}
+
+async function addDependencies (db, dataPointer) {
+  const dependencies = []
+
+  let dep = await db.get(encodeDataIndex(dataPointer, DATA.DEPENDENCY))
+  while (dep) {
+    const { data, length } = c.decode(m.DataDependency, dep)
+    dependencies.push({ data, length })
+
+    dep = await db.get(encodeDataIndex(data, DATA.DEPENDENCY))
+  }
+
+  return dependencies
 }

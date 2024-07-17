@@ -3,6 +3,7 @@ const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
 const b4a = require('b4a')
+const flat = require('flat-tree')
 const assert = require('nanoassert')
 const m = require('./lib/messages')
 
@@ -188,7 +189,12 @@ class ReadBatch {
   }
 
   async getBlock (index, error) {
-    const key = encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index)
+    const deps = this.storage.dependencies
+    const dataPointer = deps.length && index <= deps.length
+      ? deps[0].data
+      : this.storage.dataPointer
+
+    const key = encodeDataIndex(dataPointer, DATA.BLOCK, index)
     const block = await this._get(key, null)
 
     if (block === null && error === true) {
@@ -203,7 +209,12 @@ class ReadBatch {
   }
 
   async getTreeNode (index, error) {
-    const key = encodeDataIndex(this.storage.dataPointer, DATA.TREE, index)
+    const deps = this.storage.dependencies
+    const dataPointer = deps.length && flat.rightSpan(index) <= deps[0].length * 2 - 2
+      ? deps[0].data
+      : this.storage.dataPointer
+
+    const key = encodeDataIndex(dataPointer, DATA.TREE, index)
     const node = await this._get(key, m.TreeNode)
 
     if (node === null && error === true) {

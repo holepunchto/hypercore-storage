@@ -70,6 +70,8 @@ class WriteBatch {
   constructor (storage, write) {
     this.storage = storage
     this.write = write
+
+    this.userData = [] // useful to track changes associated with the batch
   }
 
   setCoreHead (head) {

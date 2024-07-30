@@ -610,7 +610,7 @@ test('header', async function (t) {
   const head = {
     fork: 1,
     length: 2,
-    byteLength: 100099032,
+    rootHash: Buffer.alloc(32, 0xff),
     signature: Buffer.alloc(32, 4)
   }
 

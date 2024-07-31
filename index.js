@@ -77,7 +77,7 @@ class WriteBatch {
   }
 
   setCoreAuth ({ key, manifest }) {
-    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), encode(m.CoreAuth, { key, manifest }))
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), c.encode(m.CoreAuth, { key, manifest }))
   }
 
   setLocalKeyPair (keyPair) {

@@ -716,6 +716,38 @@ test('reopen default core', async function (t) {
   t.alike(c2.discoveryKey, DK_0)
 })
 
+test('large manifest', async function (t) {
+  const dir = await tmp(t)
+
+  const manifest = Buffer.alloc(1000, 0xff)
+  const keyPair = {
+    publicKey: Buffer.alloc(32, 2),
+    secretKey: Buffer.alloc(32, 3)
+  }
+  const encryptionKey = Buffer.alloc(32, 4)
+
+  const s1 = await getStorage(t, dir)
+  const c1 = s1.get(DK_0)
+  if (!(await c1.open())) await c1.create({ key: DK_1, manifest, keyPair, encryptionKey })
+
+  await s1.close()
+
+  const s2 = await getStorage(t, dir)
+  const c2 = s2.get()
+
+  t.alike(await c2.open(), {
+    auth: {
+      key: DK_1,
+      manifest
+    },
+    localKeyPair: keyPair,
+    encryptionKey,
+    head: null
+  })
+
+  t.alike(c2.discoveryKey, DK_0)
+})
+
 async function getStorage (t, dir) {
   if (!dir) dir = await tmp(t)
   const s = new CoreStorage(dir)

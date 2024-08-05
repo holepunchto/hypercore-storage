@@ -16,10 +16,10 @@ const INF = b4a.from([0xff])
 // <core><CORE_MANIFEST>        = { key, manifest? }
 // <core><CORE_LOCAL_SEED>      = seed
 // <core><CORE_ENCRYPTION_KEY>  = encryptionKey // should come later, not important initially
-// <core><CORE_HEAD><data>      = { fork, length, byteLength, signature }
 // <core><CORE_BATCHES><name>   = <data>
 
 // <data><CORE_INFO>            = { version }
+// <core><CORE_HEAD><data>      = { fork, length, byteLength, signature }
 // <data><CORE_UPDATES>         = { contiguousLength, blocks }
 // <data><CORE_DEPENDENCY       = { data, length, roots }
 // <data><CORE_HINTS>           = { reorg } // should come later, not important initially
@@ -74,7 +74,7 @@ class WriteBatch {
   }
 
   setCoreHead (head) {
-    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), c.encode(m.CoreHead, head))
+    this.write.tryPut(encodeCoreIndex(this.storage.dataPointer, CORE.HEAD), c.encode(m.CoreHead, head))
   }
 
   setCoreAuth ({ key, manifest }) {
@@ -161,7 +161,7 @@ class ReadBatch {
   }
 
   async getCoreHead () {
-    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead)
+    return this._get(encodeCoreIndex(this.storage.dataPointer, CORE.HEAD), m.CoreHead)
   }
 
   async getCoreAuth () {
@@ -389,8 +389,12 @@ class HypercoreStorage {
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
     const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey)
 
+    storage.corePointer = this.corePointer
+
     if (existing) {
       storage.dataPointer = c.decode(m.DataPointer, existing)
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer)
+
       return storage
     }
 

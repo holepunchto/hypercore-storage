@@ -190,7 +190,7 @@ class ReadBatch {
 
   async getBlock (index, error) {
     const deps = this.storage.dependencies
-    const dataPointer = deps.length && index <= deps.length
+    const dataPointer = deps.length && index < deps[0].length
       ? deps[0].data
       : this.storage.dataPointer
 

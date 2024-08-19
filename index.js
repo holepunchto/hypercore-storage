@@ -189,10 +189,8 @@ class ReadBatch {
   }
 
   async getBlock (index, error) {
-    const deps = this.storage.dependencies
-    const dataPointer = deps.length && index < deps[0].length
-      ? deps[0].data
-      : this.storage.dataPointer
+    const dependency = findBlockDependency(this.storage.dependencies, index)
+    const dataPointer = dependency !== null ? dependency : this.storage.dataPointer
 
     const key = encodeDataIndex(dataPointer, DATA.BLOCK, index)
     const block = await this._get(key, null)
@@ -209,10 +207,8 @@ class ReadBatch {
   }
 
   async getTreeNode (index, error) {
-    const deps = this.storage.dependencies
-    const dataPointer = deps.length && flat.rightSpan(index) <= deps[0].length * 2 - 2
-      ? deps[0].data
-      : this.storage.dataPointer
+    const dependency = findTreeDependency(this.storage.dependencies, index)
+    const dataPointer = dependency !== null ? dependency : this.storage.dataPointer
 
     const key = encodeDataIndex(dataPointer, DATA.TREE, index)
     const node = await this._get(key, m.TreeNode)
@@ -696,16 +692,30 @@ function encodeDiscoveryKey (discoveryKey) {
   return state.buffer.subarray(start, state.start)
 }
 
-async function addDependencies (db, dataPointer) {
+async function addDependencies (db, dataPointer, treeLength) {
   const dependencies = []
 
   let dep = await db.get(encodeDataIndex(dataPointer, DATA.DEPENDENCY))
   while (dep) {
     const { data, length } = c.decode(m.DataDependency, dep)
-    dependencies.push({ data, length })
+    if (length <= treeLength) dependencies.push({ data, length })
 
     dep = await db.get(encodeDataIndex(data, DATA.DEPENDENCY))
   }
 
   return dependencies
+}
+
+function findBlockDependency (dependencies, index) {
+  for (const { data, length } of dependencies) {
+    if (index < length) return data
+  }
+  return null
+}
+
+function findTreeDependency (dependencies, index) {
+  for (const { data, length } of dependencies) {
+    if (flat.rightSpan(index) <= (length - 1) * 2) return data
+  }
+  return null
 }

@@ -311,6 +311,10 @@ module.exports = class CoreStorage {
     await b.flush()
   }
 
+  async has (discoveryKey) {
+    return !!(await this.db.get(encodeDiscoveryKey(discoveryKey)))
+  }
+
   get (discoveryKey) {
     return new HypercoreStorage(this.db, this.mutex, discoveryKey)
   }

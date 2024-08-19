@@ -591,7 +591,7 @@ class HypercoreStorage {
   }
 
   close () {
-    return this.db.close()
+    // return this.db.close()
   }
 }
 

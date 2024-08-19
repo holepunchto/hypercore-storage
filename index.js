@@ -260,6 +260,29 @@ module.exports = class CoreStorage {
     return s
   }
 
+  async setLocalSeed (seed, overwrite) {
+    if (!overwrite) {
+      const existing = await getLocalSeed(this.db)
+      if (existing) return b4a.equals(existing, seed)
+    }
+
+    await this.mutex.write.lock()
+
+    try {
+      const b = this.db.write()
+      b.tryPut(b4a.from([TL.LOCAL_SEED], seed))
+      await b.flush()
+
+      return true
+    } finally {
+      this.mutex.write.unlock()
+    }
+  }
+
+  getLocalSeed () {
+    return getLocalSeed(this.db)
+  }
+
   info () {
     return getStorageInfo(this.db)
   }
@@ -597,6 +620,10 @@ function mapOnlyDiscoveryKey (data) {
 
 async function getDefaultKey (db) {
   return db.get(b4a.from([TL.DEFAULT_KEY]))
+}
+
+async function getLocalSeed (db) {
+  return db.get(b4a.from([TL.LOCAL_SEED]))
 }
 
 async function getStorageInfo (db) {

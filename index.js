@@ -43,20 +43,20 @@ const CORE = {
   MANIFEST: 0,
   LOCAL_SEED: 1,
   ENCRYPTION_KEY: 2,
-  HEAD: 3,
-  BATCHES: 4
+  BATCHES:3
 }
 
 // data prefixes
 const DATA = {
   INFO: 0,
-  UPDATES: 1,
-  DEPENDENCY: 2,
-  HINTS: 3,
-  TREE: 4,
-  BITFIELD: 5,
-  BLOCK: 6,
-  USER_DATA: 7
+  HEAD: 1,
+  UPDATES: 2,
+  DEPENDENCY: 3,
+  HINTS: 4,
+  TREE: 5,
+  BITFIELD: 6,
+  BLOCK: 7,
+  USER_DATA: 8
 }
 
 const SLAB = {
@@ -74,7 +74,7 @@ class WriteBatch {
   }
 
   setCoreHead (head) {
-    this.write.tryPut(encodeCoreIndex(this.storage.dataPointer, CORE.HEAD), c.encode(m.CoreHead, head))
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.HEAD), c.encode(m.CoreHead, head))
   }
 
   setCoreAuth ({ key, manifest }) {
@@ -161,7 +161,7 @@ class ReadBatch {
   }
 
   async getCoreHead () {
-    return this._get(encodeCoreIndex(this.storage.dataPointer, CORE.HEAD), m.CoreHead)
+    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.HEAD), m.CoreHead)
   }
 
   async getCoreAuth () {

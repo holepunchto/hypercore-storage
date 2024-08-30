@@ -407,7 +407,7 @@ class HypercoreStorage {
     return true
   }
 
-  async registerBatch (name, length) {
+  async registerBatch (name, length, overwrite) {
     // todo: make sure opened
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
     const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey)
@@ -417,11 +417,10 @@ class HypercoreStorage {
     await this.mutex.write.lock()
 
     try {
-      if (existing) {
+      if (existing && !overwrite) {
         storage.dataPointer = c.decode(m.DataPointer, existing)
 
         const batch = storage.createWriteBatch()
-        batch.setDataDependency({ data: this.dataPointer, length })
         await batch.flush()
 
         storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)

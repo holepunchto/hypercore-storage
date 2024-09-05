@@ -16,10 +16,10 @@ const INF = b4a.from([0xff])
 // <core><CORE_MANIFEST>        = { key, manifest? }
 // <core><CORE_LOCAL_SEED>      = seed
 // <core><CORE_ENCRYPTION_KEY>  = encryptionKey // should come later, not important initially
+// <core><CORE_HEAD><data>      = { fork, length, byteLength, signature }
 // <core><CORE_BATCHES><name>   = <data>
 
 // <data><CORE_INFO>            = { version }
-// <core><CORE_HEAD><data>      = { fork, length, byteLength, signature }
 // <data><CORE_UPDATES>         = { contiguousLength, blocks }
 // <data><CORE_DEPENDENCY       = { data, length, roots }
 // <data><CORE_HINTS>           = { reorg } // should come later, not important initially
@@ -43,20 +43,20 @@ const CORE = {
   MANIFEST: 0,
   LOCAL_SEED: 1,
   ENCRYPTION_KEY: 2,
-  BATCHES:3
+  HEAD: 3,
+  BATCHES: 4
 }
 
 // data prefixes
 const DATA = {
   INFO: 0,
-  HEAD: 1,
-  UPDATES: 2,
-  DEPENDENCY: 3,
-  HINTS: 4,
-  TREE: 5,
-  BITFIELD: 6,
-  BLOCK: 7,
-  USER_DATA: 8
+  UPDATES: 1,
+  DEPENDENCY: 2,
+  HINTS: 3,
+  TREE: 4,
+  BITFIELD: 5,
+  BLOCK: 6,
+  USER_DATA: 7
 }
 
 const SLAB = {
@@ -74,7 +74,7 @@ class WriteBatch {
   }
 
   setCoreHead (head) {
-    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.HEAD), c.encode(m.CoreHead, head))
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD, this.storage.dataPointer), c.encode(m.CoreHead, head))
   }
 
   setCoreAuth ({ key, manifest }) {
@@ -161,7 +161,7 @@ class ReadBatch {
   }
 
   async getCoreHead () {
-    return this._get(encodeDataIndex(this.storage.dataPointer, DATA.HEAD), m.CoreHead)
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD, this.storage.dataPointer), m.CoreHead)
   }
 
   async getCoreAuth () {

@@ -251,6 +251,7 @@ module.exports = class CoreStorage {
   constructor (dir, { autoClose = true } = {}) {
     this.db = new RocksDB(dir)
     this.mutex = new RW()
+    this.autoClose = !!autoClose
 
     this.sessions = 0
   }
@@ -322,7 +323,7 @@ module.exports = class CoreStorage {
   }
 
   _onclose () {
-    if (!this.autoClose || --this.sessions > 0) return Promise.resolve()
+    if (--this.sessions > 0 || !this.autoClose) return Promise.resolve()
     return this.db.close()
   }
 }

@@ -590,6 +590,7 @@ class HypercoreStorage {
   }
 
   close () {
+    // todo: should prob close if we are the only storage
     // return this.db.close()
   }
 }

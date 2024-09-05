@@ -385,6 +385,13 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write())
   }
 
+  createBlockStream (opts = {}) {
+    const r = encodeIndexRange(this.dataPointer, DATA.BLOCK, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamBlock
+    return s
+  }
+
   createUserDataStream (opts = {}) {
     const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, opts)
     const s = this.db.iterator(r)
@@ -530,6 +537,17 @@ function mapStreamBitfieldPage (data) {
   const index = UINT.decode(state)
 
   return { index, page: data.value }
+}
+
+function mapStreamBlock (data) {
+  const state = { start: 0, end: data.key.byteLength, buffer: data.key }
+
+  UINT.decode(state) // TL.DATA
+  UINT.decode(state) // pointer
+  UINT.decode(state) // DATA.BITFIELD
+
+  const index = UINT.decode(state)
+  return { index, value: data.value }
 }
 
 function mapOnlyDiscoveryKey (data) {

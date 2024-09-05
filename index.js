@@ -3,6 +3,7 @@ const c = require('compact-encoding')
 const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
 const b4a = require('b4a')
+const flat = require('flat-tree')
 const assert = require('nanoassert')
 const m = require('./lib/messages')
 
@@ -73,11 +74,19 @@ class WriteBatch {
   }
 
   setCoreHead (head) {
-    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), c.encode(m.CoreHead, head))
+    this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.HEAD, this.storage.dataPointer), c.encode(m.CoreHead, head))
   }
 
   setCoreAuth ({ key, manifest }) {
     this.write.tryPut(encodeCoreIndex(this.storage.corePointer, CORE.MANIFEST), c.encode(m.CoreAuth, { key, manifest }))
+  }
+
+  setBatchPointer (name, pointer) {
+    this.write.tryPut(encodeBatch(this.storage.corePointer, CORE.BATCHES, name), encode(m.DataPointer, pointer))
+  }
+
+  setDataDependency ({ data, length }) {
+    this.write.tryPut(encodeDataIndex(this.storage.dataPointer, DATA.DEPENDENCY), encode(m.DataDependency, { data, length }))
   }
 
   setLocalKeyPair (keyPair) {
@@ -152,7 +161,7 @@ class ReadBatch {
   }
 
   async getCoreHead () {
-    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD), m.CoreHead)
+    return this._get(encodeCoreIndex(this.storage.corePointer, CORE.HEAD, this.storage.dataPointer), m.CoreHead)
   }
 
   async getCoreAuth () {
@@ -180,7 +189,10 @@ class ReadBatch {
   }
 
   async getBlock (index, error) {
-    const key = encodeDataIndex(this.storage.dataPointer, DATA.BLOCK, index)
+    const dependency = findBlockDependency(this.storage.dependencies, index)
+    const dataPointer = dependency !== null ? dependency : this.storage.dataPointer
+
+    const key = encodeDataIndex(dataPointer, DATA.BLOCK, index)
     const block = await this._get(key, null)
 
     if (block === null && error === true) {
@@ -195,7 +207,10 @@ class ReadBatch {
   }
 
   async getTreeNode (index, error) {
-    const key = encodeDataIndex(this.storage.dataPointer, DATA.TREE, index)
+    const dependency = findTreeDependency(this.storage.dependencies, index)
+    const dataPointer = dependency !== null ? dependency : this.storage.dataPointer
+
+    const key = encodeDataIndex(dataPointer, DATA.TREE, index)
     const node = await this._get(key, m.TreeNode)
 
     if (node === null && error === true) {
@@ -245,6 +260,29 @@ module.exports = class CoreStorage {
     return s
   }
 
+  async setLocalSeed (seed, overwrite) {
+    if (!overwrite) {
+      const existing = await getLocalSeed(this.db)
+      if (existing) return b4a.equals(existing, seed)
+    }
+
+    await this.mutex.write.lock()
+
+    try {
+      const b = this.db.write()
+      b.tryPut(b4a.from([TL.LOCAL_SEED], seed))
+      await b.flush()
+
+      return true
+    } finally {
+      this.mutex.write.unlock()
+    }
+  }
+
+  getLocalSeed () {
+    return getLocalSeed(this.db)
+  }
+
   info () {
     return getStorageInfo(this.db)
   }
@@ -273,6 +311,10 @@ module.exports = class CoreStorage {
     await b.flush()
   }
 
+  async has (discoveryKey) {
+    return !!(await this.db.get(encodeDiscoveryKey(discoveryKey)))
+  }
+
   get (discoveryKey) {
     return new HypercoreStorage(this.db, this.mutex, discoveryKey)
   }
@@ -284,6 +326,8 @@ class HypercoreStorage {
     this.mutex = mutex
 
     this.discoveryKey = discoveryKey || null
+
+    this.dependencies = []
 
     // pointers
     this.corePointer = -1
@@ -361,6 +405,48 @@ class HypercoreStorage {
     }
 
     return true
+  }
+
+  async registerBatch (name, length, overwrite) {
+    // todo: make sure opened
+    const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
+    const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey)
+
+    storage.corePointer = this.corePointer
+
+    if (existing && !overwrite) {
+      storage.dataPointer = c.decode(m.DataPointer, existing)
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
+
+      return storage
+    }
+
+    await this.mutex.write.lock()
+
+    try {
+      const info = await getStorageInfo(this.db)
+
+      const write = this.db.write()
+
+      storage.dataPointer = info.free++
+
+      write.tryPut(b4a.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
+
+      const batch = new WriteBatch(storage, write)
+
+      this.initialiseCoreData(batch)
+
+      batch.setDataDependency({ data: this.dataPointer, length })
+      batch.setBatchPointer(name, storage.dataPointer)
+
+      await write.flush()
+
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
+
+      return storage
+    } finally {
+      this.mutex.write.unlock()
+    }
   }
 
   initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
@@ -512,7 +598,8 @@ class HypercoreStorage {
   }
 
   close () {
-    return this.db.close()
+    // todo: should prob close if we are the only storage
+    // return this.db.close()
   }
 }
 
@@ -563,6 +650,10 @@ async function getDefaultKey (db) {
   return db.get(b4a.from([TL.DEFAULT_KEY]))
 }
 
+async function getLocalSeed (db) {
+  return db.get(b4a.from([TL.LOCAL_SEED]))
+}
+
 async function getStorageInfo (db) {
   const value = await db.get(b4a.from([TL.STORAGE_INFO]))
   if (value === null) return null
@@ -598,6 +689,18 @@ function encode (encoding, value) {
   encoding.encode(state, value)
 
   assert(state.start <= state.end)
+
+  return state.buffer.subarray(start, state.start)
+}
+
+function encodeBatch (pointer, type, name) {
+  const end = 128 + name.length
+  const state = { start: 0, end, buffer: b4a.allocUnsafe(end) }
+  const start = state.start
+  UINT.encode(state, TL.CORE)
+  UINT.encode(state, pointer)
+  UINT.encode(state, type)
+  c.string.encode(state, name)
 
   return state.buffer.subarray(start, state.start)
 }
@@ -642,4 +745,32 @@ function encodeDiscoveryKey (discoveryKey) {
   UINT.encode(state, TL.DKEYS)
   c.fixed32.encode(state, discoveryKey)
   return state.buffer.subarray(start, state.start)
+}
+
+async function addDependencies (db, dataPointer, treeLength) {
+  const dependencies = []
+
+  let dep = await db.get(encodeDataIndex(dataPointer, DATA.DEPENDENCY))
+  while (dep) {
+    const { data, length } = c.decode(m.DataDependency, dep)
+    if (length <= treeLength) dependencies.push({ data, length })
+
+    dep = await db.get(encodeDataIndex(data, DATA.DEPENDENCY))
+  }
+
+  return dependencies
+}
+
+function findBlockDependency (dependencies, index) {
+  for (const { data, length } of dependencies) {
+    if (index < length) return data
+  }
+  return null
+}
+
+function findTreeDependency (dependencies, index) {
+  for (const { data, length } of dependencies) {
+    if (flat.rightSpan(index) <= (length - 1) * 2) return data
+  }
+  return null
 }

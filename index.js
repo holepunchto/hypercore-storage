@@ -316,14 +316,15 @@ module.exports = class CoreStorage {
   }
 
   get (discoveryKey) {
-    return new HypercoreStorage(this.db, this.mutex, discoveryKey)
+    return new HypercoreStorage(this.db, this.mutex, discoveryKey, this)
   }
 }
 
 class HypercoreStorage {
-  constructor (db, mutex, discoveryKey) {
+  constructor (db, mutex, discoveryKey, root) {
     this.db = db
     this.mutex = mutex
+    this.root = root || null
 
     this.discoveryKey = discoveryKey || null
 
@@ -410,7 +411,7 @@ class HypercoreStorage {
   async registerBatch (name, length, overwrite) {
     // todo: make sure opened
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
-    const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey)
+    const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey, this)
 
     storage.corePointer = this.corePointer
 
@@ -598,8 +599,7 @@ class HypercoreStorage {
   }
 
   close () {
-    // todo: should prob close if we are the only storage
-    // return this.db.close()
+    if (this.root === null) return this.db.close()
   }
 }
 

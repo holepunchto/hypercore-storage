@@ -318,7 +318,7 @@ module.exports = class CoreStorage {
   }
 
   get (discoveryKey) {
-    return new HypercoreStorage(this, this.mutex, discoveryKey)
+    return new HypercoreStorage(this, discoveryKey)
   }
 
   _onclose () {
@@ -328,10 +328,10 @@ module.exports = class CoreStorage {
 }
 
 class HypercoreStorage {
-  constructor (root, mutex, discoveryKey) {
+  constructor (root, discoveryKey) {
     this.root = root
     this.db = root.db
-    this.mutex = mutex
+    this.mutex = root.mutex
 
     this.root.sessions++
 
@@ -422,7 +422,7 @@ class HypercoreStorage {
   async registerBatch (name, length, overwrite) {
     // todo: make sure opened
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
-    const storage = new HypercoreStorage(this.root, this.mutex, this.discoveryKey)
+    const storage = new HypercoreStorage(this.root, this.discoveryKey)
 
     storage.corePointer = this.corePointer
 

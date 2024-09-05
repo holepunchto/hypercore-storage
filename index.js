@@ -414,20 +414,16 @@ class HypercoreStorage {
 
     storage.corePointer = this.corePointer
 
+    if (existing && !overwrite) {
+      storage.dataPointer = c.decode(m.DataPointer, existing)
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
+
+      return storage
+    }
+
     await this.mutex.write.lock()
 
     try {
-      if (existing && !overwrite) {
-        storage.dataPointer = c.decode(m.DataPointer, existing)
-
-        const batch = storage.createWriteBatch()
-        await batch.flush()
-
-        storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
-
-        return storage
-      }
-
       const info = await getStorageInfo(this.db)
 
       const write = this.db.write()

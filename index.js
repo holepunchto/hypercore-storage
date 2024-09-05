@@ -251,6 +251,8 @@ module.exports = class CoreStorage {
   constructor (dir) {
     this.db = new RocksDB(dir)
     this.mutex = new RW()
+
+    this._sessions = 0
   }
 
   // just a helper to make tests easier
@@ -318,13 +320,20 @@ module.exports = class CoreStorage {
   get (discoveryKey) {
     return new HypercoreStorage(this.db, this.mutex, discoveryKey, this)
   }
+
+  _onclose () {
+    if (--this._sessions > 0) return
+    return this.db.close()
+  }
 }
 
 class HypercoreStorage {
   constructor (db, mutex, discoveryKey, root) {
     this.db = db
     this.mutex = mutex
-    this.root = root || null
+
+    this.root = root
+    this.root._sessions++
 
     this.discoveryKey = discoveryKey || null
 
@@ -411,7 +420,7 @@ class HypercoreStorage {
   async registerBatch (name, length, overwrite) {
     // todo: make sure opened
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
-    const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey, this)
+    const storage = new HypercoreStorage(this.db, this.mutex, this.discoveryKey, this.root)
 
     storage.corePointer = this.corePointer
 
@@ -599,7 +608,10 @@ class HypercoreStorage {
   }
 
   close () {
-    if (this.root === null) return this.db.close()
+    if (this.closed) return
+    this.closed = true
+
+    return this.root._onclose()
   }
 }
 

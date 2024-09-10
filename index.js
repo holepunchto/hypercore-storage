@@ -585,7 +585,7 @@ class HypercoreStorage {
 
     return {
       auth: await auth,
-      localKeyPair: await localKeyPair,
+      keyPair: await localKeyPair,
       encryptionKey: await encryptionKey,
       head: await head
     }

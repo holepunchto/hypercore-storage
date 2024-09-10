@@ -611,7 +611,7 @@ test('header', async function (t) {
     fork: 1,
     length: 2,
     rootHash: Buffer.alloc(32, 0xff),
-    signature: Buffer.alloc(32, 4)
+    signature: Buffer.alloc(32, 4) // signature is arbitrary length
   }
 
   const w = c1.createWriteBatch()

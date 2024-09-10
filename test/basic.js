@@ -597,7 +597,7 @@ test('header', async function (t) {
 
   const keyPair = {
     publicKey: Buffer.alloc(32, 0),
-    secretKey: Buffer.alloc(32, 1)
+    secretKey: Buffer.alloc(64, 1)
   }
 
   const encryptionKey = Buffer.alloc(32, 2)
@@ -611,7 +611,7 @@ test('header', async function (t) {
     fork: 1,
     length: 2,
     rootHash: Buffer.alloc(32, 0xff),
-    signature: Buffer.alloc(32, 4)
+    signature: Buffer.alloc(32, 4) // signature is arbitrary length
   }
 
   const w = c1.createWriteBatch()
@@ -690,7 +690,7 @@ test('reopen default core', async function (t) {
   const manifest = Buffer.from('manifest')
   const keyPair = {
     publicKey: Buffer.alloc(32, 2),
-    secretKey: Buffer.alloc(32, 3)
+    secretKey: Buffer.alloc(64, 3)
   }
   const encryptionKey = Buffer.alloc(32, 4)
 
@@ -708,7 +708,7 @@ test('reopen default core', async function (t) {
       key: DK_1,
       manifest
     },
-    localKeyPair: keyPair,
+    keyPair,
     encryptionKey,
     head: null
   })
@@ -722,7 +722,7 @@ test('large manifest', async function (t) {
   const manifest = Buffer.alloc(1000, 0xff)
   const keyPair = {
     publicKey: Buffer.alloc(32, 2),
-    secretKey: Buffer.alloc(32, 3)
+    secretKey: Buffer.alloc(64, 3)
   }
   const encryptionKey = Buffer.alloc(32, 4)
 
@@ -740,7 +740,7 @@ test('large manifest', async function (t) {
       key: DK_1,
       manifest
     },
-    localKeyPair: keyPair,
+    keyPair,
     encryptionKey,
     head: null
   })

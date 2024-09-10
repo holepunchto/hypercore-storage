@@ -708,7 +708,7 @@ test('reopen default core', async function (t) {
       key: DK_1,
       manifest
     },
-    keyPair: keyPair,
+    keyPair,
     encryptionKey,
     head: null
   })
@@ -740,7 +740,7 @@ test('large manifest', async function (t) {
       key: DK_1,
       manifest
     },
-    keyPair: keyPair,
+    keyPair,
     encryptionKey,
     head: null
   })

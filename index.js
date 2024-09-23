@@ -149,6 +149,10 @@ class WriteBatch {
     return this.write.deleteRange(s, e)
   }
 
+  destroy () {
+    this.write.destroy()
+  }
+
   flush () {
     return this.write.flush()
   }
@@ -236,6 +240,10 @@ class ReadBatch {
     if (enc) return c.decode(enc, buffer)
 
     return buffer
+  }
+
+  destroy () {
+    this.read.destroy()
   }
 
   flush () {

@@ -625,16 +625,17 @@ test('header', async function (t) {
 
   t.ok(await c2.open())
 
-  const { key, manifest } = await c2.getCoreAuth()
-  const kp = await c2.getLocalKeyPair()
-  const enc = await c2.getEncryptionKey()
+  const batch = c2.createReadBatch()
+  const auth = batch.getCoreAuth()
+  const kp = batch.getLocalKeyPair()
+  const enc = batch.getEncryptionKey()
 
-  t.alike(key, DK_0)
-  t.alike(manifest, null)
-  t.alike(kp, keyPair)
-  t.alike(enc, encryptionKey)
+  await batch.flush()
 
-  t.alike(await c2.getCoreHead(), head)
+  t.alike((await auth).key, DK_0)
+  t.alike((await auth).manifest, null)
+  t.alike(await kp, keyPair)
+  t.alike(await enc, encryptionKey)
 })
 
 test('user data', async function (t) {
@@ -680,8 +681,13 @@ test('user data', async function (t) {
     await b.flush()
   }
 
-  t.alike(await c.getUserData('hello'), null)
-  t.alike(await c.getUserData('hej'), Buffer.from('verden'))
+  const batch = c.createReadBatch()
+  const [a, b] = [batch.getUserData('hello'), batch.getUserData('hej')]
+
+  await batch.flush()
+
+  t.alike(await a, null)
+  t.alike(await b, Buffer.from('verden'))
 })
 
 test('reopen default core', async function (t) {

@@ -371,7 +371,7 @@ class HypercoreStorage {
     this.corePointer = core
     this.dataPointer = data
 
-    return this.getCoreInfo()
+    return getCoreInfo(this)
   }
 
   async create ({ key, manifest, keyPair, encryptionKey, discoveryKey }) {
@@ -485,19 +485,27 @@ class HypercoreStorage {
   }
 
   snapshot () {
+    assert(this.closed === false)
+
     return this.db.snapshot()
   }
 
   createReadBatch (opts) {
+    assert(this.closed === false)
+
     const snapshot = opts && opts.snapshot
     return new ReadBatch(this, this.db.read({ snapshot }))
   }
 
   createWriteBatch () {
+    assert(this.closed === false)
+
     return new WriteBatch(this, this.db.write())
   }
 
   createBlockStream (opts = {}) {
+    assert(this.closed === false)
+
     const r = encodeIndexRange(this.dataPointer, DATA.BLOCK, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamBlock
@@ -505,6 +513,8 @@ class HypercoreStorage {
   }
 
   createUserDataStream (opts = {}) {
+    assert(this.closed === false)
+
     const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamUserData
@@ -512,6 +522,8 @@ class HypercoreStorage {
   }
 
   createTreeNodeStream (opts = {}) {
+    assert(this.closed === false)
+
     const r = encodeIndexRange(this.dataPointer, DATA.TREE, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamTreeNode
@@ -519,100 +531,25 @@ class HypercoreStorage {
   }
 
   createBitfieldPageStream (opts = {}) {
+    assert(this.closed === false)
+
     const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamBitfieldPage
     return s
   }
 
-  getCoreHead () {
-    const b = this.createReadBatch()
-    const p = b.getCoreHead()
-    b.tryFlush()
-    return p
-  }
-
-  hasTreeNode (index) {
-    const b = this.createReadBatch()
-    const p = b.hasTreeNode(index)
-    b.tryFlush()
-    return p
-  }
-
-  getCoreAuth () {
-    const b = this.createReadBatch()
-    const p = b.getCoreAuth()
-    b.tryFlush()
-    return p
-  }
-
-  getDataInfo () {
-    const b = this.createReadBatch()
-    const p = b.getDataInfo()
-    b.tryFlush()
-    return p
-  }
-
-  getUserData (key) {
-    const b = this.createReadBatch()
-    const p = b.getUserData(key)
-    b.tryFlush()
-    return p
-  }
-
-  getLocalKeyPair () {
-    const b = this.createReadBatch()
-    const p = b.getLocalKeyPair()
-    b.tryFlush()
-    return p
-  }
-
-  getEncryptionKey () {
-    const b = this.createReadBatch()
-    const p = b.getEncryptionKey()
-    b.tryFlush()
-    return p
-  }
-
-  getTreeNode (index, error) {
-    const b = this.createReadBatch()
-    const p = b.getTreeNode(index, error)
-    b.tryFlush()
-    return p
-  }
-
-  async getCoreInfo () {
-    const r = this.createReadBatch()
-
-    const auth = r.getCoreAuth()
-    const localKeyPair = r.getLocalKeyPair()
-    const encryptionKey = r.getEncryptionKey()
-    const head = r.getCoreHead()
-
-    await r.flush()
-
-    return {
-      auth: await auth,
-      keyPair: await localKeyPair,
-      encryptionKey: await encryptionKey,
-      head: await head
-    }
-  }
-
-  getBitfieldPage (index) {
-    const b = this.createReadBatch()
-    const p = b.getBitfieldPage(index)
-    b.tryFlush()
-    return p
-  }
-
   async peakLastTreeNode () {
+    assert(this.closed === false)
+
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
   }
 
   async peakLastBitfieldPage () {
+    assert(this.closed === false)
+
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, { reverse: true }))
     if (last === null) return null
     return mapStreamBitfieldPage(last)
@@ -796,4 +733,22 @@ function findTreeDependency (dependencies, index) {
     if (flat.rightSpan(index) <= (length - 1) * 2) return data
   }
   return null
+}
+
+async function getCoreInfo (storage) {
+  const r = storage.createReadBatch()
+
+  const auth = r.getCoreAuth()
+  const localKeyPair = r.getLocalKeyPair()
+  const encryptionKey = r.getEncryptionKey()
+  const head = r.getCoreHead()
+
+  await r.flush()
+
+  return {
+    auth: await auth,
+    keyPair: await localKeyPair,
+    encryptionKey: await encryptionKey,
+    head: await head
+  }
 }

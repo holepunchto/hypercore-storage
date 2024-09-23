@@ -273,7 +273,7 @@ module.exports = class CoreStorage {
 
     try {
       const b = this.db.write()
-      b.tryPut(b4a.from([TL.LOCAL_SEED], seed))
+      b.tryPut(b4a.from([TL.LOCAL_SEED]), seed)
       await b.flush()
 
       return true
@@ -324,7 +324,7 @@ module.exports = class CoreStorage {
 
   _onclose () {
     if (--this.sessions > 0 || !this.autoClose) return Promise.resolve()
-    return this.db.close()
+    return this.close()
   }
 }
 

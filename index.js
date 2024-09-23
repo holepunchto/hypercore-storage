@@ -324,7 +324,7 @@ module.exports = class CoreStorage {
 
   _onclose () {
     if (--this.sessions > 0 || !this.autoClose) return Promise.resolve()
-    return this.db.close()
+    return this.close()
   }
 }
 

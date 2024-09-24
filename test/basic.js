@@ -391,11 +391,11 @@ test('delete block range: no end', async function (t) {
 test('make two cores', async function (t) {
   const s = await getStorage(t)
 
-  const c1 = s.get(DK_0)
-  const c2 = s.get(DK_1)
+  let c1 = await s.resume(DK_0)
+  let c2 = s.resume(DK_1)
 
-  if (!(await c1.open())) await c1.create({ key: DK_0 })
-  if (!(await c2.open())) await c2.create({ key: DK_1 })
+  if (c1 === null) c1 = await s.create({ key: DK_0, discoveryKey: DK_0 })
+  if (c2 === null) c2 = await s.create({ key: DK_1, discoveryKey: DK_1 })
 
   t.unlike(c1.corePointer, c2.corePointer)
 })
@@ -582,8 +582,7 @@ test('make lots of cores in parallel', async function (t) {
 
   for (let i = 0; i < 1024; i++) {
     const key = Buffer.alloc(32).fill('#' + i)
-    const c = s.get(key)
-    promises.push(c.create({ key }))
+    promises.push(s.create({ key, discoveryKey: key }))
   }
 
   await Promise.all(promises)
@@ -603,9 +602,7 @@ test('header', async function (t) {
   const encryptionKey = Buffer.alloc(32, 2)
 
   const s1 = await getStorage(t, dir)
-  const c1 = s1.get(DK_0)
-
-  if (!(await c1.open())) await c1.create({ key: DK_0, keyPair, encryptionKey })
+  const c1 = (await s1.resume(DK_0)) || (await s1.create({ key: DK_0, discoveryKey: DK_0, keyPair, encryptionKey }))
 
   const head = {
     fork: 1,
@@ -621,9 +618,9 @@ test('header', async function (t) {
   await s1.close()
 
   const s2 = await getStorage(t, dir)
-  const c2 = s2.get(DK_0)
+  const c2 = await s2.resume(DK_0)
 
-  t.ok(await c2.open())
+  t.ok(c2)
 
   const batch = c2.createReadBatch()
   const auth = batch.getCoreAuth()
@@ -701,15 +698,15 @@ test('reopen default core', async function (t) {
   const encryptionKey = Buffer.alloc(32, 4)
 
   const s1 = await getStorage(t, dir)
-  const c1 = s1.get(DK_0)
-  if (!(await c1.open())) await c1.create({ key: DK_1, manifest, keyPair, encryptionKey })
+  const c1 = (await s1.resume(DK_1)) || (await s1.create({ key: DK_1, discoveryKey: DK_1, manifest, keyPair, encryptionKey }))
 
+  await c1.close()
   await s1.close()
 
   const s2 = await getStorage(t, dir)
-  const c2 = s2.get()
+  const c2 = await s2.resume()
 
-  t.alike(await c2.open(), {
+  t.alike(await getCoreInfo(c2), {
     auth: {
       key: DK_1,
       manifest
@@ -719,7 +716,7 @@ test('reopen default core', async function (t) {
     head: null
   })
 
-  t.alike(c2.discoveryKey, DK_0)
+  t.alike(c2.discoveryKey, DK_1)
 })
 
 test('large manifest', async function (t) {
@@ -733,15 +730,15 @@ test('large manifest', async function (t) {
   const encryptionKey = Buffer.alloc(32, 4)
 
   const s1 = await getStorage(t, dir)
-  const c1 = s1.get(DK_0)
-  if (!(await c1.open())) await c1.create({ key: DK_1, manifest, keyPair, encryptionKey })
+  const c1 = (await s1.resume(DK_1)) || (await s1.create({ key: DK_1, discoveryKey: DK_1, manifest, keyPair, encryptionKey }))
 
+  await c1.close()
   await s1.close()
 
   const s2 = await getStorage(t, dir)
-  const c2 = s2.get()
+  const c2 = await s2.resume(DK_1)
 
-  t.alike(await c2.open(), {
+  t.alike(await getCoreInfo(c2), {
     auth: {
       key: DK_1,
       manifest
@@ -751,7 +748,7 @@ test('large manifest', async function (t) {
     head: null
   })
 
-  t.alike(c2.discoveryKey, DK_0)
+  t.alike(c2.discoveryKey, DK_1)
 })
 
 async function getStorage (t, dir) {
@@ -765,10 +762,27 @@ async function getStorage (t, dir) {
 
 async function getCore (t) {
   const s = await getStorage(t)
-  const c = s.get(DK_0)
 
-  t.is(await c.open(), null)
-  await c.create({ key: DK_0 })
+  const c = await s.resume(DK_0)
+  t.is(c, null)
 
-  return c
+  return await s.create({ key: DK_0, discoveryKey: DK_0 })
+}
+
+async function getCoreInfo (storage) {
+  const r = storage.createReadBatch()
+
+  const auth = r.getCoreAuth()
+  const localKeyPair = r.getLocalKeyPair()
+  const encryptionKey = r.getEncryptionKey()
+  const head = r.getCoreHead()
+
+  await r.flush()
+
+  return {
+    auth: await auth,
+    keyPair: await localKeyPair,
+    encryptionKey: await encryptionKey,
+    head: await head
+  }
 }

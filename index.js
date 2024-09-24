@@ -330,70 +330,30 @@ module.exports = class CoreStorage {
     return new HypercoreStorage(this, discoveryKey)
   }
 
-  _onclose () {
-    if (--this.sessions > 0 || !this.autoClose) return Promise.resolve()
-    return this.close()
-  }
-}
-
-class HypercoreStorage {
-  constructor (root, discoveryKey) {
-    this.root = root
-    this.db = root.db
-    this.mutex = root.mutex
-
-    this.root.sessions++
-
-    this.discoveryKey = discoveryKey || null
-
-    this.dependencies = []
-
-    // pointers
-    this.corePointer = -1
-    this.dataPointer = -1
-
-    this.closed = false
-  }
-
-  async open () {
-    if (!this.discoveryKey) {
-      const discoveryKey = await getDefaultKey(this.db)
+  async resume (discoveryKey) {
+    if (!discoveryKey) {
+      discoveryKey = await getDefaultKey(this.db)
       if (!discoveryKey) return null
-
-      this.discoveryKey = discoveryKey
     }
 
-    const val = await this.db.get(encodeDiscoveryKey(this.discoveryKey))
+    const val = await this.db.get(encodeDiscoveryKey(discoveryKey))
     if (val === null) return null
 
     const { core, data } = c.decode(m.CorePointer, val)
 
-    this.corePointer = core
-    this.dataPointer = data
-
-    return getCoreInfo(this)
+    return new HypercoreStorage(this, discoveryKey, core, data)
   }
 
   async create ({ key, manifest, keyPair, encryptionKey, discoveryKey }) {
     await this.mutex.write.lock()
 
     try {
-      const existing = await this.open()
+      const existing = await this.resume(discoveryKey)
 
       if (existing) {
         // todo: verify key/manifest etc.
-        return false
+        return existing
       }
-
-      if (this.discoveryKey && discoveryKey && !b4a.equals(this.discoveryKey, discoveryKey)) {
-        throw new Error('Discovery key does correspond')
-      }
-
-      if (!this.discoveryKey && !discoveryKey) {
-        throw new Error('No discovery key is provided')
-      }
-
-      if (!this.discoveryKey) this.discoveryKey = discoveryKey
 
       if (!key) throw new Error('No key was provided')
 
@@ -402,43 +362,63 @@ class HypercoreStorage {
       const write = this.db.write()
 
       if (!info) {
-        write.tryPut(b4a.from([TL.DEFAULT_KEY]), this.discoveryKey)
+        write.tryPut(b4a.from([TL.DEFAULT_KEY]), discoveryKey)
         info = { free: 0, total: 0 }
       }
 
       const core = info.total++
       const data = info.free++
 
-      write.tryPut(encodeDiscoveryKey(this.discoveryKey), encode(m.CorePointer, { core, data }))
+      write.tryPut(encodeDiscoveryKey(discoveryKey), encode(m.CorePointer, { core, data }))
       write.tryPut(b4a.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
 
-      this.corePointer = core
-      this.dataPointer = data
+      const storage = new HypercoreStorage(this, discoveryKey, core, data)
+      const batch = new WriteBatch(storage, write)
 
-      const batch = new WriteBatch(this, write)
-
-      this.initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
-      this.initialiseCoreData(batch)
+      initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
+      initialiseCoreData(batch)
 
       await write.flush()
+      return storage
     } finally {
       this.mutex.write.unlock()
     }
+  }
 
-    return true
+  _onclose () {
+    if (--this.sessions > 0 || !this.autoClose) return Promise.resolve()
+    return this.close()
+  }
+}
+
+class HypercoreStorage {
+  constructor (root, discoveryKey, core, data) {
+    this.root = root
+    this.db = root.db
+    this.mutex = root.mutex
+
+    this.root.sessions++
+
+    this.discoveryKey = discoveryKey
+
+    this.dependencies = []
+
+    // pointers
+    this.corePointer = core
+    this.dataPointer = data
+
+    this.closed = false
   }
 
   async registerBatch (name, length, overwrite) {
     // todo: make sure opened
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
-    const storage = new HypercoreStorage(this.root, this.discoveryKey)
-
-    storage.corePointer = this.corePointer
+    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer)
 
     if (existing && !overwrite) {
-      storage.dataPointer = c.decode(m.DataPointer, existing)
+      const dataPointer = c.decode(m.DataPointer, existing)
+      storage.dataPointer = dataPointer
       storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
-
       return storage
     }
 
@@ -455,7 +435,7 @@ class HypercoreStorage {
 
       const batch = new WriteBatch(storage, write)
 
-      this.initialiseCoreData(batch)
+      initialiseCoreData(batch)
 
       batch.setDataDependency({ data: this.dataPointer, length })
       batch.setBatchPointer(name, storage.dataPointer)
@@ -463,25 +443,10 @@ class HypercoreStorage {
       await write.flush()
 
       storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
-
       return storage
     } finally {
       this.mutex.write.unlock()
     }
-  }
-
-  initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
-    assert(this.corePointer >= 0)
-
-    db.setCoreAuth({ key, manifest })
-    if (keyPair) db.setLocalKeyPair(keyPair)
-    if (encryptionKey) db.setEncryptionKey(encryptionKey)
-  }
-
-  initialiseCoreData (db) {
-    assert(this.dataPointer >= 0)
-
-    db.setDataInfo({ version: 0 })
   }
 
   snapshot () {
@@ -735,20 +700,12 @@ function findTreeDependency (dependencies, index) {
   return null
 }
 
-async function getCoreInfo (storage) {
-  const r = storage.createReadBatch()
+function initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
+  db.setCoreAuth({ key, manifest })
+  if (keyPair) db.setLocalKeyPair(keyPair)
+  if (encryptionKey) db.setEncryptionKey(encryptionKey)
+}
 
-  const auth = r.getCoreAuth()
-  const localKeyPair = r.getLocalKeyPair()
-  const encryptionKey = r.getEncryptionKey()
-  const head = r.getCoreHead()
-
-  await r.flush()
-
-  return {
-    auth: await auth,
-    keyPair: await localKeyPair,
-    encryptionKey: await encryptionKey,
-    head: await head
-  }
+function initialiseCoreData (db) {
+  db.setDataInfo({ version: 0 })
 }

@@ -330,7 +330,11 @@ module.exports = class CoreStorage {
 
   _waitForIdle () {
     if (this.isIdle()) return Promise.resolve()
-    return new Promise((resolve) => { this._onidle = resolve })
+    if (!this._onidlePromise) {
+      this._onidlePromise = new Promise((resolve) => { this._onidle = resolve })
+    }
+
+    return this._onidlePromise
   }
 
   async idle () {

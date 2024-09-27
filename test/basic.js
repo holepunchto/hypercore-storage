@@ -751,6 +751,74 @@ test('large manifest', async function (t) {
   t.alike(c2.discoveryKey, DK_1)
 })
 
+test('idle', async function (t) {
+  const s = await getStorage(t)
+  const c = await getCore(t, s)
+
+  t.ok(s.isIdle())
+
+  {
+    const b = c.createWriteBatch()
+
+    t.absent(s.isIdle())
+
+    b.putTreeNode({
+      index: 42,
+      hash: HASH,
+      size: 10
+    })
+
+    b.putTreeNode({
+      index: 43,
+      hash: HASH,
+      size: 2
+    })
+
+    const idle = s.idle()
+
+    await b.flush()
+
+    await t.execution(idle)
+
+    t.ok(s.isIdle())
+  }
+
+  {
+    let idle = false
+
+    const b1 = c.createReadBatch()
+    const b2 = c.createReadBatch()
+    const b3 = c.createReadBatch()
+
+    const node1 = b1.getTreeNode(42)
+    const node2 = b2.getTreeNode(43)
+    const node3 = b3.getTreeNode(44)
+
+    const promise = s.idle().then(() => { idle = true })
+
+    b1.tryFlush()
+
+    t.absent(idle)
+    t.absent(s.isIdle())
+
+    b2.tryFlush()
+
+    t.absent(idle)
+    t.absent(s.isIdle())
+
+    b3.tryFlush()
+
+    await t.execution(promise)
+
+    t.ok(idle)
+    t.ok(s.isIdle())
+
+    t.alike(await node1, { index: 42, hash: HASH, size: 10 })
+    t.alike(await node2, { index: 43, hash: HASH, size: 2 })
+    t.alike(await node3, null)
+  }
+})
+
 async function getStorage (t, dir) {
   if (!dir) dir = await tmp(t)
   const s = new CoreStorage(dir)
@@ -760,8 +828,8 @@ async function getStorage (t, dir) {
   return s
 }
 
-async function getCore (t) {
-  const s = await getStorage(t)
+async function getCore (t, s) {
+  if (!s) s = await getStorage(t)
 
   const c = await s.resume(DK_0)
   t.is(c, null)

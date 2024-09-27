@@ -71,7 +71,6 @@ class WriteBatch {
   constructor (storage, write) {
     this.storage = storage
     this.write = write
-    this.index = storage.batches.push(this) - 1
   }
 
   setCoreHead (head) {
@@ -154,9 +153,8 @@ class WriteBatch {
     this.write.destroy()
   }
 
-  async flush () {
-    await this.write.flush()
-    this.storage.onflush(this)
+  flush () {
+    return this.write.flush()
   }
 }
 
@@ -164,7 +162,6 @@ class ReadBatch {
   constructor (storage, read) {
     this.storage = storage
     this.read = read
-    this.index = storage.batches.push(this) - 1
   }
 
   async getCoreHead () {
@@ -249,14 +246,12 @@ class ReadBatch {
     this.read.destroy()
   }
 
-  async flush () {
-    await this.read.flush()
-    this.storage.onflush(this)
+  flush () {
+    return this.read.flush()
   }
 
   tryFlush () {
     this.read.tryFlush()
-    this.storage.onflush(this)
   }
 }
 
@@ -267,11 +262,6 @@ module.exports = class CoreStorage {
     this.autoClose = !!autoClose
 
     this.sessions = 0
-
-    this._batches = []
-    this._onidle = null
-
-    this.onflush = this._onflush.bind(this)
   }
 
   // just a helper to make tests easier
@@ -318,37 +308,18 @@ module.exports = class CoreStorage {
     return s
   }
 
-  _onflush (batch) {
-    const cb = this._onidle
-
-    popAndSwap(this._batches, batch.index)
-    if (this._batches.length || cb === null) return
-
-    this._onidle = null
-    cb()
-  }
-
-  _waitForIdle () {
-    if (this.isIdle()) return Promise.resolve()
-    if (!this._onidlePromise) {
-      this._onidlePromise = new Promise((resolve) => { this._onidle = resolve })
-    }
-
-    return this._onidlePromise
-  }
-
   async idle () {
     if (this.isIdle()) return
 
     do {
       await new Promise(setImmediate)
-      await this._waitForIdle()
+      await this.db.idle()
       await new Promise(setImmediate)
     } while (!this.isIdle())
   }
 
   isIdle () {
-    return this._batches.length === 0
+    return this.db.isIdle()
   }
 
   ready () {
@@ -442,8 +413,6 @@ class HypercoreStorage {
     this.discoveryKey = discoveryKey
 
     this.dependencies = []
-    this.batches = root._batches
-    this.onflush = this.root.onflush
 
     // pointers
     this.corePointer = core
@@ -756,20 +725,4 @@ function initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
 
 function initialiseCoreData (db) {
   db.setDataInfo({ version: 0 })
-}
-
-function popAndSwap (arr, i) {
-  if (i === -1) return
-
-  const target = arr[i]
-  const last = arr.pop()
-
-  if (target === last) return false
-
-  arr[i] = last
-
-  arr[i].index = i
-  target.index = -1
-
-  return true
 }

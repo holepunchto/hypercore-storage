@@ -308,6 +308,20 @@ module.exports = class CoreStorage {
     return s
   }
 
+  async idle () {
+    if (this.isIdle()) return
+
+    do {
+      await new Promise(setImmediate)
+      await this.db.idle()
+      await new Promise(setImmediate)
+    } while (!this.isIdle())
+  }
+
+  isIdle () {
+    return this.db.isIdle()
+  }
+
   ready () {
     return this.db.ready()
   }
@@ -374,7 +388,7 @@ module.exports = class CoreStorage {
       initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
       initialiseCoreData(batch)
 
-      await write.flush()
+      await batch.flush()
       return storage
     } finally {
       this.mutex.write.unlock()

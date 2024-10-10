@@ -525,7 +525,7 @@ class HypercoreStorage {
     return s
   }
 
-  async peakLastTreeNode () {
+  async peekLastTreeNode () {
     assert(this.closed === false)
 
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, { reverse: true }))
@@ -533,7 +533,7 @@ class HypercoreStorage {
     return c.decode(m.TreeNode, last.value)
   }
 
-  async peakLastBitfieldPage () {
+  async peekLastBitfieldPage () {
     assert(this.closed === false)
 
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, { reverse: true }))

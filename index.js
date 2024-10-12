@@ -485,34 +485,22 @@ class HypercoreStorage {
 
   createBlockStream (opts = {}) {
     assert(this.closed === false)
-
-    return this.dependencies.length === 0
-      ? createBlockStream(this.db, this.dbSnapshot, this.dataPointer, opts)
-      : new DependencyStream(this, createBlockStream, opts)
+    return createStream(this, createBlockStream, opts)
   }
 
   createUserDataStream (opts = {}) {
     assert(this.closed === false)
-
-    return this.dependencies.length === 0
-      ? createUserDataStream(this.db, this.dbSnapshot, this.dataPointer, opts)
-      : new DependencyStream(this, createUserDataStream, opts)
+    return createStream(this, createUserDataStream, opts)
   }
 
   createTreeNodeStream (opts = {}) {
     assert(this.closed === false)
-
-    return this.dependencies.length === 0
-      ? createTreeNodeStream(this.db, this.dbSnapshot, this.dataPointer, opts)
-      : new DependencyStream(this, createTreeNodeStream, opts)
+    return createStream(this, createTreeNodeStream, opts)
   }
 
   createBitfieldPageStream (opts = {}) {
     assert(this.closed === false)
-
-    return this.dependencies.length === 0
-      ? createBitfieldPageStream(this.db, this.dbSnapshot, this.dataPointer, opts)
-      : new DependencyStream(this, createBitfieldPageStream, opts)
+    return createStream(this, createBitfieldPageStream, opts)
   }
 
   async peakLastTreeNode () {
@@ -540,6 +528,12 @@ class HypercoreStorage {
 
     return this.root._onclose()
   }
+}
+
+function createStream (storage, createStreamType, opts) {
+  return storage.dependencies.length === 0
+    ? createStreamType(storage.db, storage.dbSnapshot, storage.dataPointer, opts)
+    : new DependencyStream(storage, createStreamType, opts)
 }
 
 function createBlockStream (db, snap, data, opts) {

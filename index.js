@@ -4,9 +4,9 @@ const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
 const b4a = require('b4a')
 const flat = require('flat-tree')
-const { Readable, isEnded, getStreamError } = require('streamx')
 const assert = require('nanoassert')
 const m = require('./lib/messages')
+const DependencyStream = require('./lib/dependency-stream')
 
 const INF = b4a.from([0xff])
 
@@ -486,62 +486,33 @@ class HypercoreStorage {
   createBlockStream (opts = {}) {
     assert(this.closed === false)
 
-    if (this.dependencies.length === 0) {
-      return createBlockStreamForData(this.db, this.dbSnapshot, this.dataPointer, opts)
-    }
-
-    let max = 0
-
-    const gte = typeof opts.gte === 'number' ? opts.gte : typeof opts.gt === 'number' ? opts.gt + 1 : 0
-    const lt = typeof opts.lt === 'number' ? opts.lt : typeof opts.lte === 'number' ? opts.lte + 1 : Infinity
-
-    const streams = []
-
-    for (let i = 0; i < this.dependencies.length; i++) {
-      const min = max
-      max += this.dependencies[i].length
-
-      streams.push({
-        data: this.dependencies[i].data,
-        gte: Math.max(gte, min),
-        lt: Math.min(lt, max)
-      })
-    }
-
-    streams.push({
-      data: this.dataPointer,
-      gte: Math.max(gte, max),
-      lt
-    })
-
-    return new DependencyBlockStream(this.db, this.dbSnapshot, streams, !!opts.reverse, toLimit(opts.limit))
+    return this.dependencies.length === 0
+      ? createBlockStream(this.db, this.dbSnapshot, this.dataPointer, opts)
+      : new DependencyStream(this, createBlockStream, opts)
   }
 
   createUserDataStream (opts = {}) {
     assert(this.closed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
-    s._readableState.map = mapStreamUserData
-    return s
+    return this.dependencies.length === 0
+      ? createUserDataStream(this.db, this.dbSnapshot, this.dataPointer, opts)
+      : new DependencyStream(this, createUserDataStream, opts)
   }
 
   createTreeNodeStream (opts = {}) {
     assert(this.closed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
-    s._readableState.map = mapStreamTreeNode
-    return s
+    return this.dependencies.length === 0
+      ? createTreeNodeStream(this.db, this.dbSnapshot, this.dataPointer, opts)
+      : new DependencyStream(this, createTreeNodeStream, opts)
   }
 
   createBitfieldPageStream (opts = {}) {
     assert(this.closed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
-    s._readableState.map = mapStreamBitfieldPage
-    return s
+    return this.dependencies.length === 0
+      ? createBitfieldPageStream(this.db, this.dbSnapshot, this.dataPointer, opts)
+      : new DependencyStream(this, createBitfieldPageStream, opts)
   }
 
   async peakLastTreeNode () {
@@ -571,92 +542,31 @@ class HypercoreStorage {
   }
 }
 
-class DependencyBlockStream extends Readable {
-  constructor (db, dbSnapshot, streams, reverse, limit) {
-    super()
-
-    this.db = db
-    this.dbSnapshot = dbSnapshot
-
-    this._streams = reverse ? streams.reverse() : streams
-    this._reverse = reverse
-    this._limit = limit
-    this._next = 0
-    this._active = null
-    this._pendingDestroy = null
-    this._ondataBound = this._ondata.bind(this)
-    this._oncloseBound = this._onclose.bind(this)
-
-    this._nextStream()
-  }
-
-  _read (cb) {
-    this._active.resume()
-    cb(null)
-  }
-
-  _predestroy () {
-    if (this._active) this._active.destroy()
-  }
-
-  _destroy (cb) {
-    if (this._active === null) cb(null)
-    else this._pendingDestroy = cb
-  }
-
-  _ondata (data) {
-    if (this._limit > 0) this._limit--
-    if (this.push(data) === false) this._active.pause()
-  }
-
-  _onclose () {
-    if (!isEnded(this._active)) {
-      const error = getStreamError(this._active)
-      this._active = null
-      this.destroy(error)
-      this._continueDestroy(error)
-      return
-    }
-
-    if (this._next >= this._streams.length || this._limit === 0) {
-      this._active = null
-      this.push(null)
-      this._continueDestroy(null)
-      return
-    }
-
-    this._nextStream()
-  }
-
-  _continueDestroy (err) {
-    if (this._pendingDestroy === null) return
-    const cb = this._pendingDestroy
-    this._pendingDestroy = null
-    cb(err)
-  }
-
-  _nextStream () {
-    const { data, gte, lt } = this._streams[this._next++]
-
-    const stream = createBlockStreamForData(this.db, this.dbSnapshot, data, {
-      reverse: this._reverse,
-      limit: this._limit,
-      gte,
-      lt
-    })
-
-    this._active = stream
-
-    stream.on('data', this._ondataBound)
-    stream.on('error', noop) // handled in onclose
-    stream.on('close', this._oncloseBound)
-  }
-}
-
-function createBlockStreamForData (db, snap, data, opts) {
+function createBlockStream (db, snap, data, opts) {
   const r = encodeIndexRange(data, DATA.BLOCK, snap, opts)
   const s = db.iterator(r)
   s._readableState.map = mapStreamBlock
+  return s
+}
+
+function createUserDataStream (db, snap, data, opts) {
+  const r = encodeIndexRange(data, DATA.USER_DATA, snap, opts)
+  const s = db.iterator(r)
+  s._readableState.map = mapStreamUserData
+  return s
+}
+
+function createTreeNodeStream (db, snap, data, opts) {
+  const r = encodeIndexRange(data, DATA.TREE, snap, opts)
+  const s = db.iterator(r)
+  s._readableState.map = mapStreamTreeNode
+  return s
+}
+
+function createBitfieldPageStream (db, snap, data, opts) {
+  const r = encodeIndexRange(data, DATA.BITFIELD, snap, opts)
+  const s = db.iterator(r)
+  s._readableState.map = mapStreamBitfieldPage
   return s
 }
 
@@ -845,5 +755,3 @@ function initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
 function initialiseCoreData (db) {
   db.setDataInfo({ version: 0 })
 }
-
-function noop () {}

@@ -819,6 +819,61 @@ test('idle', async function (t) {
   }
 })
 
+test('dependencies and streams', async function (t) {
+  const s = await getStorage(t)
+  const c = await getCore(t, s)
+
+  {
+    const w = c.createWriteBatch()
+    for (let i = 0; i < 5; i++) w.putBlock(i, Buffer.from('block #' + i))
+    await w.flush()
+  }
+
+  const b = await c.registerBatch('batch', 5, false)
+
+  {
+    const w = b.createWriteBatch()
+    for (let i = 0; i < 5; i++) w.putBlock(5 + i, Buffer.from('block #' + (5 + i)))
+    await w.flush()
+  }
+
+  let i = 0
+  for await (const data of b.createBlockStream()) {
+    t.is(data.index, i)
+    t.alike(data.value, Buffer.from('block #' + i))
+    i++
+  }
+
+  t.is(i, 10)
+
+  i = 9
+  for await (const data of b.createBlockStream({ reverse: true })) {
+    t.is(data.index, i)
+    t.alike(data.value, Buffer.from('block #' + i))
+    i--
+  }
+
+  t.is(i, -1)
+
+  i = 8
+  for await (const data of b.createBlockStream({ reverse: true, limit: 2, gte: 4, lt: 9 })) {
+    t.is(data.index, i)
+    t.alike(data.value, Buffer.from('block #' + i))
+    i--
+  }
+
+  t.is(i, 6)
+
+  i = 4
+  for await (const data of b.createBlockStream({ limit: 2, gte: 4, lt: 9 })) {
+    t.is(data.index, i)
+    t.alike(data.value, Buffer.from('block #' + i))
+    i++
+  }
+
+  t.is(i, 6)
+})
+
 async function getStorage (t, dir) {
   if (!dir) dir = await tmp(t)
   const s = new CoreStorage(dir)

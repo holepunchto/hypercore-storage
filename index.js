@@ -4,6 +4,7 @@ const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
 const b4a = require('b4a')
 const flat = require('flat-tree')
+const { Readable, isEnded, getStreamError } = require('streamx')
 const assert = require('nanoassert')
 const m = require('./lib/messages')
 
@@ -485,10 +486,35 @@ class HypercoreStorage {
   createBlockStream (opts = {}) {
     assert(this.closed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.BLOCK, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
-    s._readableState.map = mapStreamBlock
-    return s
+    if (this.dependencies.length === 0) {
+      return createBlockStreamForData(this.db, this.dbSnapshot, this.dataPointer, opts)
+    }
+
+    let max = 0
+
+    const gte = typeof opts.gte === 'number' ? opts.gte : typeof opts.gt === 'number' ? opts.gt + 1 : 0
+    const lt = typeof opts.lt === 'number' ? opts.lt : typeof opts.lte === 'number' ? opts.lte + 1 : Infinity
+
+    const streams = []
+
+    for (let i = 0; i < this.dependencies.length; i++) {
+      const min = max
+      max += this.dependencies[i].length
+
+      streams.push({
+        data: this.dependencies[i].data,
+        gte: Math.max(gte, min),
+        lt: Math.min(lt, max)
+      })
+    }
+
+    streams.push({
+      data: this.dataPointer,
+      gte: Math.max(gte, max),
+      lt
+    })
+
+    return new DependencyBlockStream(this.db, this.dbSnapshot, streams, !!opts.reverse, toLimit(opts.limit))
   }
 
   createUserDataStream (opts = {}) {
@@ -543,6 +569,95 @@ class HypercoreStorage {
 
     return this.root._onclose()
   }
+}
+
+class DependencyBlockStream extends Readable {
+  constructor (db, dbSnapshot, streams, reverse, limit) {
+    super()
+
+    this.db = db
+    this.dbSnapshot = dbSnapshot
+
+    this._streams = reverse ? streams.reverse() : streams
+    this._reverse = reverse
+    this._limit = limit
+    this._next = 0
+    this._active = null
+    this._pendingDestroy = null
+    this._ondataBound = this._ondata.bind(this)
+    this._oncloseBound = this._onclose.bind(this)
+
+    this._nextStream()
+  }
+
+  _read (cb) {
+    this._active.resume()
+    cb(null)
+  }
+
+  _predestroy () {
+    if (this._active) this._active.destroy()
+  }
+
+  _destroy (cb) {
+    if (this._active === null) cb(null)
+    else this._pendingDestroy = cb
+  }
+
+  _ondata (data) {
+    if (this._limit > 0) this._limit--
+    if (this.push(data) === false) this._active.pause()
+  }
+
+  _onclose () {
+    if (!isEnded(this._active)) {
+      const error = getStreamError(this._active)
+      this._active = null
+      this.destroy(error)
+      this._continueDestroy(error)
+      return
+    }
+
+    if (this._next >= this._streams.length || this._limit === 0) {
+      this._active = null
+      this.push(null)
+      this._continueDestroy(null)
+      return
+    }
+
+    this._nextStream()
+  }
+
+  _continueDestroy (err) {
+    if (this._pendingDestroy === null) return
+    const cb = this._pendingDestroy
+    this._pendingDestroy = null
+    cb(err)
+  }
+
+  _nextStream () {
+    const { data, gte, lt } = this._streams[this._next++]
+
+    const stream = createBlockStreamForData(this.db, this.dbSnapshot, data, {
+      reverse: this._reverse,
+      limit: this._limit,
+      gte,
+      lt
+    })
+
+    this._active = stream
+
+    stream.on('data', this._ondataBound)
+    stream.on('error', noop) // handled in onclose
+    stream.on('close', this._oncloseBound)
+  }
+}
+
+function createBlockStreamForData (db, snap, data, opts) {
+  const r = encodeIndexRange(data, DATA.BLOCK, snap, opts)
+  const s = db.iterator(r)
+  s._readableState.map = mapStreamBlock
+  return s
 }
 
 function mapStreamUserData (data) {
@@ -612,7 +727,7 @@ function ensureSlab (size) {
 }
 
 function encodeIndexRange (pointer, type, snapshot, opts) {
-  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: opts.limit || Infinity }
+  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
 
   if (opts.gt || opts.gt === 0) bounded.gt = encodeDataIndex(pointer, type, opts.gt)
   else if (opts.gte) bounded.gte = encodeDataIndex(pointer, type, opts.gte)
@@ -623,6 +738,10 @@ function encodeIndexRange (pointer, type, snapshot, opts) {
   else bounded.lte = encodeDataIndex(pointer, type, Infinity) // infinity
 
   return bounded
+}
+
+function toLimit (n) {
+  return n === 0 ? 0 : (n || Infinity)
 }
 
 function encode (encoding, value) {
@@ -726,3 +845,5 @@ function initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
 function initialiseCoreData (db) {
   db.setDataInfo({ version: 0 })
 }
+
+function noop () {}

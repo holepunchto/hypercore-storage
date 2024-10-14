@@ -490,17 +490,29 @@ class HypercoreStorage {
 
   createUserDataStream (opts = {}) {
     assert(this.closed === false)
-    return createStream(this, createUserDataStream, opts)
+
+    const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, this.dbSnapshot, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamUserData
+    return s
   }
 
   createTreeNodeStream (opts = {}) {
     assert(this.closed === false)
-    return createStream(this, createTreeNodeStream, opts)
+
+    const r = encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamTreeNode
+    return s
   }
 
   createBitfieldPageStream (opts = {}) {
     assert(this.closed === false)
-    return createStream(this, createBitfieldPageStream, opts)
+
+    const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, opts)
+    const s = this.db.iterator(r)
+    s._readableState.map = mapStreamBitfieldPage
+    return s
   }
 
   async peakLastTreeNode () {
@@ -540,27 +552,6 @@ function createBlockStream (db, snap, data, opts) {
   const r = encodeIndexRange(data, DATA.BLOCK, snap, opts)
   const s = db.iterator(r)
   s._readableState.map = mapStreamBlock
-  return s
-}
-
-function createUserDataStream (db, snap, data, opts) {
-  const r = encodeIndexRange(data, DATA.USER_DATA, snap, opts)
-  const s = db.iterator(r)
-  s._readableState.map = mapStreamUserData
-  return s
-}
-
-function createTreeNodeStream (db, snap, data, opts) {
-  const r = encodeIndexRange(data, DATA.TREE, snap, opts)
-  const s = db.iterator(r)
-  s._readableState.map = mapStreamTreeNode
-  return s
-}
-
-function createBitfieldPageStream (db, snap, data, opts) {
-  const r = encodeIndexRange(data, DATA.BITFIELD, snap, opts)
-  const s = db.iterator(r)
-  s._readableState.map = mapStreamBitfieldPage
   return s
 }
 

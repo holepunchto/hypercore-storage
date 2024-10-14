@@ -6,6 +6,7 @@ const b4a = require('b4a')
 const flat = require('flat-tree')
 const assert = require('nanoassert')
 const m = require('./lib/messages')
+const DependencyStream = require('./lib/dependency-stream')
 
 const INF = b4a.from([0xff])
 
@@ -484,11 +485,7 @@ class HypercoreStorage {
 
   createBlockStream (opts = {}) {
     assert(this.closed === false)
-
-    const r = encodeIndexRange(this.dataPointer, DATA.BLOCK, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
-    s._readableState.map = mapStreamBlock
-    return s
+    return createStream(this, createBlockStream, opts)
   }
 
   createUserDataStream (opts = {}) {
@@ -543,6 +540,19 @@ class HypercoreStorage {
 
     return this.root._onclose()
   }
+}
+
+function createStream (storage, createStreamType, opts) {
+  return storage.dependencies.length === 0
+    ? createStreamType(storage.db, storage.dbSnapshot, storage.dataPointer, opts)
+    : new DependencyStream(storage, createStreamType, opts)
+}
+
+function createBlockStream (db, snap, data, opts) {
+  const r = encodeIndexRange(data, DATA.BLOCK, snap, opts)
+  const s = db.iterator(r)
+  s._readableState.map = mapStreamBlock
+  return s
 }
 
 function mapStreamUserData (data) {
@@ -612,7 +622,7 @@ function ensureSlab (size) {
 }
 
 function encodeIndexRange (pointer, type, snapshot, opts) {
-  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: opts.limit || Infinity }
+  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
 
   if (opts.gt || opts.gt === 0) bounded.gt = encodeDataIndex(pointer, type, opts.gt)
   else if (opts.gte) bounded.gte = encodeDataIndex(pointer, type, opts.gte)
@@ -623,6 +633,10 @@ function encodeIndexRange (pointer, type, snapshot, opts) {
   else bounded.lte = encodeDataIndex(pointer, type, Infinity) // infinity
 
   return bounded
+}
+
+function toLimit (n) {
+  return n === 0 ? 0 : (n || Infinity)
 }
 
 function encode (encoding, value) {

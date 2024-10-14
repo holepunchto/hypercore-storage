@@ -19,7 +19,8 @@
     "index-encoder": "^3.0.1",
     "nanoassert": "^2.0.0",
     "read-write-mutexify": "^2.1.0",
-    "rocksdb-native": "^2.2.0"
+    "rocksdb-native": "^2.2.0",
+    "streamx": "^2.20.1"
   },
   "devDependencies": {
     "brittle": "^3.5.2",

@@ -1,5 +1,5 @@
 {
-  "name": "hypercore-on-the-rocks",
+  "name": "hypercore-storage",
   "version": "0.0.21",
   "main": "index.js",
   "files": [

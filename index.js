@@ -443,6 +443,12 @@ class HypercoreStorage {
     try {
       const info = await getStorageInfo(this.db)
 
+      const read = this.createReadBatch()
+      const headPromise = read.getCoreHead()
+      read.tryFlush()
+      const head = await headPromise
+      head.signature = null // strip auth data since its a batch
+
       const write = this.db.write()
 
       storage.dataPointer = info.free++
@@ -455,6 +461,7 @@ class HypercoreStorage {
 
       batch.setDataDependency({ data: this.dataPointer, length })
       batch.setBatchPointer(name, storage.dataPointer)
+      batch.setCoreHead(head)
 
       await write.flush()
 

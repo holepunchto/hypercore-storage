@@ -447,7 +447,8 @@ class HypercoreStorage {
       const headPromise = read.getCoreHead()
       read.tryFlush()
       const head = await headPromise
-      head.signature = null // strip auth data since its a batch
+      // TODO: think head !== null should be an invariant by hypercore, something to check
+      if (head) head.signature = null // strip auth data since its a batch
 
       const write = this.db.write()
 
@@ -461,7 +462,7 @@ class HypercoreStorage {
 
       batch.setDataDependency({ data: this.dataPointer, length })
       batch.setBatchPointer(name, storage.dataPointer)
-      batch.setCoreHead(head)
+      if (head) batch.setCoreHead(head)
 
       await write.flush()
 

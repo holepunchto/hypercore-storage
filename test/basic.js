@@ -829,7 +829,7 @@ test('dependencies and streams', async function (t) {
     await w.flush()
   }
 
-  const b = await c.registerBatch('batch', 5, false)
+  const b = await c.registerBatch('batch', { length: 5 })
 
   {
     const w = b.createWriteBatch()

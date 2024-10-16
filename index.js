@@ -426,23 +426,26 @@ class HypercoreStorage {
     return this.dbSnapshot !== null
   }
 
-  async registerBatch (name, length, overwrite) {
-    // todo: make sure opened
+  async openBatch (name) {
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
-    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, null)
+    if (!existing) return null
 
-    if (existing && !overwrite) {
-      const dataPointer = c.decode(m.DataPointer, existing)
-      storage.dataPointer = dataPointer
-      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
-      return storage
-    }
+    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.dbSnapshot)
+    const dataPointer = c.decode(m.DataPointer, existing)
 
+    storage.dataPointer = dataPointer
+    storage.dependencies = await addDependencies(this.db, storage.dataPointer, -1)
+
+    return storage
+  }
+
+  async registerBatch (name, head) {
     await this.mutex.write.lock()
+
+    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, null)
 
     try {
       const info = await getStorageInfo(this.db)
-
       const write = this.db.write()
 
       storage.dataPointer = info.free++
@@ -453,12 +456,13 @@ class HypercoreStorage {
 
       initialiseCoreData(batch)
 
-      batch.setDataDependency({ data: this.dataPointer, length })
+      batch.setDataDependency({ data: this.dataPointer, length: head.length })
       batch.setBatchPointer(name, storage.dataPointer)
+      if (head.rootHash) batch.setCoreHead(head) // if no root hash its the empty core - no head yet
 
       await write.flush()
 
-      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer, head.length)
       return storage
     } finally {
       this.mutex.write.unlock()
@@ -709,7 +713,7 @@ async function addDependencies (db, dataPointer, treeLength) {
   let dep = await db.get(encodeDataIndex(dataPointer, DATA.DEPENDENCY))
   while (dep) {
     const { data, length } = c.decode(m.DataDependency, dep)
-    if (length <= treeLength) dependencies.push({ data, length })
+    if (treeLength === -1 || length <= treeLength) dependencies.push({ data, length })
 
     dep = await db.get(encodeDataIndex(data, DATA.DEPENDENCY))
   }

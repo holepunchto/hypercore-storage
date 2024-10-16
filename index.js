@@ -430,18 +430,11 @@ class HypercoreStorage {
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
     if (!existing) return null
 
-    const read = this.createReadBatch()
-    const headPromise = read.getCoreHead()
-
-    read.tryFlush()
-
-    const head = await headPromise
-
     const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.dbSnapshot)
     const dataPointer = c.decode(m.DataPointer, existing)
 
     storage.dataPointer = dataPointer
-    storage.dependencies = await addDependencies(this.db, storage.dataPointer, head ? head.length : 0)
+    storage.dependencies = await addDependencies(this.db, storage.dataPointer, -1)
 
     return storage
   }
@@ -720,7 +713,7 @@ async function addDependencies (db, dataPointer, treeLength) {
   let dep = await db.get(encodeDataIndex(dataPointer, DATA.DEPENDENCY))
   while (dep) {
     const { data, length } = c.decode(m.DataDependency, dep)
-    if (length <= treeLength) dependencies.push({ data, length })
+    if (treeLength === -1 || length <= treeLength) dependencies.push({ data, length })
 
     dep = await db.get(encodeDataIndex(data, DATA.DEPENDENCY))
   }

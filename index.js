@@ -426,30 +426,33 @@ class HypercoreStorage {
     return this.dbSnapshot !== null
   }
 
-  async registerBatch (name, length, overwrite) {
-    // todo: make sure opened
+  async openBatch (name) {
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
-    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, null)
+    if (!existing) return null
 
-    if (existing && !overwrite) {
-      const dataPointer = c.decode(m.DataPointer, existing)
-      storage.dataPointer = dataPointer
-      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
-      return storage
-    }
+    const read = this.createReadBatch()
+    const headPromise = read.getCoreHead()
 
+    read.tryFlush()
+
+    const head = await headPromise
+
+    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.dbSnapshot)
+    const dataPointer = c.decode(m.DataPointer, existing)
+
+    storage.dataPointer = dataPointer
+    storage.dependencies = await addDependencies(this.db, storage.dataPointer, head ? head.length : 0)
+
+    return storage
+  }
+
+  async registerBatch (name, head) {
     await this.mutex.write.lock()
+
+    const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, null)
 
     try {
       const info = await getStorageInfo(this.db)
-
-      const read = this.createReadBatch()
-      const headPromise = read.getCoreHead()
-      read.tryFlush()
-      const head = await headPromise
-      // TODO: think head !== null should be an invariant by hypercore, something to check
-      if (head) head.signature = null // strip auth data since its a batch
-
       const write = this.db.write()
 
       storage.dataPointer = info.free++
@@ -460,13 +463,13 @@ class HypercoreStorage {
 
       initialiseCoreData(batch)
 
-      batch.setDataDependency({ data: this.dataPointer, length })
+      batch.setDataDependency({ data: this.dataPointer, length: head.length })
       batch.setBatchPointer(name, storage.dataPointer)
-      if (head) batch.setCoreHead(head)
+      if (head.rootHash) batch.setCoreHead(head) // if no root hash its the empty core - no head yet
 
       await write.flush()
 
-      storage.dependencies = await addDependencies(this.db, storage.dataPointer, length)
+      storage.dependencies = await addDependencies(this.db, storage.dataPointer, head.length)
       return storage
     } finally {
       this.mutex.write.unlock()

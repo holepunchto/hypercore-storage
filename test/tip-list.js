@@ -8,8 +8,8 @@ test('tip list - write + read', async function (t) {
   tip.put(0, b4a.from('hello'))
   tip.put(1, b4a.from('world'))
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), b4a.from('world'))
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: true, value: b4a.from('world') })
 })
 
 test('tip list - merge', async function (t) {
@@ -21,8 +21,8 @@ test('tip list - merge', async function (t) {
 
   tip.merge(w)
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), b4a.from('world'))
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: true, value: b4a.from('world') })
 })
 
 test('tip list - multiple merge', async function (t) {
@@ -35,8 +35,8 @@ test('tip list - multiple merge', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), b4a.from('world'))
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: true, value: b4a.from('world') })
 
   {
     const w = new TipList()
@@ -45,8 +45,8 @@ test('tip list - multiple merge', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(2), b4a.from('goodbye'))
-  t.alike(tip.get(3), b4a.from('test'))
+  t.alike(tip.get(2), { valid: true, value: b4a.from('goodbye') })
+  t.alike(tip.get(3), { valid: true, value: b4a.from('test') })
 })
 
 test('tip list - overwrite merge', async function (t) {
@@ -61,8 +61,8 @@ test('tip list - overwrite merge', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(0), b4a.from('goodbye'))
-  t.alike(tip.get(1), b4a.from('test'))
+  t.alike(tip.get(0), { valid: true, value: b4a.from('goodbye') })
+  t.alike(tip.get(1), { valid: true, value: b4a.from('test') })
 })
 
 test('tip list - write + read with offset', async function (t) {
@@ -74,9 +74,9 @@ test('tip list - write + read with offset', async function (t) {
   w.put(4, b4a.from('world'))
   tip.merge(w)
 
-  t.alike(tip.get(0), null)
-  t.alike(tip.get(3), b4a.from('hello'))
-  t.alike(tip.get(4), b4a.from('world'))
+  t.alike(tip.get(0), { valid: false, value: null })
+  t.alike(tip.get(3), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(4), { valid: true, value: b4a.from('world') })
 })
 
 test('tip list - multiple merges with offset', async function (t) {
@@ -97,10 +97,10 @@ test('tip list - multiple merges with offset', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(5), b4a.from('hello'))
-  t.alike(tip.get(6), b4a.from('world'))
-  t.alike(tip.get(7), b4a.from('goodbye'))
-  t.alike(tip.get(8), b4a.from('test'))
+  t.alike(tip.get(5), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(6), { valid: true, value: b4a.from('world') })
+  t.alike(tip.get(7), { valid: true, value: b4a.from('goodbye') })
+  t.alike(tip.get(8), { valid: true, value: b4a.from('test') })
 })
 
 test('tip list - overwrite merge with offset', async function (t) {
@@ -114,9 +114,9 @@ test('tip list - overwrite merge with offset', async function (t) {
   w.put(4, b4a.from('test'))
   tip.merge(w)
 
-  t.alike(tip.get(0), null)
-  t.alike(tip.get(3), b4a.from('goodbye'))
-  t.alike(tip.get(4), b4a.from('test'))
+  t.alike(tip.get(0), { valid: false, value: null })
+  t.alike(tip.get(3), { valid: true, value: b4a.from('goodbye') })
+  t.alike(tip.get(4), { valid: true, value: b4a.from('test') })
 })
 
 test('tip list - deletion', async function (t) {
@@ -130,9 +130,9 @@ test('tip list - deletion', async function (t) {
 
   t.exception(() => tip.put(2, b4a.from('fail')), 'no put after deletion')
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), null)
-  t.alike(tip.get(2), null)
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: true, value: null })
+  t.alike(tip.get(2), { valid: true, value: null })
 })
 
 test('tip list - deletion merge', async function (t) {
@@ -151,9 +151,9 @@ test('tip list - deletion merge', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), null)
-  t.alike(tip.get(2), null)
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: false, value: null })
+  t.alike(tip.get(2), { valid: false, value: null })
 })
 
 test('tip list - deletion on put batch', async function (t) {
@@ -168,9 +168,9 @@ test('tip list - deletion on put batch', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), b4a.from('world'))
-  t.alike(tip.get(2), null)
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: true, value: b4a.from('world') })
+  t.alike(tip.get(2), { valid: false, value: null })
 })
 
 test('tip list - deletion with offset', async function (t) {
@@ -185,9 +185,9 @@ test('tip list - deletion with offset', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(4), b4a.from('hello'))
-  t.alike(tip.get(5), null)
-  t.alike(tip.get(6), null)
+  t.alike(tip.get(4), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(5), { valid: false, value: null })
+  t.alike(tip.get(6), { valid: false, value: null })
 })
 
 test('tip list - overlap deletions in batch', async function (t) {
@@ -205,10 +205,10 @@ test('tip list - overlap deletions in batch', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(0), b4a.from('hello'))
-  t.alike(tip.get(1), null)
-  t.alike(tip.get(2), null)
-  t.alike(tip.get(3), null)
+  t.alike(tip.get(0), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(1), { valid: false, value: null })
+  t.alike(tip.get(2), { valid: false, value: null })
+  t.alike(tip.get(3), { valid: false, value: null })
 })
 
 test('tip list - overlap deletions in batch with offset', async function (t) {
@@ -226,10 +226,10 @@ test('tip list - overlap deletions in batch with offset', async function (t) {
     tip.merge(w)
   }
 
-  t.alike(tip.get(5), b4a.from('hello'))
-  t.alike(tip.get(6), null)
-  t.alike(tip.get(7), null)
-  t.alike(tip.get(8), null)
+  t.alike(tip.get(5), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(6), { valid: false, value: null })
+  t.alike(tip.get(7), { valid: false, value: null })
+  t.alike(tip.get(8), { valid: false, value: null })
 })
 
 test('tip list - invalid deletion', async function (t) {
@@ -253,9 +253,9 @@ test('tip list - invalid deletion', async function (t) {
     t.exception(() => tip.merge(w))
   }
 
-  t.alike(tip.get(4), b4a.from('hello'))
-  t.alike(tip.get(5), b4a.from('world'))
-  t.alike(tip.get(6), b4a.from('goodbye'))
+  t.alike(tip.get(4), { valid: true, value: b4a.from('hello') })
+  t.alike(tip.get(5), { valid: true, value: b4a.from('world') })
+  t.alike(tip.get(6), { valid: true, value: b4a.from('goodbye') })
 })
 
 test('tip list - put before offset', async function (t) {

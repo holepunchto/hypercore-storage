@@ -432,6 +432,12 @@ class HypercoreStorage {
     return this.dbSnapshot !== null
   }
 
+  dependencyLength () {
+    return this.dependencies.length
+      ? this.dependencies[this.dependencies.length - 1].length
+      : -1
+  }
+
   async openBatch (name) {
     const existing = await this.db.get(encodeBatch(this.corePointer, CORE.BATCHES, name))
     if (!existing) return null

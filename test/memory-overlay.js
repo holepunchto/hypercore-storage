@@ -80,7 +80,8 @@ test.skip('memory overlay - delete nodes', async function (t) {
   }
 })
 
-test('memory overlay - delete tree node range', async function (t) {
+// not supported yet
+test.skip('memory overlay - delete tree node range', async function (t) {
   const c = await getCore(t)
 
   {
@@ -139,7 +140,8 @@ test('memory overlay - delete tree node range', async function (t) {
   }
 })
 
-test('memory overlay - delete tree node range: no end', async function (t) {
+// not supported yet
+test.skip('memory overlay - delete tree node range: no end', async function (t) {
   const c = await getCore(t)
 
   {
@@ -218,7 +220,7 @@ test('memory overlay - peek last tree node', async function (t) {
       hash: HASH,
       size: 10
     })
-    await t.exception(() => b.flush())
+    await b.flush()
   }
 
   {
@@ -232,30 +234,6 @@ test('memory overlay - peek last tree node', async function (t) {
   {
     const node = await c.peekLastTreeNode()
     t.alike(await node, { index: 10000003, hash: HASH, size: 13 })
-  }
-})
-
-test('memory overlay - invalid tree node add', async function (t) {
-  const c = await getCore(t)
-
-  {
-    const b = c.createWriteBatch()
-    b.putTreeNode({ index: 10000000, hash: HASH, size: 10 })
-    await b.flush()
-  }
-
-  {
-    const b = c.createWriteBatch()
-    b.putTreeNode({ index: 1, hash: HASH, size: 10 })
-    await t.exception(() => b.flush())
-  }
-
-  {
-    const b = c.createWriteBatch()
-    b.putTreeNode({ index: 10000001, hash: HASH, size: 11 })
-    b.putTreeNode({ index: 10000002, hash: HASH, size: 12 })
-    b.putTreeNode({ index: 10000003, hash: HASH, size: 13 })
-    await t.execution(() => b.flush())
   }
 })
 

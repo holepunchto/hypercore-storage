@@ -551,6 +551,11 @@ class HypercoreStorage {
     return mapStreamBitfieldPage(last)
   }
 
+  destroy () {
+    if (this.dbSnapshot === null) return
+    this.dbSnapshot.destroy()
+  }
+
   close () {
     if (this.closed) return Promise.resolve()
     this.closed = true

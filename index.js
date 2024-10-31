@@ -263,12 +263,9 @@ class ReadBatch {
 }
 
 module.exports = class CoreStorage {
-  constructor (dir, { autoClose = true } = {}) {
+  constructor (dir) {
     this.db = new RocksDB(dir)
     this.mutex = new RW()
-    this.autoClose = !!autoClose
-
-    this.sessions = 0
   }
 
   // just a helper to make tests easier
@@ -401,11 +398,6 @@ module.exports = class CoreStorage {
       this.mutex.write.unlock()
     }
   }
-
-  _onclose () {
-    if (--this.sessions > 0 || !this.autoClose) return Promise.resolve()
-    return this.close()
-  }
 }
 
 class HypercoreStorage {
@@ -414,8 +406,6 @@ class HypercoreStorage {
     this.db = root.db
     this.dbSnapshot = snapshot
     this.mutex = root.mutex
-
-    this.root.sessions++
 
     this.discoveryKey = discoveryKey
 
@@ -551,19 +541,12 @@ class HypercoreStorage {
     return mapStreamBitfieldPage(last)
   }
 
-  destroy () {
-    if (this.dbSnapshot === null) return
-    this.dbSnapshot.destroy()
-  }
-
   close () {
-    if (this.closed) return Promise.resolve()
+    if (this.closed) return
     this.closed = true
 
     if (this.dbSnapshot) this.dbSnapshot.destroy()
     this.dbSnapshot = null
-
-    return this.root._onclose()
   }
 }
 

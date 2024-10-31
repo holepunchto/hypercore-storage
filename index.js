@@ -415,7 +415,7 @@ class HypercoreStorage {
     this.corePointer = core
     this.dataPointer = data
 
-    this.closed = false
+    this.destroyed = false
   }
 
   get snapshotted () {
@@ -476,30 +476,30 @@ class HypercoreStorage {
   }
 
   snapshot () {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
     return new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
   }
 
   createReadBatch (opts) {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     const snapshot = this.dbSnapshot
     return new ReadBatch(this, this.db.read({ snapshot }))
   }
 
   createWriteBatch () {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     return new WriteBatch(this, this.db.write())
   }
 
   createBlockStream (opts = {}) {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
     return createStream(this, createBlockStream, opts)
   }
 
   createUserDataStream (opts = {}) {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, this.dbSnapshot, opts)
     const s = this.db.iterator(r)
@@ -508,7 +508,7 @@ class HypercoreStorage {
   }
 
   createTreeNodeStream (opts = {}) {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     const r = encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, opts)
     const s = this.db.iterator(r)
@@ -517,7 +517,7 @@ class HypercoreStorage {
   }
 
   createBitfieldPageStream (opts = {}) {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, opts)
     const s = this.db.iterator(r)
@@ -526,7 +526,7 @@ class HypercoreStorage {
   }
 
   async peekLastTreeNode () {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, { reverse: true }))
     if (last === null) return null
@@ -534,16 +534,16 @@ class HypercoreStorage {
   }
 
   async peekLastBitfieldPage () {
-    assert(this.closed === false)
+    assert(this.destroyed === false)
 
     const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, { reverse: true }))
     if (last === null) return null
     return mapStreamBitfieldPage(last)
   }
 
-  close () {
-    if (this.closed) return
-    this.closed = true
+  destroy () {
+    if (this.destroyed) return
+    this.destroyed = true
 
     if (this.dbSnapshot) this.dbSnapshot.destroy()
     this.dbSnapshot = null

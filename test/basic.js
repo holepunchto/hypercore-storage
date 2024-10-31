@@ -700,7 +700,7 @@ test('reopen default core', async function (t) {
   const s1 = await getStorage(t, dir)
   const c1 = (await s1.resume(DK_1)) || (await s1.create({ key: DK_1, discoveryKey: DK_1, manifest, keyPair, encryptionKey }))
 
-  await c1.close()
+  await c1.destroy()
   await s1.close()
 
   const s2 = await getStorage(t, dir)
@@ -732,7 +732,7 @@ test('large manifest', async function (t) {
   const s1 = await getStorage(t, dir)
   const c1 = (await s1.resume(DK_1)) || (await s1.create({ key: DK_1, discoveryKey: DK_1, manifest, keyPair, encryptionKey }))
 
-  await c1.close()
+  await c1.destroy()
   await s1.close()
 
   const s2 = await getStorage(t, dir)

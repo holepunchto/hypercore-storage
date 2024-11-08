@@ -358,7 +358,7 @@ module.exports = class CoreStorage {
     return new HypercoreStorage(this, discoveryKey, core, data, null)
   }
 
-  async create ({ key, manifest, keyPair, encryptionKey, discoveryKey }) {
+  async create ({ key, manifest, keyPair, encryptionKey, discoveryKey, userData }) {
     await this.mutex.write.lock()
 
     try {
@@ -390,7 +390,7 @@ module.exports = class CoreStorage {
       const batch = new WriteBatch(storage, write)
 
       initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
-      initialiseCoreData(batch)
+      initialiseCoreData(batch, { userData })
 
       await batch.flush()
       return storage
@@ -745,6 +745,11 @@ function initialiseCoreInfo (db, { key, manifest, keyPair, encryptionKey }) {
   if (encryptionKey) db.setEncryptionKey(encryptionKey)
 }
 
-function initialiseCoreData (db) {
+function initialiseCoreData (db, { userData } = {}) {
   db.setDataInfo({ version: 0 })
+  if (userData) {
+    for (const { key, value } of userData) {
+      db.setUserData(key, value)
+    }
+  }
 }

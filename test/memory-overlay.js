@@ -552,6 +552,72 @@ test('memory overlay - bitfield page: delete range', async function (t) {
   // }
 })
 
+test('memory overlay - bitfield page stream', async function (t) {
+  const c = await getCore(t)
+
+  const empty = Buffer.alloc(4096)
+  const full = Buffer.alloc(4096, 0xff)
+
+  {
+    const b = c.createWriteBatch()
+    b.putBitfieldPage(10244243, empty)
+    b.putBitfieldPage(10244244, full)
+    await b.flush()
+  }
+
+  {
+    const pages = []
+    for await (const page of c.createBitfieldPageStream()) {
+      pages.push(page)
+    }
+
+    t.alike(pages, [
+      { index: 10244243, page: empty },
+      { index: 10244244, page: full }
+    ])
+  }
+
+  {
+    const b = c.storage.createWriteBatch()
+    b.putBitfieldPage(0, empty)
+    b.putBitfieldPage(1, full)
+    await b.flush()
+  }
+
+  t.alike(await c.peekLastBitfieldPage(), { index: 10244244, page: full })
+
+  {
+    const pages = []
+    for await (const page of c.createBitfieldPageStream()) {
+      pages.push(page)
+    }
+
+    t.alike(pages, [
+      { index: 0, page: empty },
+      { index: 1, page: full },
+      { index: 10244243, page: empty },
+      { index: 10244244, page: full }
+    ])
+  }
+
+  {
+    const pages = []
+    const stream = c.createBitfieldPageStream({ reverse: true })
+    for await (const page of stream) {
+      pages.push(page)
+    }
+
+    stream.destroy()
+
+    t.alike(pages, [
+      { index: 10244244, page: full },
+      { index: 10244243, page: empty },
+      { index: 1, page: full },
+      { index: 0, page: empty }
+    ])
+  }
+})
+
 test('user data', async function (t) {
   const c = await getCore(t)
 

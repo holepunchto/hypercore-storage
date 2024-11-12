@@ -807,6 +807,8 @@ test('memory overlay - snapshot', async function (t) {
   t.alike(await keyPair, { publicKey, secretKey })
   t.alike(await encryption, encryptionKey)
   t.alike(await data, dependency)
+
+  snap.destroy()
 })
 
 async function getStorage (t, dir) {

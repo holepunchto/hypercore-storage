@@ -471,6 +471,18 @@ class HypercoreStorage {
     }
   }
 
+  async registerOverlay (head) {
+    const storage = new MemoryOverlay(this)
+    const batch = storage.createWriteBatch()
+
+    batch.setDataDependency({ data: this.dataPointer, length: head.length })
+    if (head.rootHash) batch.setCoreHead(head) // if no root hash its the empty core - no head yet
+
+    await batch.flush()
+
+    return storage
+  }
+
   createMemoryOverlay () {
     return new MemoryOverlay(this)
   }

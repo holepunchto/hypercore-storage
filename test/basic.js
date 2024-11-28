@@ -662,12 +662,23 @@ test('user data', async function (t) {
     { key: 'hello', value: Buffer.from('world') }
   ]
 
-  const userData = []
-  for await (const e of c.createUserDataStream()) {
-    userData.push(e)
+  {
+    const userData = []
+    for await (const e of c.createUserDataStream()) {
+      userData.push(e)
+    }
+
+    t.alike(userData, exp)
   }
 
-  t.alike(userData, exp)
+  {
+    const userData = []
+    for await (const e of c.createUserDataStream({ gt: 'hej' })) {
+      userData.push(e)
+    }
+
+    t.alike(userData, exp.slice(0, 1))
+  }
 
   {
     const b = c.createWriteBatch()
@@ -676,6 +687,15 @@ test('user data', async function (t) {
     b.setUserData('hej', Buffer.from('verden'))
 
     await b.flush()
+  }
+
+  {
+    const userData = []
+    for await (const e of c.createUserDataStream()) {
+      userData.push(e)
+    }
+
+    t.alike(userData, exp.slice(0, 1))
   }
 
   const batch = c.createReadBatch()

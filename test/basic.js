@@ -677,7 +677,7 @@ test('user data', async function (t) {
       userData.push(e)
     }
 
-    t.alike(userData, exp.slice(0, 1))
+    t.alike(userData, exp.slice(1))
   }
 
   {

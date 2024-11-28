@@ -513,7 +513,7 @@ class HypercoreStorage {
   createUserDataStream (opts = {}) {
     assert(this.destroyed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.USER_DATA, this.dbSnapshot, opts)
+    const r = encodeUserDataRange(this.dataPointer, DATA.USER_DATA, this.dbSnapshot, opts)
     const s = this.db.iterator(r)
     s._readableState.map = mapStreamUserData
     return s
@@ -584,6 +584,8 @@ function mapStreamUserData (data) {
 
   const key = c.string.decode(state)
 
+  if (data.value.byteLength === 0) return null
+
   return { key, value: data.value }
 }
 
@@ -651,6 +653,20 @@ function encodeIndexRange (pointer, type, snapshot, opts) {
   if (opts.lt || opts.lt === 0) bounded.lt = encodeDataIndex(pointer, type, opts.lt)
   else if (opts.lte) bounded.lte = encodeDataIndex(pointer, type, opts.lte)
   else bounded.lte = encodeDataIndex(pointer, type, Infinity) // infinity
+
+  return bounded
+}
+
+function encodeUserDataRange (pointer, type, snapshot, opts) {
+  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
+
+  if (opts.gt || opts.gt === 0) bounded.gt = encodeUserDataIndex(pointer, type, opts.gt)
+  else if (opts.gte) bounded.gte = encodeUserDataIndex(pointer, type, opts.gte)
+  else bounded.gte = encodeDataIndex(pointer, type, 0)
+
+  if (opts.lt || opts.lt === 0) bounded.lt = encodeUserDataIndex(pointer, type, opts.lt)
+  else if (opts.lte) bounded.lte = encodeUserDataIndex(pointer, type, opts.lte)
+  else bounded.lte = encodeDataIndex(pointer, type, Infinity)
 
   return bounded
 }

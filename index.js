@@ -489,7 +489,11 @@ class HypercoreStorage {
 
   snapshot () {
     assert(this.destroyed === false)
-    return new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
+    const s = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
+
+    for (const dep of this.dependencies) s.dependencies.push(dep)
+
+    return s
   }
 
   createReadBatch (opts) {

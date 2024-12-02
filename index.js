@@ -496,6 +496,29 @@ class HypercoreStorage {
     return s
   }
 
+  findDependency (length) {
+    for (let i = this.dependencies.length - 1; i >= 0; i--) {
+      const dep = this.dependencies[i]
+      if (dep.length < length) return dep
+    }
+
+    return null
+  }
+
+  updateDependencies (length) {
+    const deps = this.dependencies
+
+    for (let i = deps.length - 1; i >= 0; i--) {
+      if (deps[i].length < length) {
+        deps[i].length = length
+        this.dependencies = deps.slice(0, i + 1)
+        return
+      }
+    }
+
+    throw new Error('Dependency not found')
+  }
+
   createReadBatch (opts) {
     assert(this.destroyed === false)
 

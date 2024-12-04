@@ -487,11 +487,16 @@ class HypercoreStorage {
     return new MemoryOverlay(this)
   }
 
-  snapshot () {
+  snapshot (sharedLength) {
     assert(this.destroyed === false)
     const s = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
 
-    for (const dep of this.dependencies) s.dependencies.push(dep)
+    for (const dep of this.dependencies) {
+      const length = sharedLength !== -1 && sharedLength < dep.length ? sharedLength : dep.length
+      s.dependencies.push({ data: dep.data, length })
+
+      if (length === sharedLength) break
+    }
 
     return s
   }

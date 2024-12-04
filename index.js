@@ -487,7 +487,7 @@ class HypercoreStorage {
     return new MemoryOverlay(this)
   }
 
-  snapshot (sharedLength) {
+  snapshot (sharedLength = -1) {
     assert(this.destroyed === false)
     const s = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
 

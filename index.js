@@ -310,6 +310,7 @@ class AtomicBatch {
     if (this.destroyed) {
       this.destroyed = false
       batch.destroy()
+      if (reject !== null) reject(new Error('Atomic batch destroyed'))
       return
     }
 

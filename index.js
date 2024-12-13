@@ -278,24 +278,24 @@ class Atomizer {
     this.reject = null
   }
 
-  cork () {
+  enter () {
     this.refs++
   }
 
-  uncork () {
+  exit () {
     if (--this.refs === 0) this._commit()
   }
 
   createBatch () {
     if (this.refs === 0) this._ensureTick()
-    this.cork()
+    this.enter()
     if (this.batch === null) this.batch = this.db.write()
     return this.batch
   }
 
   _ensureTick () {
-    this.cork()
-    queueTick(() => this.uncork())
+    this.enter()
+    queueTick(() => this.exit())
   }
 
   async _commit () {
@@ -338,12 +338,12 @@ class Atomizer {
 
   destroy () {
     this.destroyed = true
-    this.uncork()
+    this.exit()
   }
 
   flush () {
     const flushing = this._createFlushing()
-    this.uncork()
+    this.exit()
     return flushing
   }
 }

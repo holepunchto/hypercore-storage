@@ -585,7 +585,7 @@ class HypercoreStorage {
     assert(this.destroyed === false)
     const s = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
 
-    for (const dep of this.dependencies) s.dependencies.push(dep)
+    for (const { data, length } of this.dependencies) s.dependencies.push({ data, length })
 
     return s
   }

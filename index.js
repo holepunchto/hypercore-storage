@@ -4,6 +4,8 @@ const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
 const b4a = require('b4a')
 const flat = require('flat-tree')
+const rrp = require('resolve-reject-promise')
+const queueTick = require('queue-tick')
 const assert = require('nanoassert')
 
 const m = require('./lib/messages')
@@ -71,9 +73,10 @@ const SLAB = {
 // PREFIX + BATCH + TYPE + INDEX
 
 class WriteBatch {
-  constructor (storage, write) {
+  constructor (storage, write, atom) {
     this.storage = storage
     this.write = write
+    this.atom = atom
   }
 
   setCoreHead (head) {
@@ -153,10 +156,12 @@ class WriteBatch {
   }
 
   destroy () {
-    this.write.destroy()
+    if (this.atom) this.atom.destroy()
+    else this.write.destroy()
   }
 
   flush () {
+    if (this.atom) return this.atom.flush()
     return this.write.flush()
   }
 }
@@ -262,6 +267,87 @@ class ReadBatch {
   }
 }
 
+class Atomizer {
+  constructor (db) {
+    this.db = db
+    this.batch = null
+    this.refs = 0
+    this.destroyed = false
+    this.flushing = null
+    this.resolve = null
+    this.reject = null
+  }
+
+  enter () {
+    this.refs++
+  }
+
+  exit () {
+    if (--this.refs === 0) this._commit()
+  }
+
+  createBatch () {
+    if (this.refs === 0) this._ensureTick()
+    this.enter()
+    if (this.batch === null) this.batch = this.db.write()
+    return this.batch
+  }
+
+  _ensureTick () {
+    this.enter()
+    queueTick(() => this.exit())
+  }
+
+  async _commit () {
+    const batch = this.batch
+    const resolve = this.resolve
+    const reject = this.reject
+
+    this.batch = null
+    this.flushing = null
+    this.resolve = this.reject = null
+
+    if (this.destroyed) {
+      this.destroyed = false
+      batch.destroy()
+      if (reject !== null) reject(new Error('Atomic batch destroyed'))
+      return
+    }
+
+    try {
+      await batch.flush()
+    } catch (err) {
+      reject(err)
+      return
+    }
+
+    resolve()
+  }
+
+  _createFlushing () {
+    if (this.flushing !== null) return this.flushing
+
+    const { resolve, reject, promise } = rrp()
+
+    this.flushing = promise
+    this.resolve = resolve
+    this.reject = reject
+
+    return this.flushing
+  }
+
+  destroy () {
+    this.destroyed = true
+    this.exit()
+  }
+
+  flush () {
+    const flushing = this._createFlushing()
+    this.exit()
+    return flushing
+  }
+}
+
 module.exports = class CoreStorage {
   constructor (dir) {
     this.db = new RocksDB(dir)
@@ -334,6 +420,10 @@ module.exports = class CoreStorage {
     return this.db.close()
   }
 
+  atomizer () {
+    return new Atomizer(this.db)
+  }
+
   async clear () {
     const b = this.db.write()
     b.tryDeleteRange(b4a.from([TL.STORAGE_INFO]), INF)
@@ -387,7 +477,7 @@ module.exports = class CoreStorage {
       write.tryPut(b4a.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
 
       const storage = new HypercoreStorage(this, discoveryKey, core, data, null)
-      const batch = new WriteBatch(storage, write)
+      const batch = new WriteBatch(storage, write, null)
 
       initialiseCoreInfo(batch, { key, manifest, keyPair, encryptionKey })
       initialiseCoreData(batch, { userData })
@@ -422,6 +512,10 @@ class HypercoreStorage {
     return this.dbSnapshot !== null
   }
 
+  atomizer () {
+    return this.root.atomizer()
+  }
+
   dependencyLength () {
     return this.dependencies.length
       ? this.dependencies[this.dependencies.length - 1].length
@@ -454,7 +548,7 @@ class HypercoreStorage {
 
       write.tryPut(b4a.from([TL.STORAGE_INFO]), encode(m.StorageInfo, info))
 
-      const batch = new WriteBatch(storage, write)
+      const batch = new WriteBatch(storage, write, null)
 
       initialiseCoreData(batch)
 
@@ -526,10 +620,12 @@ class HypercoreStorage {
     return new ReadBatch(this, this.db.read({ snapshot }))
   }
 
-  createWriteBatch () {
+  createWriteBatch (atomizer) {
     assert(this.destroyed === false)
 
-    return new WriteBatch(this, this.db.write())
+    if (atomizer) return new WriteBatch(this, atomizer.createBatch(), atomizer)
+
+    return new WriteBatch(this, this.db.write(), null)
   }
 
   createBlockStream (opts = {}) {

@@ -4,6 +4,8 @@ const { UINT } = require('index-encoder')
 const RW = require('read-write-mutexify')
 const b4a = require('b4a')
 const flat = require('flat-tree')
+const rrp = require('resolve-reject-promise')
+const queueTick = require('queue-tick')
 const assert = require('nanoassert')
 
 const m = require('./lib/messages')
@@ -71,10 +73,10 @@ const SLAB = {
 // PREFIX + BATCH + TYPE + INDEX
 
 class WriteBatch {
-  constructor (storage, write, atomizer) {
+  constructor (storage, write, atom) {
     this.storage = storage
     this.write = write
-    this.atomizer = atomizer
+    this.atom = atom
   }
 
   setCoreHead (head) {
@@ -154,12 +156,12 @@ class WriteBatch {
   }
 
   destroy () {
-    if (this.atomizer) this.atomizer.destroy()
+    if (this.atom) this.atom.destroy()
     else this.write.destroy()
   }
 
   flush () {
-    if (this.atomizer) return this.atomizer.flush()
+    if (this.atom) return this.atom.flush()
     return this.write.flush()
   }
 }
@@ -265,15 +267,7 @@ class ReadBatch {
   }
 }
 
-let tmpResolve = null
-let tmpReject = null
-
-function setTmpPromise (resolve, reject) {
-  tmpResolve = resolve
-  tmpReject = reject
-}
-
-class AtomicBatch {
+class Atomizer {
   constructor (db) {
     this.db = db
     this.batch = null
@@ -293,9 +287,15 @@ class AtomicBatch {
   }
 
   createBatch () {
+    if (this.refs === 0) this._ensureTick()
     this.cork()
     if (this.batch === null) this.batch = this.db.write()
     return this.batch
+  }
+
+  _ensureTick () {
+    this.cork()
+    queueTick(() => this.uncork())
   }
 
   async _commit () {
@@ -327,11 +327,11 @@ class AtomicBatch {
   _createFlushing () {
     if (this.flushing !== null) return this.flushing
 
-    this.flushing = new Promise(setTmpPromise)
-    this.resolve = tmpResolve
-    this.reject = tmpReject
+    const { resolve, reject, promise } = rrp()
 
-    tmpReject = tmpResolve = null
+    this.flushing = promise
+    this.resolve = resolve
+    this.reject = reject
 
     return this.flushing
   }
@@ -421,7 +421,7 @@ module.exports = class CoreStorage {
   }
 
   atomizer () {
-    return new AtomicBatch(this.db)
+    return new Atomizer(this.db)
   }
 
   async clear () {

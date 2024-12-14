@@ -628,6 +628,24 @@ class HypercoreStorage {
     return new WriteBatch(this, this.db.write(), null)
   }
 
+  // helper for atomic flows
+  async createWriteBatchAndLock (atomizer, lock) {
+    assert(this.destroyed === false)
+    if (atomizer) atomizer.enter()
+
+    try {
+      await lock.lock()
+    } catch (err) {
+      if (atomizer) atomizer.exit()
+      throw err
+    }
+
+    const batch = this.createWriteBatch(atomizer)
+    if (atomizer) atomizer.exit()
+
+    return batch
+  }
+
   createBlockStream (opts = {}) {
     assert(this.destroyed === false)
     return createStream(this, createBlockStream, opts)

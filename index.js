@@ -284,7 +284,7 @@ class Lock {
   }
 }
 
-class Atomizer {
+class Atom {
   constructor (db) {
     this.db = db
     this.batch = null
@@ -481,8 +481,8 @@ module.exports = class CoreStorage {
     return this.db.close()
   }
 
-  atomizer () {
-    return new Atomizer(this.db)
+  atom () {
+    return new Atom(this.db)
   }
 
   async clear () {
@@ -573,8 +573,8 @@ class HypercoreStorage {
     return this.dbSnapshot !== null
   }
 
-  atomizer () {
-    return this.root.atomizer()
+  atom () {
+    return this.root.atom()
   }
 
   dependencyLength () {
@@ -681,10 +681,10 @@ class HypercoreStorage {
     return new ReadBatch(this, this.db.read({ snapshot }))
   }
 
-  createWriteBatch (atomizer) {
+  createWriteBatch (atom) {
     assert(this.destroyed === false)
 
-    if (atomizer) return new WriteBatch(this, atomizer.createBatch(), atomizer)
+    if (atom) return new WriteBatch(this, atom.createBatch(), atom)
 
     return new WriteBatch(this, this.db.write(), null)
   }

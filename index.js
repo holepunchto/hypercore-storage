@@ -267,6 +267,23 @@ class ReadBatch {
   }
 }
 
+class Lock {
+  constructor (mutex) {
+    this.mutex = mutex
+    this.refs = 0
+    this.promise = null
+  }
+
+  acquire () {
+    if (this.refs++ === 0) this.promise = this.mutex.lock()
+    return this
+  }
+
+  release () {
+    if (--this.refs === 0) return this.mutex.unlock()
+  }
+}
+
 class Atomizer {
   constructor (db) {
     this.db = db
@@ -280,7 +297,7 @@ class Atomizer {
     this._executing = null
     this._waiting = []
     this._queue = []
-    this._enqueue = (resolve, reject) => this._queue.push({ resolve, reject })
+    this._enqueue = (lock, resolve, reject) => this._queue.push({ lock, resolve, reject })
   }
 
   enter () {
@@ -292,18 +309,21 @@ class Atomizer {
   }
 
   acquire (mutex) {
-    this._lock(mutex)
-    return new Promise(this._enqueue)
+    const lock = this._lock(mutex)
+    return new Promise(this._enqueue.bind(this, lock))
   }
 
-  async _lock (mutex) {
+  _lock (mutex) {
     for (const lock of this._waiting) {
-      if (lock.mutex === mutex) return
+      if (lock.mutex === mutex) return lock.acquire()
     }
 
-    this._waiting.push({ mutex, promise: mutex.lock() })
+    const lock = new Lock(mutex)
+    this._waiting.push(lock)
 
     if (this._executing === null) this._executing = this._execute()
+
+    return lock.acquire()
   }
 
   async _execute () {
@@ -316,9 +336,9 @@ class Atomizer {
     this._queue = []
     this._executing = null
 
-    for (const { resolve, reject } of queue) {
+    for (const { lock, resolve, reject } of queue) {
       if (this.destroyed) reject(new Error('Atomizer destroyed'))
-      else resolve()
+      else resolve(lock)
     }
 
     this._ensureTick() // allow caller to enter

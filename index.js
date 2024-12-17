@@ -338,6 +338,8 @@ class Atomizer {
   }
 
   async _commit () {
+    if (this.batch === null) return
+
     const batch = this.batch
     const resolve = this.resolve
     const reject = this.reject

@@ -276,6 +276,11 @@ class Atomizer {
     this.flushing = null
     this.resolve = null
     this.reject = null
+
+    this._executing = null
+    this._waiting = []
+    this._queue = []
+    this._enqueue = (resolve, reject) => this._queue.push({ resolve, reject })
   }
 
   enter () {
@@ -284,6 +289,40 @@ class Atomizer {
 
   exit () {
     if (--this.refs === 0) this._commit()
+  }
+
+  acquire (mutex) {
+    this._lock(mutex)
+    return new Promise(this._enqueue)
+  }
+
+  async _lock (mutex) {
+    for (const lock of this._waiting) {
+      if (lock.mutex === mutex) return
+    }
+
+    this._waiting.push({ mutex, promise: mutex.lock() })
+
+    if (this._executing === null) this._executing = this._execute()
+  }
+
+  async _execute () {
+    this.enter()
+    for (const { promise } of this._waiting) await promise
+
+    const queue = this._queue
+
+    this._waiting = []
+    this._queue = []
+    this._executing = null
+
+    for (const { resolve, reject } of queue) {
+      if (this.destroyed) reject(new Error('Atomizer destroyed'))
+      else resolve()
+    }
+
+    this._ensureTick() // allow caller to enter
+    this.exit()
   }
 
   createBatch () {

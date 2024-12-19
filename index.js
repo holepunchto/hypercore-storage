@@ -596,14 +596,14 @@ class HypercoreStorage {
     return storage
   }
 
-  async registerBatch (name, head) {
+  async registerBatch (name, head, atom) {
     await this.mutex.write.lock()
 
     const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, null)
 
     try {
       const info = await getStorageInfo(this.db)
-      const write = this.db.write()
+      const write = atom ? atom.createBatch() : this.db.write()
 
       storage.dataPointer = info.free++
 

@@ -267,7 +267,24 @@ class ReadBatch {
   }
 }
 
-class Atomizer {
+class Lock {
+  constructor (mutex) {
+    this.mutex = mutex
+    this.refs = 0
+    this.promise = null
+  }
+
+  acquire () {
+    if (this.refs++ === 0) this.promise = this.mutex.lock()
+    return this
+  }
+
+  release () {
+    if (--this.refs === 0) return this.mutex.unlock()
+  }
+}
+
+class Atom {
   constructor (db) {
     this.db = db
     this.batch = null
@@ -276,6 +293,11 @@ class Atomizer {
     this.flushing = null
     this.resolve = null
     this.reject = null
+
+    this._executing = null
+    this._waiting = []
+    this._queue = []
+    this._enqueue = (lock, resolve, reject) => this._queue.push({ lock, resolve, reject })
   }
 
   enter () {
@@ -284,6 +306,43 @@ class Atomizer {
 
   exit () {
     if (--this.refs === 0) this._commit()
+  }
+
+  acquire (mutex) {
+    const lock = this._lock(mutex)
+    return new Promise(this._enqueue.bind(this, lock))
+  }
+
+  _lock (mutex) {
+    for (const lock of this._waiting) {
+      if (lock.mutex === mutex) return lock.acquire()
+    }
+
+    const lock = new Lock(mutex)
+    this._waiting.push(lock)
+
+    if (this._executing === null) this._executing = this._execute()
+
+    return lock.acquire()
+  }
+
+  async _execute () {
+    this.enter()
+    for (const { promise } of this._waiting) await promise
+
+    const queue = this._queue
+
+    this._waiting = []
+    this._queue = []
+    this._executing = null
+
+    for (const { lock, resolve, reject } of queue) {
+      if (this.destroyed) reject(new Error('Atomizer destroyed'))
+      else resolve(lock)
+    }
+
+    this._ensureTick() // allow caller to enter
+    this.exit()
   }
 
   createBatch () {
@@ -299,6 +358,8 @@ class Atomizer {
   }
 
   async _commit () {
+    if (this.batch === null) return
+
     const batch = this.batch
     const resolve = this.resolve
     const reject = this.reject
@@ -420,8 +481,8 @@ module.exports = class CoreStorage {
     return this.db.close()
   }
 
-  atomizer () {
-    return new Atomizer(this.db)
+  atom () {
+    return new Atom(this.db)
   }
 
   async clear () {
@@ -512,8 +573,8 @@ class HypercoreStorage {
     return this.dbSnapshot !== null
   }
 
-  atomizer () {
-    return this.root.atomizer()
+  atom () {
+    return this.root.atom()
   }
 
   dependencyLength () {
@@ -535,14 +596,14 @@ class HypercoreStorage {
     return storage
   }
 
-  async registerBatch (name, head) {
+  async registerBatch (name, head, atom) {
     await this.mutex.write.lock()
 
     const storage = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, null)
 
     try {
       const info = await getStorageInfo(this.db)
-      const write = this.db.write()
+      const write = atom ? atom.createBatch() : this.db.write()
 
       storage.dataPointer = info.free++
 
@@ -620,10 +681,10 @@ class HypercoreStorage {
     return new ReadBatch(this, this.db.read({ snapshot }))
   }
 
-  createWriteBatch (atomizer) {
+  createWriteBatch (atom) {
     assert(this.destroyed === false)
 
-    if (atomizer) return new WriteBatch(this, atomizer.createBatch(), atomizer)
+    if (atom) return new WriteBatch(this, atom.createBatch(), atom)
 
     return new WriteBatch(this, this.db.write(), null)
   }

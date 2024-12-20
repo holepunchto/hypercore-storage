@@ -162,7 +162,7 @@ class WriteBatch {
 
   flush () {
     if (this.atom) return this.atom.flush()
-    return this.write.flush()
+    return flushAndDestroy(this.write)
   }
 }
 
@@ -259,11 +259,11 @@ class ReadBatch {
   }
 
   flush () {
-    return this.read.flush()
+    return flushAndDestroy(this.read)
   }
 
   tryFlush () {
-    this.read.tryFlush()
+    tryFlushAndDestroy(this.read)
   }
 }
 
@@ -378,10 +378,12 @@ class Atom {
     try {
       await batch.flush()
     } catch (err) {
+      batch.destroy()
       reject(err)
       return
     }
 
+    batch.destroy()
     resolve()
   }
 
@@ -411,7 +413,7 @@ class Atom {
 
 module.exports = class CoreStorage {
   constructor (dir) {
-    this.db = new RocksDB(dir)
+    this.db = typeof dir === 'object' ? dir : new RocksDB(dir)
     this.mutex = new RW()
   }
 
@@ -433,7 +435,7 @@ module.exports = class CoreStorage {
     try {
       const b = this.db.write()
       b.tryPut(b4a.from([TL.LOCAL_SEED]), seed)
-      await b.flush()
+      await flushAndDestroy(b)
 
       return true
     } finally {
@@ -488,7 +490,7 @@ module.exports = class CoreStorage {
   async clear () {
     const b = this.db.write()
     b.tryDeleteRange(b4a.from([TL.STORAGE_INFO]), INF)
-    await b.flush()
+    await flushAndDestroy(b)
   }
 
   async has (discoveryKey) {
@@ -556,6 +558,7 @@ class HypercoreStorage {
     this.root = root
     this.db = root.db
     this.dbSnapshot = snapshot
+    this.dbRead = snapshot || this.db
     this.mutex = root.mutex
 
     this.discoveryKey = discoveryKey
@@ -617,7 +620,8 @@ class HypercoreStorage {
       batch.setBatchPointer(name, storage.dataPointer)
       if (head.rootHash) batch.setCoreHead(head) // if no root hash its the empty core - no head yet
 
-      await write.flush()
+      if (atom) await atom.flush()
+      else await flushAndDestroy(write)
 
       storage.dependencies = await addDependencies(this.db, storage.dataPointer, head.length)
       return storage
@@ -644,7 +648,7 @@ class HypercoreStorage {
 
   snapshot () {
     assert(this.destroyed === false)
-    const s = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.db.snapshot())
+    const s = new HypercoreStorage(this.root, this.discoveryKey, this.corePointer, this.dataPointer, this.dbRead.snapshot())
 
     for (const { data, length } of this.dependencies) s.dependencies.push({ data, length })
 
@@ -677,8 +681,7 @@ class HypercoreStorage {
   createReadBatch (opts) {
     assert(this.destroyed === false)
 
-    const snapshot = this.dbSnapshot
-    return new ReadBatch(this, this.db.read({ snapshot }))
+    return new ReadBatch(this, this.dbRead.read())
   }
 
   createWriteBatch (atom) {
@@ -715,8 +718,8 @@ class HypercoreStorage {
   createUserDataStream (opts = {}) {
     assert(this.destroyed === false)
 
-    const r = encodeUserDataRange(this.dataPointer, DATA.USER_DATA, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
+    const r = encodeUserDataRange(this.dataPointer, DATA.USER_DATA, opts)
+    const s = this.dbRead.iterator(r)
     s._readableState.map = mapStreamUserData
     return s
   }
@@ -724,8 +727,8 @@ class HypercoreStorage {
   createTreeNodeStream (opts = {}) {
     assert(this.destroyed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
+    const r = encodeIndexRange(this.dataPointer, DATA.TREE, opts)
+    const s = this.dbRead.iterator(r)
     s._readableState.map = mapStreamTreeNode
     return s
   }
@@ -733,8 +736,8 @@ class HypercoreStorage {
   createBitfieldPageStream (opts = {}) {
     assert(this.destroyed === false)
 
-    const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, opts)
-    const s = this.db.iterator(r)
+    const r = encodeIndexRange(this.dataPointer, DATA.BITFIELD, opts)
+    const s = this.dbRead.iterator(r)
     s._readableState.map = mapStreamBitfieldPage
     return s
   }
@@ -742,7 +745,7 @@ class HypercoreStorage {
   async peekLastTreeNode () {
     assert(this.destroyed === false)
 
-    const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.TREE, this.dbSnapshot, { reverse: true }))
+    const last = await this.dbRead.peek(encodeIndexRange(this.dataPointer, DATA.TREE, { reverse: true }))
     if (last === null) return null
     return c.decode(m.TreeNode, last.value)
   }
@@ -750,7 +753,7 @@ class HypercoreStorage {
   async peekLastBitfieldPage () {
     assert(this.destroyed === false)
 
-    const last = await this.db.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, this.dbSnapshot, { reverse: true }))
+    const last = await this.dbRead.peek(encodeIndexRange(this.dataPointer, DATA.BITFIELD, { reverse: true }))
     if (last === null) return null
     return mapStreamBitfieldPage(last)
   }
@@ -759,19 +762,19 @@ class HypercoreStorage {
     if (this.destroyed) return
     this.destroyed = true
 
-    if (this.dbSnapshot) this.dbSnapshot.destroy()
+    if (this.dbSnapshot) this.dbSnapshot.close().catch(noop)
     this.dbSnapshot = null
   }
 }
 
 function createStream (storage, createStreamType, opts) {
   return storage.dependencies.length === 0
-    ? createStreamType(storage.db, storage.dbSnapshot, storage.dataPointer, opts)
+    ? createStreamType(storage.db, storage.dataPointer, opts)
     : new DependencyStream(storage, createStreamType, opts)
 }
 
-function createBlockStream (db, snap, data, opts) {
-  const r = encodeIndexRange(data, DATA.BLOCK, snap, opts)
+function createBlockStream (db, data, opts) {
+  const r = encodeIndexRange(data, DATA.BLOCK, opts)
   const s = db.iterator(r)
   s._readableState.map = mapStreamBlock
   return s
@@ -845,8 +848,8 @@ function ensureSlab (size) {
   return SLAB
 }
 
-function encodeIndexRange (pointer, type, snapshot, opts) {
-  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
+function encodeIndexRange (pointer, type, opts) {
+  const bounded = { gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
 
   if (opts.gt || opts.gt === 0) bounded.gt = encodeDataIndex(pointer, type, opts.gt)
   else if (opts.gte) bounded.gte = encodeDataIndex(pointer, type, opts.gte)
@@ -859,8 +862,8 @@ function encodeIndexRange (pointer, type, snapshot, opts) {
   return bounded
 }
 
-function encodeUserDataRange (pointer, type, snapshot, opts) {
-  const bounded = { snapshot, gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
+function encodeUserDataRange (pointer, type, opts) {
+  const bounded = { gt: null, gte: null, lte: null, lt: null, reverse: !!opts.reverse, limit: toLimit(opts.limit) }
 
   if (opts.gt || opts.gt === 0) bounded.gt = encodeUserDataIndex(pointer, type, opts.gt)
   else if (opts.gte) bounded.gte = encodeUserDataIndex(pointer, type, opts.gte)
@@ -982,4 +985,25 @@ function initialiseCoreData (db, { userData } = {}) {
       db.setUserData(key, value)
     }
   }
+}
+
+function noop () {}
+
+async function tryFlushAndDestroy (batch) {
+  try {
+    await batch.flush()
+  } catch {}
+
+  batch.destroy()
+}
+
+async function flushAndDestroy (batch) {
+  try {
+    await batch.flush()
+  } catch (err) {
+    batch.destroy()
+    throw err
+  }
+
+  batch.destroy()
 }

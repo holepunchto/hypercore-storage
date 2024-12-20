@@ -22,7 +22,7 @@
     "queue-tick": "^1.0.1",
     "read-write-mutexify": "^2.1.0",
     "resolve-reject-promise": "^1.0.0",
-    "rocksdb-native": "^2.2.0",
+    "rocksdb-native": "^3.0.0",
     "streamx": "^2.20.1"
   },
   "devDependencies": {

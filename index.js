@@ -152,7 +152,7 @@ class WriteBatch {
     const s = encodeDataIndex(this.storage.dataPointer, type, start)
     const e = encodeDataIndex(this.storage.dataPointer, type, end === -1 ? Infinity : end)
 
-    return this.write.deleteRange(s, e)
+    return this.write.tryDeleteRange(s, e)
   }
 
   destroy () {

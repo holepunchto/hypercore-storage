@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "schema": [
+    {
+      "name": "head",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "total",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "next",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "seed",
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "tree-node",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "index",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "size",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "hash",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "dependencies",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "dataPointer",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    }
+  ]
+}

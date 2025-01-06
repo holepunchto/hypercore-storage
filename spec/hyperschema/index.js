@@ -75,8 +75,104 @@ const encoding1 = {
   }
 }
 
+// @core/signer
+const encoding2 = {
+  preencode (state, m) {
+    c.uint.preencode(state, m.signature)
+    c.fixed32.preencode(state, m.namespace)
+    c.fixed32.preencode(state, m.publicKey)
+  },
+  encode (state, m) {
+    c.uint.encode(state, m.signature)
+    c.fixed32.encode(state, m.namespace)
+    c.fixed32.encode(state, m.publicKey)
+  },
+  decode (state) {
+    const r0 = c.uint.decode(state)
+    const r1 = c.fixed32.decode(state)
+    const r2 = c.fixed32.decode(state)
+
+    return {
+      signature: r0,
+      namespace: r1,
+      publicKey: r2
+    }
+  }
+}
+
+// @core/prologue
+const encoding3 = {
+  preencode (state, m) {
+    c.fixed32.preencode(state, m.hash)
+    c.uint.preencode(state, m.length)
+  },
+  encode (state, m) {
+    c.fixed32.encode(state, m.hash)
+    c.uint.encode(state, m.length)
+  },
+  decode (state) {
+    const r0 = c.fixed32.decode(state)
+    const r1 = c.uint.decode(state)
+
+    return {
+      hash: r0,
+      length: r1
+    }
+  }
+}
+
+// @core/manifest.prologue
+const encoding4_4 = c.frame(encoding3)
+// @core/manifest.signers
+const encoding4_5 = c.frame(c.array(encoding2))
+
+// @core/manifest
+const encoding4 = {
+  preencode (state, m) {
+    const flags =
+      (m.allowPatch ? 1 : 0) |
+      (m.prologue ? 2 : 0) |
+      (m.signers ? 4 : 0)
+
+    c.uint.preencode(state, m.version)
+    c.uint.preencode(state, flags)
+    c.uint.preencode(state, m.hash)
+    c.uint.preencode(state, m.quorum)
+
+    if (m.prologue) encoding4_4.preencode(state, m.prologue)
+    if (m.signers) encoding4_5.preencode(state, m.signers)
+  },
+  encode (state, m) {
+    const flags =
+      (m.allowPatch ? 1 : 0) |
+      (m.prologue ? 2 : 0) |
+      (m.signers ? 4 : 0)
+
+    c.uint.encode(state, m.version)
+    c.uint.encode(state, flags)
+    c.uint.encode(state, m.hash)
+    c.uint.encode(state, m.quorum)
+
+    if (m.prologue) encoding4_4.encode(state, m.prologue)
+    if (m.signers) encoding4_5.encode(state, m.signers)
+  },
+  decode (state) {
+    const r0 = c.uint.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      version: r0,
+      hash: c.uint.decode(state),
+      quorum: c.uint.decode(state),
+      allowPatch: (flags & 1) !== 0,
+      prologue: (flags & 2) !== 0 ? encoding4_4.decode(state) : null,
+      signers: (flags & 4) !== 0 ? encoding4_5.decode(state) : null
+    }
+  }
+}
+
 // @core/dependencies
-const encoding2 = c.array({
+const encoding5 = c.array({
   preencode (state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
@@ -114,7 +210,10 @@ function getEncoding (name) {
   switch (name) {
     case '@corestore/head': return encoding0
     case '@core/tree-node': return encoding1
-    case '@core/dependencies': return encoding2
+    case '@core/signer': return encoding2
+    case '@core/prologue': return encoding3
+    case '@core/manifest': return encoding4
+    case '@core/dependencies': return encoding5
     default: throw new Error('Encoder not found ' + name)
   }
 }

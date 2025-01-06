@@ -57,6 +57,94 @@
       ]
     },
     {
+      "name": "signer",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "namespace",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "prologue",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "hash",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "manifest",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "hash",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "quorum",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "allowPatch",
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "prologue",
+          "type": "@core/prologue",
+          "version": 1
+        },
+        {
+          "name": "signers",
+          "array": true,
+          "type": "@core/signer",
+          "version": 1
+        }
+      ]
+    },
+    {
       "name": "dependencies",
       "namespace": "core",
       "compact": true,

@@ -44,6 +44,64 @@ core.register({
 })
 
 core.register({
+  name: 'signer',
+  fields: [{
+    name: 'signature',
+    type: 'uint',
+    required: true
+  }, {
+    name: 'namespace',
+    type: 'fixed32',
+    required: true
+  }, {
+    name: 'publicKey',
+    type: 'fixed32',
+    required: true
+  }]
+})
+
+core.register({
+  name: 'prologue',
+  fields: [{
+    name: 'hash',
+    type: 'fixed32',
+    required: true
+  }, {
+    name: 'length',
+    type: 'uint',
+    required: true
+  }]
+})
+
+core.register({
+  name: 'manifest',
+  flagsPosition: 1, // compat
+  fields: [{
+    name: 'version',
+    type: 'uint',
+    required: true
+  }, {
+    name: 'hash',
+    type: 'uint',
+    required: true
+  }, {
+    name: 'quorum',
+    type: 'uint',
+    required: true
+  }, {
+    name: 'allowPatch',
+    type: 'bool'
+  }, {
+    name: 'prologue',
+    type: '@core/prologue'
+  }, {
+    name: 'signers',
+    array: true,
+    type: '@core/signer'
+  }]
+})
+
+core.register({
   name: 'dependencies',
   compact: true,
   array: true,

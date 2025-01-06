@@ -26,6 +26,24 @@ corestore.register({
 const core = schema.namespace('core')
 
 core.register({
+  name: 'hashes',
+  offset: 0,
+  strings: true,
+  enum: [
+    'blake2b'
+  ]
+})
+
+core.register({
+  name: 'signatures',
+  offset: 0,
+  strings: true,
+  enum: [
+    'ed25519'
+  ]
+})
+
+core.register({
   name: 'tree-node',
   compact: true,
   fields: [{
@@ -48,7 +66,7 @@ core.register({
   compact: true,
   fields: [{
     name: 'signature',
-    type: 'uint',
+    type: '@core/signatures',
     required: true
   }, {
     name: 'namespace',
@@ -84,7 +102,7 @@ core.register({
     required: true
   }, {
     name: 'hash',
-    type: 'uint',
+    type: '@core/hashes',
     required: true
   }, {
     name: 'quorum',

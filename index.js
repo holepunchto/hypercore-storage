@@ -418,7 +418,7 @@ module.exports = class CoreStorage {
   }
 
   static isCoreStorage (s) {
-    return !!s && typeof s.setLocalSeed === 'function'
+    return typeof s === 'object' && !!s && typeof s.setLocalSeed === 'function'
   }
 
   // just a helper to make tests easier

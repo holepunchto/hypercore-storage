@@ -417,6 +417,10 @@ module.exports = class CoreStorage {
     this.mutex = new RW()
   }
 
+  static isCoreStorage (s) {
+    return !!s && typeof s.setLocalSeed === 'function'
+  }
+
   // just a helper to make tests easier
   static async clear (dir) {
     const s = new this(dir)

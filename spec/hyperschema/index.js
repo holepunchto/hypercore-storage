@@ -121,40 +121,36 @@ const encoding3 = {
   }
 }
 
-// @core/manifest.prologue
-const encoding4_4 = c.frame(encoding3)
 // @core/manifest.signers
-const encoding4_5 = c.frame(c.array(encoding2))
+const encoding4_4 = c.array(encoding2)
 
 // @core/manifest
 const encoding4 = {
   preencode (state, m) {
     const flags =
       (m.allowPatch ? 1 : 0) |
-      (m.prologue ? 2 : 0) |
-      (m.signers ? 4 : 0)
+      (m.prologue ? 2 : 0)
 
     c.uint.preencode(state, m.version)
     c.uint.preencode(state, flags)
     c.uint.preencode(state, m.hash)
     c.uint.preencode(state, m.quorum)
+    encoding4_4.preencode(state, m.signers)
 
-    if (m.prologue) encoding4_4.preencode(state, m.prologue)
-    if (m.signers) encoding4_5.preencode(state, m.signers)
+    if (m.prologue) encoding3.preencode(state, m.prologue)
   },
   encode (state, m) {
     const flags =
       (m.allowPatch ? 1 : 0) |
-      (m.prologue ? 2 : 0) |
-      (m.signers ? 4 : 0)
+      (m.prologue ? 2 : 0)
 
     c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
     c.uint.encode(state, m.hash)
     c.uint.encode(state, m.quorum)
+    encoding4_4.encode(state, m.signers)
 
-    if (m.prologue) encoding4_4.encode(state, m.prologue)
-    if (m.signers) encoding4_5.encode(state, m.signers)
+    if (m.prologue) encoding3.encode(state, m.prologue)
   },
   decode (state) {
     const r0 = c.uint.decode(state)
@@ -165,8 +161,8 @@ const encoding4 = {
       hash: c.uint.decode(state),
       quorum: c.uint.decode(state),
       allowPatch: (flags & 1) !== 0,
-      prologue: (flags & 2) !== 0 ? encoding4_4.decode(state) : null,
-      signers: (flags & 4) !== 0 ? encoding4_5.decode(state) : null
+      signers: encoding4_4.decode(state),
+      prologue: (flags & 2) !== 0 ? encoding3.decode(state) : null
     }
   }
 }

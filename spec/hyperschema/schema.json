@@ -59,7 +59,7 @@
     {
       "name": "signer",
       "namespace": "core",
-      "compact": false,
+      "compact": true,
       "flagsPosition": -1,
       "fields": [
         {
@@ -85,7 +85,7 @@
     {
       "name": "prologue",
       "namespace": "core",
-      "compact": false,
+      "compact": true,
       "flagsPosition": -1,
       "fields": [
         {
@@ -132,14 +132,15 @@
           "version": 1
         },
         {
-          "name": "prologue",
-          "type": "@core/prologue",
+          "name": "signers",
+          "required": true,
+          "array": true,
+          "type": "@core/signer",
           "version": 1
         },
         {
-          "name": "signers",
-          "array": true,
-          "type": "@core/signer",
+          "name": "prologue",
+          "type": "@core/prologue",
           "version": 1
         }
       ]

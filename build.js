@@ -45,6 +45,7 @@ core.register({
 
 core.register({
   name: 'signer',
+  compact: true,
   fields: [{
     name: 'signature',
     type: 'uint',
@@ -62,6 +63,7 @@ core.register({
 
 core.register({
   name: 'prologue',
+  compact: true,
   fields: [{
     name: 'hash',
     type: 'fixed32',
@@ -92,12 +94,13 @@ core.register({
     name: 'allowPatch',
     type: 'bool'
   }, {
-    name: 'prologue',
-    type: '@core/prologue'
-  }, {
     name: 'signers',
     array: true,
+    required: true,
     type: '@core/signer'
+  }, {
+    name: 'prologue',
+    type: '@core/prologue'
   }]
 })
 

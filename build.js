@@ -23,6 +23,15 @@ corestore.register({
   }]
 })
 
+corestore.register({
+  name: 'core',
+  fields: [{
+    name: 'dataPointer',
+    type: 'uint',
+    required: true
+  }]
+})
+
 const core = schema.namespace('core')
 
 core.register({

@@ -2,6 +2,7 @@ const ScopeLock = require('scope-lock')
 const { CorestoreRX, CorestoreTX, CoreTX } = require('./lib/tx.js')
 const Updates = require('./lib/updates.js')
 const { createDiscoveryKeyStream } = require('./lib/streams.js')
+const rrp = require('resolve-reject-promise')
 
 class CorestoreStorage {
   constructor (db) {
@@ -10,6 +11,7 @@ class CorestoreStorage {
     this.tx = null
     this.enters = 0
     this.lock = new ScopeLock()
+    this.flushing = null
   }
 
   async _enter () {
@@ -22,11 +24,19 @@ class CorestoreStorage {
   async _exit () {
     this.enters--
 
-    const flushed = this.tx.flushed()
+    if (this.flushing === null) this.flushing = rrp()
+    const flushed = this.flushing.promise
 
     if (this.enters === 0 || this.tx.updates.size() > 128) {
-      await this.tx.flush()
-      this.tx = null
+      try {
+        await this.tx.updates.flush(this.db)
+        this.flushing.resolve()
+      } catch (err) {
+        this.flushing.reject(err)
+      } finally {
+        this.flushing = null
+        this.tx = null
+      }
     }
 
     this.lock.unlock()

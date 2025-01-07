@@ -168,6 +168,61 @@
       ]
     },
     {
+      "name": "keyPair",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "secretKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "auth",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "discoveryKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "manifest",
+          "type": "@core/manifest",
+          "version": 1
+        },
+        {
+          "name": "signer",
+          "type": "@core/keyPair",
+          "version": 1
+        },
+        {
+          "name": "encryptionKey",
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
       "name": "dependencies",
       "namespace": "core",
       "compact": true,

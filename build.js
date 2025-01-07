@@ -74,7 +74,7 @@ core.register({
     required: true
   }, {
     name: 'publicKey',
-    type: 'fixed32',
+    type: 'fixed32', // should prop have been buffer but we can change when we version bump
     required: true
   }]
 })
@@ -119,6 +119,42 @@ core.register({
   }, {
     name: 'prologue',
     type: '@core/prologue'
+  }]
+})
+
+core.register({
+  name: 'keyPair',
+  compact: true,
+  fields: [{
+    name: 'publicKey',
+    type: 'buffer',
+    required: true
+  }, {
+    name: 'secretKey',
+    type: 'buffer',
+    required: true
+  }]
+})
+
+core.register({
+  name: 'auth',
+  fields: [{
+    name: 'key',
+    type: 'fixed32',
+    required: true
+  }, {
+    name: 'discoveryKey',
+    type: 'fixed32',
+    required: true
+  }, {
+    name: 'manifest',
+    type: '@core/manifest'
+  }, {
+    name: 'signer',
+    type: '@core/keyPair'
+  }, {
+    name: 'encryptionKey',
+    type: 'buffer'
   }]
 })
 

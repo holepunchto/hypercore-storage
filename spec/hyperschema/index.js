@@ -208,8 +208,72 @@ const encoding6 = {
   }
 }
 
+// @core/keyPair
+const encoding7 = {
+  preencode (state, m) {
+    c.buffer.preencode(state, m.publicKey)
+    c.buffer.preencode(state, m.secretKey)
+  },
+  encode (state, m) {
+    c.buffer.encode(state, m.publicKey)
+    c.buffer.encode(state, m.secretKey)
+  },
+  decode (state) {
+    const r0 = c.buffer.decode(state)
+    const r1 = c.buffer.decode(state)
+
+    return {
+      publicKey: r0,
+      secretKey: r1
+    }
+  }
+}
+
+// @core/auth.manifest
+const encoding8_2 = c.frame(encoding6)
+
+// @core/auth
+const encoding8 = {
+  preencode (state, m) {
+    c.fixed32.preencode(state, m.key)
+    c.fixed32.preencode(state, m.discoveryKey)
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.manifest) encoding8_2.preencode(state, m.manifest)
+    if (m.signer) encoding7.preencode(state, m.signer)
+    if (m.encryptionKey) c.buffer.preencode(state, m.encryptionKey)
+  },
+  encode (state, m) {
+    const flags =
+      (m.manifest ? 1 : 0) |
+      (m.signer ? 2 : 0) |
+      (m.encryptionKey ? 4 : 0)
+
+    c.fixed32.encode(state, m.key)
+    c.fixed32.encode(state, m.discoveryKey)
+    c.uint.encode(state, flags)
+
+    if (m.manifest) encoding8_2.encode(state, m.manifest)
+    if (m.signer) encoding7.encode(state, m.signer)
+    if (m.encryptionKey) c.buffer.encode(state, m.encryptionKey)
+  },
+  decode (state) {
+    const r0 = c.fixed32.decode(state)
+    const r1 = c.fixed32.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      key: r0,
+      discoveryKey: r1,
+      manifest: (flags & 1) !== 0 ? encoding8_2.decode(state) : null,
+      signer: (flags & 2) !== 0 ? encoding7.decode(state) : null,
+      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null
+    }
+  }
+}
+
 // @core/dependencies
-const encoding7 = c.array({
+const encoding9 = c.array({
   preencode (state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
@@ -260,7 +324,9 @@ function getEncoding (name) {
     case '@core/signer': return encoding4
     case '@core/prologue': return encoding5
     case '@core/manifest': return encoding6
-    case '@core/dependencies': return encoding7
+    case '@core/keyPair': return encoding7
+    case '@core/auth': return encoding8
+    case '@core/dependencies': return encoding9
     default: throw new Error('Encoder not found ' + name)
   }
 }

@@ -1,7 +1,7 @@
 const ScopeLock = require('scope-lock')
 const { CorestoreRX, CorestoreTX, CoreTX, CoreRX } = require('./lib/tx.js')
 const Updates = require('./lib/updates.js')
-const { createDiscoveryKeyStream } = require('./lib/streams.js')
+const { createDiscoveryKeyStream, createAliasStream, createBlockStream, createBitfieldStream } = require('./lib/streams.js')
 const rrp = require('resolve-reject-promise')
 
 const EMPTY = new Updates()
@@ -11,6 +11,21 @@ class HypercoreStorage {
     this.store = store
     this.db = db
     this.core = core
+  }
+
+  createBlockStream (tx, start, end) {
+    const updates = tx ? tx.updates : EMPTY
+    return createBlockStream(this.core, this.db, updates, start, end)
+  }
+
+  createBitfieldStream (tx, start, end) {
+    const updates = tx ? tx.updates : EMPTY
+    return createBitfieldStream(this.core, this.db, updates, start, end)
+  }
+
+  createUserDataStream (tx, start, end) {
+    const updates = tx ? tx.updates : EMPTY
+    return createUserDataStream(this.core, this.db, updates, start, end)
   }
 
   async resumeBatch (tx, name) {
@@ -169,8 +184,19 @@ class CorestoreStorage {
     await this._exit()
   }
 
-  list () {
+  createDiscoveryKeyStream () {
     return createDiscoveryKeyStream(this.db, EMPTY)
+  }
+
+  createAliasStream (namespace) {
+    return createAliasStream(this.db, EMPTY, namespace)
+  }
+
+  getAlias (alias) {
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const discoveryKeyPromise = rx.getCoreByAlias(alias)
+    rx.tryFlush()
+    return discoveryKeyPromise
   }
 
   async getSeed () {
@@ -264,7 +290,7 @@ class CorestoreStorage {
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _create (tx, { key, manifest, keyPair, encryptionKey, discoveryKey, userData }) {
+  async _create (tx, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
     const rx = new CorestoreRX(this.db, tx.updates)
 
     const corePromise = rx.getCore(discoveryKey)
@@ -280,10 +306,11 @@ class CorestoreStorage {
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++
 
-    core = { corePointer, dataPointer }
+    core = { corePointer, dataPointer, alias }
 
-    tx.putCore(discoveryKey, core)
     tx.setHead(head)
+    tx.putCore(discoveryKey, core)
+    if (alias) tx.putCoreByAlias(alias, discoveryKey)
 
     const ptr = { corePointer, dataPointer, dependencies: [] }
     const ctx = new CoreTX(ptr, this.db, tx.updates)
@@ -305,11 +332,11 @@ class CorestoreStorage {
     return new HypercoreStorage(this, this.db, ptr)
   }
 
-  async create ({ key, manifest, keyPair, encryptionKey, discoveryKey, userData }) {
+  async create (data) {
     const tx = await this._enter()
 
     try {
-      return await this._create(tx, { key, manifest, keyPair, encryptionKey, discoveryKey, userData })
+      return await this._create(tx, data)
     } finally {
       await this._exit()
     }

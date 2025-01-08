@@ -38,6 +38,19 @@ corestore.register({
 })
 
 corestore.register({
+  name: 'alias',
+  fields: [{
+    name: 'name',
+    type: 'string',
+    required: true
+  }, {
+    name: 'namespace',
+    type: 'fixed32',
+    required: true
+  }]
+})
+
+corestore.register({
   name: 'core',
   fields: [{
     name: 'corePointer',
@@ -47,6 +60,9 @@ corestore.register({
     name: 'dataPointer',
     type: 'uint',
     required: true
+  }, {
+    name: 'alias',
+    type: '@corestore/alias'
   }]
 })
 

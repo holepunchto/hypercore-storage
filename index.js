@@ -173,6 +173,60 @@ class CorestoreStorage {
     return createDiscoveryKeyStream(this.db, EMPTY)
   }
 
+  async getSeed () {
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const headPromise = rx.getHead()
+
+    rx.tryFlush()
+
+    const head = await headPromise
+    return head === null ? null : head.seed
+  }
+
+  async setSeed (seed) {
+    const tx = await this._enter()
+    try {
+      const rx = new CorestoreRX(this.db, tx.updates)
+      const headPromise = rx.getHead()
+
+      rx.tryFlush()
+
+      const head = (await headPromise) || initStoreHead()
+
+      head.seed = seed
+      tx.setHead(head)
+    } finally {
+      await this._exit()
+    }
+  }
+
+  async getDefaultKey () {
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const headPromise = rx.getHead()
+
+    rx.tryFlush()
+
+    const head = await headPromise
+    return head === null ? null : head.defaultKey
+  }
+
+  async setDefaultKey (defaultKey) {
+    const tx = await this._enter()
+    try {
+      const rx = new CorestoreRX(this.db, tx.updates)
+      const headPromise = rx.getHead()
+
+      rx.tryFlush()
+
+      const head = (await headPromise) || initStoreHead()
+
+      head.defaultKey = defaultKey
+      tx.setHead(head)
+    } finally {
+      await this._exit()
+    }
+  }
+
   async has (discoveryKey) {
     const rx = new CorestoreRX(this.db, EMPTY)
     const promise = rx.getCore(discoveryKey)

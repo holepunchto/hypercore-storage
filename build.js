@@ -188,9 +188,29 @@ core.register({
 core.register({
   name: 'head',
   fields: [{
+    name: 'fork',
+    type: 'uint',
+    required: true
+  }, {
     name: 'length',
     type: 'uint',
     required: true
+  }, {
+    name: 'rootHash',
+    type: 'fixed32',
+    required: true
+  }, {
+    name: 'signature',
+    type: 'buffer',
+    required: true
+  }]
+})
+
+core.register({
+  name: 'hints',
+  fields: [{
+    name: 'contiguousLength',
+    type: 'uint'
   }]
 })
 

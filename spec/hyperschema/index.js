@@ -317,22 +317,57 @@ const encoding10 = {
 // @core/head
 const encoding11 = {
   preencode (state, m) {
+    c.uint.preencode(state, m.fork)
     c.uint.preencode(state, m.length)
+    c.fixed32.preencode(state, m.rootHash)
+    c.buffer.preencode(state, m.signature)
   },
   encode (state, m) {
+    c.uint.encode(state, m.fork)
     c.uint.encode(state, m.length)
+    c.fixed32.encode(state, m.rootHash)
+    c.buffer.encode(state, m.signature)
   },
   decode (state) {
     const r0 = c.uint.decode(state)
+    const r1 = c.uint.decode(state)
+    const r2 = c.fixed32.decode(state)
+    const r3 = c.buffer.decode(state)
 
     return {
-      length: r0
+      fork: r0,
+      length: r1,
+      rootHash: r2,
+      signature: r3
+    }
+  }
+}
+
+// @core/hints
+const encoding12 = {
+  preencode (state, m) {
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.contiguousLength) c.uint.preencode(state, m.contiguousLength)
+  },
+  encode (state, m) {
+    const flags = m.contiguousLength ? 1 : 0
+
+    c.uint.encode(state, flags)
+
+    if (m.contiguousLength) c.uint.encode(state, m.contiguousLength)
+  },
+  decode (state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      contiguousLength: (flags & 1) !== 0 ? c.uint.decode(state) : 0
     }
   }
 }
 
 // @core/batches
-const encoding12 = c.array({
+const encoding13 = c.array({
   preencode (state, m) {
     c.string.preencode(state, m.name)
     c.uint.preencode(state, m.dataPointer)
@@ -353,7 +388,7 @@ const encoding12 = c.array({
 })
 
 // @core/dependencies
-const encoding13 = c.array({
+const encoding14 = c.array({
   preencode (state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
@@ -409,8 +444,9 @@ function getEncoding (name) {
     case '@core/keyPair': return encoding9
     case '@core/auth': return encoding10
     case '@core/head': return encoding11
-    case '@core/batches': return encoding12
-    case '@core/dependencies': return encoding13
+    case '@core/hints': return encoding12
+    case '@core/batches': return encoding13
+    case '@core/dependencies': return encoding14
     default: throw new Error('Encoder not found ' + name)
   }
 }

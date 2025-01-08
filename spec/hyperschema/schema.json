@@ -269,8 +269,39 @@
       "flagsPosition": -1,
       "fields": [
         {
+          "name": "fork",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
           "name": "length",
           "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "rootHash",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "hints",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "contiguousLength",
           "type": "uint",
           "version": 1
         }

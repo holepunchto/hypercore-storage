@@ -195,14 +195,14 @@ class CorestoreStorage {
 
   async _resumeFromPointers (updates, { corePointer, dataPointer }) {
     const rx = new CorestoreRX(this.db, updates)
-    const dependenciesPromise = rs.getDependencies()
+    const dependenciesPromise = rx.getDependencies()
 
     rx.tryFlush()
     const dependencies = await dependenciesPromise
 
     const result = {
-      corePointer: core.corePointer,
-      dataPointer: core.dataPointer,
+      corePointer,
+      dataPointer,
       dependencies: dependencies || []
     }
 
@@ -282,7 +282,7 @@ function getBatch (batches, name, alloc) {
 
   if (!alloc) return null
 
-  const result = { name, dataPointer: 0}
+  const result = { name, dataPointer: 0 }
   batches.push(result)
   return result
 }

@@ -1,35 +1,40 @@
 const ScopeLock = require('scope-lock')
 const { CorestoreRX, CorestoreTX, CoreTX, CoreRX } = require('./lib/tx.js')
-const Updates = require('./lib/updates.js')
+const View = require('./lib/view.js')
 const { createDiscoveryKeyStream, createAliasStream, createBlockStream, createBitfieldStream } = require('./lib/streams.js')
 const rrp = require('resolve-reject-promise')
 
-const EMPTY = new Updates()
+const EMPTY = new View()
 
 class HypercoreStorage {
-  constructor (store, db, core) {
+  constructor (store, db, core, view) {
     this.store = store
     this.db = db
     this.core = core
+    this.view = view
+    this.atom = false
+
+    this.view.readStart()
   }
 
-  createBlockStream (tx, start, end) {
-    const updates = tx ? tx.updates : EMPTY
-    return createBlockStream(this.core, this.db, updates, start, end)
+  snapshot () {
+    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot())
   }
 
-  createBitfieldStream (tx, start, end) {
-    const updates = tx ? tx.updates : EMPTY
-    return createBitfieldStream(this.core, this.db, updates, start, end)
+  createBlockStream (start, end) {
+    return createBlockStream(this.core, this.db, this.view, start, end)
   }
 
-  createUserDataStream (tx, start, end) {
-    const updates = tx ? tx.updates : EMPTY
-    return createUserDataStream(this.core, this.db, updates, start, end)
+  createBitfieldStream (start, end) {
+    return createBitfieldStream(this.core, this.db, this.view, start, end)
   }
 
-  async resumeBatch (tx, name) {
-    const rx = this.createReadBatch(tx)
+  createUserDataStream (start, end) {
+    return createUserDataStream(this.core, this.db, this.view, start, end)
+  }
+
+  async resumeBatch (name) {
+    const rx = this.read()
     const existingBatchesPromise = rx.getBatches()
 
     rx.tryFlush()
@@ -46,8 +51,7 @@ class HypercoreStorage {
       dependencies: []
     }
 
-    const storage = new HypercoreStorage(this.store, this.db, core)
-    const batchRx = storage.createReadBatch(tx)
+    const batchRx = new CoreRX(this.core, this.db, this.view)
 
     const dependenciesPromise = batchRx.getDependencies()
     batchRx.tryFlush()
@@ -55,11 +59,11 @@ class HypercoreStorage {
     const dependencies = await dependenciesPromise
     if (dependencies) core.dependencies = dependencies
 
-    return storage
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View())
   }
 
-  async createBatch (tx, name, head) {
-    const rx = this.createReadBatch(tx)
+  async createBatch (name, head) {
+    const rx = this.read()
 
     const existingBatchesPromise = rx.getBatches()
     const existingHeadPromise = rx.getHead()
@@ -74,6 +78,8 @@ class HypercoreStorage {
 
     batch.dataPointer = await this.store._allocData()
 
+    const tx = this.write()
+
     tx.setBatches(batches)
 
     const length = head === null ? 0 : head.length
@@ -85,27 +91,31 @@ class HypercoreStorage {
 
     if (length > 0) core.dependencies.push({ dataPointer: this.core.dataPointer, length })
 
-    const storage = new HypercoreStorage(this.store, this.db, core)
-    const batchTx = storage.createWriteBatch(tx)
+    const batchTx = new CoreTX(core, this.db, tx.view, tx.changes)
 
     if (length > 0) batchTx.setHead(head)
     batchTx.setDependencies(core.dependencies)
 
-    return storage
+    await tx.flush()
+
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View())
   }
 
-  createReadBatch (tx) {
-    const updates = tx ? tx.updates : EMPTY
-    return new CoreRX(this.core, this.db, updates)
+  read () {
+    return new CoreRX(this.core, this.db, this.view)
   }
 
-  createWriteBatch (tx) {
-    const updates = tx ? tx.updates : new Updates()
-    return new CoreTX(this.core, this.db, updates)
+  write () {
+    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
-  flush (tx) {
-    return tx.updates.flush(this.db)
+  close () {
+    if (this.view !== null) {
+      this.view.readStop()
+      this.view = null
+    }
+
+    return this.db.close()
   }
 }
 
@@ -121,19 +131,20 @@ class CorestoreStorage {
   async _enter () {
     this.enters++
     await this.lock.lock()
-    if (this.tx === null) this.tx = new CorestoreTX(this.db, new Updates())
+    if (this.tx === null) this.tx = new CorestoreTX(this.db, new View())
     return this.tx
   }
 
   async _exit () {
     this.enters--
+    this.tx.apply()
 
     if (this.flushing === null) this.flushing = rrp()
     const flushed = this.flushing.promise
 
-    if (this.enters === 0 || this.tx.updates.size() > 128) {
+    if (this.enters === 0 || this.tx.view.size() > 128) {
       try {
-        await this.tx.updates.flush(this.db)
+        await View.flush(this.tx.changes, this.db)
         this.flushing.resolve()
       } catch (err) {
         this.flushing.reject(err)
@@ -155,7 +166,7 @@ class CorestoreStorage {
     const tx = await this._enter()
 
     try {
-      const rx = new CorestoreRX(this.db, tx.updates)
+      const rx = new CorestoreRX(this.db, tx.view)
 
       const headPromise = rx.getHead()
       rx.tryFlush()
@@ -212,7 +223,7 @@ class CorestoreStorage {
   async setSeed (seed) {
     const tx = await this._enter()
     try {
-      const rx = new CorestoreRX(this.db, tx.updates)
+      const rx = new CorestoreRX(this.db, tx.view)
       const headPromise = rx.getHead()
 
       rx.tryFlush()
@@ -239,7 +250,7 @@ class CorestoreStorage {
   async setDefaultKey (defaultKey) {
     const tx = await this._enter()
     try {
-      const rx = new CorestoreRX(this.db, tx.updates)
+      const rx = new CorestoreRX(this.db, tx.view)
       const headPromise = rx.getHead()
 
       rx.tryFlush()
@@ -273,8 +284,8 @@ class CorestoreStorage {
     return this._resumeFromPointers(EMPTY, core)
   }
 
-  async _resumeFromPointers (updates, { corePointer, dataPointer }) {
-    const rx = new CorestoreRX(this.db, updates)
+  async _resumeFromPointers (view, { corePointer, dataPointer }) {
+    const rx = new CoreRX({ corePointer, dataPointer, dependencies: [] }, this.db, view)
     const dependenciesPromise = rx.getDependencies()
 
     rx.tryFlush()
@@ -286,12 +297,12 @@ class CorestoreStorage {
       dependencies: dependencies || []
     }
 
-    return new HypercoreStorage(this, this.db, result)
+    return new HypercoreStorage(this, this.db.session(), result, EMPTY)
   }
 
   // not allowed to throw validation errors as its a shared tx!
   async _create (tx, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
-    const rx = new CorestoreRX(this.db, tx.updates)
+    const rx = new CorestoreRX(this.db, tx.view)
 
     const corePromise = rx.getCore(discoveryKey)
     const headPromise = rx.getHead()
@@ -299,7 +310,7 @@ class CorestoreStorage {
     rx.tryFlush()
 
     let [core, head] = await Promise.all([corePromise, headPromise])
-    if (core) return this._resumeFromPointers(tx.updates, core)
+    if (core) return this._resumeFromPointers(tx.view, core)
 
     if (head === null) head = initStoreHead()
 
@@ -313,7 +324,7 @@ class CorestoreStorage {
     if (alias) tx.putCoreByAlias(alias, discoveryKey)
 
     const ptr = { corePointer, dataPointer, dependencies: [] }
-    const ctx = new CoreTX(ptr, this.db, tx.updates)
+    const ctx = new CoreTX(ptr, this.db, tx.view, true, tx.changes)
 
     ctx.setAuth({
       key,
@@ -329,7 +340,7 @@ class CorestoreStorage {
       }
     }
 
-    return new HypercoreStorage(this, this.db, ptr)
+    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY)
   }
 
   async create (data) {

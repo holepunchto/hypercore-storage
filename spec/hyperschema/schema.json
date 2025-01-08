@@ -2,6 +2,26 @@
   "version": 1,
   "schema": [
     {
+      "name": "allocated",
+      "namespace": "corestore",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "cores",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "datas",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
       "name": "head",
       "namespace": "corestore",
       "compact": false,
@@ -14,17 +34,17 @@
           "version": 1
         },
         {
-          "name": "total",
-          "type": "uint",
-          "version": 1
-        },
-        {
-          "name": "next",
-          "type": "uint",
+          "name": "allocated",
+          "type": "@corestore/allocated",
           "version": 1
         },
         {
           "name": "seed",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "defaultKey",
           "type": "fixed32",
           "version": 1
         }
@@ -36,6 +56,12 @@
       "compact": false,
       "flagsPosition": -1,
       "fields": [
+        {
+          "name": "corePointer",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
         {
           "name": "dataPointer",
           "required": true,
@@ -225,13 +251,47 @@
           "version": 1
         },
         {
-          "name": "signer",
+          "name": "keyPair",
           "type": "@core/keyPair",
           "version": 1
         },
         {
           "name": "encryptionKey",
           "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "batches",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "dataPointer",
+          "required": true,
+          "type": "uint",
           "version": 1
         }
       ]

@@ -6,19 +6,33 @@ const schema = Hyperschema.from(SPEC)
 const corestore = schema.namespace('corestore')
 
 corestore.register({
+  name: 'allocated',
+  compact: true,
+  fields: [{
+    name: 'cores',
+    type: 'uint',
+    required: true
+  }, {
+    name: 'datas',
+    type: 'uint',
+    required: true
+  }]
+})
+
+corestore.register({
   name: 'head',
   fields: [{
     name: 'version',
     type: 'uint',
     required: true
   }, {
-    name: 'total',
-    type: 'uint'
-  }, {
-    name: 'next',
-    type: 'uint'
+    name: 'allocated',
+    type: '@corestore/allocated'
   }, {
     name: 'seed',
+    type: 'fixed32'
+  }, {
+    name: 'defaultKey',
     type: 'fixed32'
   }]
 })
@@ -26,6 +40,10 @@ corestore.register({
 corestore.register({
   name: 'core',
   fields: [{
+    name: 'corePointer',
+    type: 'uint',
+    required: true
+  }, {
     name: 'dataPointer',
     type: 'uint',
     required: true
@@ -159,11 +177,35 @@ core.register({
     name: 'manifest',
     type: '@core/manifest'
   }, {
-    name: 'signer',
+    name: 'keyPair',
     type: '@core/keyPair'
   }, {
     name: 'encryptionKey',
     type: 'buffer'
+  }]
+})
+
+core.register({
+  name: 'head',
+  fields: [{
+    name: 'length',
+    type: 'uint',
+    required: true
+  }]
+})
+
+core.register({
+  name: 'batches',
+  compact: true,
+  array: true,
+  fields: [{
+    name: 'name',
+    type: 'string',
+    required: true
+  }, {
+    name: 'dataPointer',
+    type: 'uint',
+    required: true
   }]
 })
 

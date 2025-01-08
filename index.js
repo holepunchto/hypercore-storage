@@ -1,8 +1,21 @@
-const ScopeLock = require('scope-lock')
-const { CorestoreRX, CorestoreTX, CoreTX, CoreRX } = require('./lib/tx.js')
-const View = require('./lib/view.js')
-const { createDiscoveryKeyStream, createAliasStream, createBlockStream, createBitfieldStream } = require('./lib/streams.js')
 const rrp = require('resolve-reject-promise')
+const ScopeLock = require('scope-lock')
+const View = require('./lib/view.js')
+
+const {
+  CorestoreRX,
+  CorestoreTX,
+  CoreTX,
+  CoreRX
+} = require('./lib/tx.js')
+
+const {
+  createDiscoveryKeyStream,
+  createAliasStream,
+  createBlockStream,
+  createBitfieldStream,
+  createUserDataStream
+} = require('./lib/streams.js')
 
 const EMPTY = new View()
 

@@ -293,6 +293,8 @@ class CorestoreStorage {
   }
 
   async close () {
+    if (this.db.closed) return
+
     await this._enter()
     await this._exit()
     await this.db.close()

@@ -39,12 +39,12 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor (store, db, core, view, atom) {
+  constructor (store, db, core, view, atomic) {
     this.store = store
     this.db = db
     this.core = core
     this.view = view
-    this.atom = atom
+    this.atomic = atomic
 
     this.view.readStart()
     store.opened++
@@ -84,11 +84,11 @@ class HypercoreStorage {
   }
 
   snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), null)
+    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atomic)
   }
 
   atomize (atom) {
-    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
+    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, true)
   }
 
   atom () {
@@ -133,7 +133,7 @@ class HypercoreStorage {
     const dependency = await dependencyPromise
     if (dependency) core.dependencies = this._addDependency(dependency)
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
   async createBatch (name, head) {
@@ -174,7 +174,7 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
   _addDependency (dep) {
@@ -200,7 +200,7 @@ class HypercoreStorage {
   }
 
   write () {
-    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
+    return new CoreTX(this.core, this.db, this.atomic ? this.view : null, [])
   }
 
   close () {
@@ -418,7 +418,7 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    return new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
+    return new HypercoreStorage(this, this.db.session(), core, EMPTY, false)
   }
 
   // not allowed to throw validation errors as its a shared tx!
@@ -461,7 +461,7 @@ class CorestoreStorage {
       }
     }
 
-    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
+    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, false)
   }
 
   async create (data) {

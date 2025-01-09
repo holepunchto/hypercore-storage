@@ -353,7 +353,7 @@
       ]
     },
     {
-      "name": "dependencies",
+      "name": "dependency",
       "namespace": "core",
       "compact": true,
       "flagsPosition": -1,

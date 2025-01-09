@@ -421,8 +421,8 @@ const encoding14 = c.array({
   }
 })
 
-// @core/dependencies
-const encoding15 = c.array({
+// @core/dependency
+const encoding15 = {
   preencode (state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
@@ -440,7 +440,7 @@ const encoding15 = c.array({
       length: r1
     }
   }
-})
+}
 
 function setVersion (v) {
   version = v
@@ -481,7 +481,7 @@ function getEncoding (name) {
     case '@core/head': return encoding12
     case '@core/hints': return encoding13
     case '@core/batches': return encoding14
-    case '@core/dependencies': return encoding15
+    case '@core/dependency': return encoding15
     default: throw new Error('Encoder not found ' + name)
   }
 }

@@ -246,9 +246,8 @@ core.register({
 })
 
 core.register({
-  name: 'dependencies',
+  name: 'dependency',
   compact: true,
-  array: true,
   fields: [{
     name: 'dataPointer',
     type: 'uint',

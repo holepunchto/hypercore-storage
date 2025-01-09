@@ -77,6 +77,7 @@ class HypercoreStorage {
       if (deps[i].length >= length) continue
       deps[i].length = length
       this.core.dependencies = deps.slice(0, i + 1)
+      return
     }
 
     throw new Error('Dependency not found')

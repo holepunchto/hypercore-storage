@@ -125,7 +125,7 @@ class HypercoreStorage {
       dependencies: []
     }
 
-    const batchRx = new CoreRX(this.core, this.db, this.view)
+    const batchRx = new CoreRX(core, this.db, this.view)
 
     const dependencyPromise = batchRx.getDependency()
     batchRx.tryFlush()
@@ -222,6 +222,10 @@ class CorestoreStorage {
     this.enters = 0
     this.lock = new ScopeLock()
     this.flushing = null
+  }
+
+  static isCoreStorage (db) {
+    return isCorestoreStorage(db)
   }
 
   static from (db) {
@@ -379,6 +383,11 @@ class CorestoreStorage {
   }
 
   async resume (discoveryKey) {
+    if (!discoveryKey) {
+      discoveryKey = await this.getDefaultKey()
+      if (!discoveryKey) return null
+    }
+
     const rx = new CorestoreRX(this.db, EMPTY)
     const corePromise = rx.getCore(discoveryKey)
 
@@ -417,7 +426,10 @@ class CorestoreStorage {
     let [core, head] = await Promise.all([corePromise, headPromise])
     if (core) return this._resumeFromPointers(tx.view, core)
 
-    if (head === null) head = initStoreHead()
+    if (head === null) {
+      head = initStoreHead()
+      head.defaultKey = discoveryKey
+    }
 
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++

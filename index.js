@@ -50,12 +50,47 @@ class HypercoreStorage {
     store.opened++
   }
 
+  get dependencies () {
+    return this.core.dependencies
+  }
+
+  getDependencyLength () {
+    return this.core.dependencies.length
+      ? this.core.dependencies[this.core.dependencies.length - 1].length
+      : -1
+  }
+
+  getDependency (length) {
+    for (let i = this.core.dependencies.length - 1; i >= 0; i--) {
+      const dep = this.core.dependencies[i]
+      if (dep.length < length) return dep
+    }
+
+    return null
+  }
+
+  updateDependencyLength (length) {
+    const deps = this.core.dependencies
+
+    for (let i = deps.length - 1; i >= 0; i--) {
+      if (deps[i].length >= length) continue
+      deps[i].length = length
+      this.core.dependencies = deps.slice(0, i + 1)
+    }
+
+    throw new Error('Dependency not found')
+  }
+
   snapshot () {
     return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), null)
   }
 
   atomize (atom) {
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
+  }
+
+  atom () {
+    return this.store.atom()
   }
 
   createBlockStream (start, end) {
@@ -90,11 +125,11 @@ class HypercoreStorage {
 
     const batchRx = new CoreRX(this.core, this.db, this.view)
 
-    const dependenciesPromise = batchRx.getDependencies()
+    const dependencyPromise = batchRx.getDependency()
     batchRx.tryFlush()
 
-    const dependencies = await dependenciesPromise
-    if (dependencies) core.dependencies = dependencies
+    const dependency = await dependencyPromise
+    if (dependency) core.dependencies = this.core.dependencies.concat(dependency)
 
     return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
@@ -110,6 +145,10 @@ class HypercoreStorage {
     const [existingBatches, existingHead] = await Promise.all([existingBatchesPromise, existingHeadPromise])
     if (head === null) head = existingHead
 
+    if (existingHead !== null && head.length > existingHead.length) {
+      throw new Error('Invalid head passed, ahead of core')
+    }
+
     const batches = existingBatches || []
     const batch = getBatch(batches, name, true)
 
@@ -123,15 +162,13 @@ class HypercoreStorage {
     const core = {
       corePointer: this.core.corePointer,
       dataPointer: batch.dataPointer,
-      dependencies: []
+      dependencies: this.core.dependencies.concat([{ dataPointer: this.core.dataPointer, length }])
     }
-
-    if (length > 0) core.dependencies.push({ dataPointer: this.core.dataPointer, length })
 
     const batchTx = new CoreTX(core, this.db, tx.view, tx.changes)
 
     if (length > 0) batchTx.setHead(head)
-    batchTx.setDependencies(core.dependencies)
+    batchTx.setDependency(core.dependencies[core.dependencies.length - 1])
 
     await tx.flush()
 
@@ -333,19 +370,19 @@ class CorestoreStorage {
   }
 
   async _resumeFromPointers (view, { corePointer, dataPointer }) {
-    const rx = new CoreRX({ corePointer, dataPointer, dependencies: [] }, this.db, view)
-    const dependenciesPromise = rx.getDependencies()
+    const core = { corePointer, dataPointer, dependencies: [] }
 
-    rx.tryFlush()
-    const dependencies = await dependenciesPromise
-
-    const result = {
-      corePointer,
-      dataPointer,
-      dependencies: dependencies || []
+    while (true) {
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
+      const dependencyPromise = rx.getDependency()
+      rx.tryFlush()
+      const dependency = await dependencyPromise
+      if (!dependency) break
+      core.dependencies.push(dependency)
+      dataPointer = dependency.dataPointer
     }
 
-    return new HypercoreStorage(this, this.db.session(), result, EMPTY, null)
+    return new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
   }
 
   // not allowed to throw validation errors as its a shared tx!

@@ -4,7 +4,11 @@ import Storage from './index.js'
 const s = new Storage(new RocksDB('/tmp/my-corestore'))
 
 // reset it first for simplicity
-// await s.clear()
+await s.clear()
+
+for await (const data of s.createCoreStream()) {
+  console.log(data, '<--')
+}
 
 const core = await s.create({ key: Buffer.alloc(32), discoveryKey: Buffer.alloc(32) })
 

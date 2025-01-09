@@ -1,3 +1,4 @@
+const RocksDB = require('rocksdb-native')
 const rrp = require('resolve-reject-promise')
 const ScopeLock = require('scope-lock')
 const View = require('./lib/view.js')
@@ -10,7 +11,7 @@ const {
 } = require('./lib/tx.js')
 
 const {
-  createDiscoveryKeyStream,
+  createCoreStream,
   createAliasStream,
   createBlockStream,
   createBitfieldStream,
@@ -134,11 +135,16 @@ class HypercoreStorage {
 
 class CorestoreStorage {
   constructor (db) {
-    this.db = db
+    this.db = typeof db === 'string' ? new RocksDB(db) : db
     this.tx = null
     this.enters = 0
     this.lock = new ScopeLock()
     this.flushing = null
+  }
+
+  static from (db) {
+    if (isCorestoreStorage(db)) return db
+    return new this(db)
   }
 
   async _enter () {
@@ -157,7 +163,7 @@ class CorestoreStorage {
 
     if (this.enters === 0 || this.tx.view.size() > 128) {
       try {
-        await View.flush(this.tx.changes, this.db)
+        await View.flush(this.tx.view.changes, this.db)
         this.flushing.resolve()
       } catch (err) {
         this.flushing.reject(err)
@@ -208,8 +214,8 @@ class CorestoreStorage {
     await this._exit()
   }
 
-  createDiscoveryKeyStream () {
-    return createDiscoveryKeyStream(this.db, EMPTY)
+  createCoreStream () {
+    return createCoreStream(this.db, EMPTY)
   }
 
   createAliasStream (namespace) {
@@ -337,7 +343,7 @@ class CorestoreStorage {
     if (alias) tx.putCoreByAlias(alias, discoveryKey)
 
     const ptr = { corePointer, dataPointer, dependencies: [] }
-    const ctx = new CoreTX(ptr, this.db, tx.view, true, tx.changes)
+    const ctx = new CoreTX(ptr, this.db, tx.view, tx.changes)
 
     ctx.setAuth({
       key,
@@ -390,4 +396,8 @@ function getBatch (batches, name, alloc) {
   const result = { name, dataPointer: 0 }
   batches.push(result)
   return result
+}
+
+function isCorestoreStorage (s) {
+  return typeof s === 'object' && !!s && typeof s.setDefaultKey === 'function'
 }

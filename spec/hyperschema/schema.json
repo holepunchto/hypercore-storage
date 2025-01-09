@@ -51,10 +51,30 @@
       ]
     },
     {
-      "name": "core",
+      "name": "alias",
       "namespace": "corestore",
       "compact": false,
       "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "namespace",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "core",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 2,
       "fields": [
         {
           "name": "corePointer",
@@ -66,6 +86,11 @@
           "name": "dataPointer",
           "required": true,
           "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "alias",
+          "type": "@corestore/alias",
           "version": 1
         }
       ]

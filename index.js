@@ -96,7 +96,7 @@ class HypercoreStorage {
   }
 
   createBlockStream (start, end, reverse) {
-    return createBlockStream(this.core, this.db, this.view, start, end, reverse)
+    return createBlockStream(this.core, this.db, this.view, start, end, !!reverse)
   }
 
   createBitfieldStream (start, end) {

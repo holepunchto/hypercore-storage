@@ -20,19 +20,42 @@ const {
 
 const EMPTY = new View()
 
+class Atom {
+  constructor (db) {
+    this.db = db
+    this.view = new View()
+    this.flushes = []
+  }
+
+  onflush (fn) {
+    this.flushes.push(fn)
+  }
+
+  async flush () {
+    await View.flush(this.view.changes, this.db)
+    this.view.reset()
+    while (this.flushes.length) this.flushes.pop()()
+  }
+}
+
 class HypercoreStorage {
-  constructor (store, db, core, view) {
+  constructor (store, db, core, view, atom) {
     this.store = store
     this.db = db
     this.core = core
     this.view = view
-    this.atom = false
+    this.atom = atom
 
     this.view.readStart()
+    store.opened++
   }
 
   snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot())
+    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), null)
+  }
+
+  atomize (atom) {
+    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 
   createBlockStream (start, end) {
@@ -73,7 +96,7 @@ class HypercoreStorage {
     const dependencies = await dependenciesPromise
     if (dependencies) core.dependencies = dependencies
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View())
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
 
   async createBatch (name, head) {
@@ -112,7 +135,7 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View())
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
 
   read () {
@@ -125,6 +148,7 @@ class HypercoreStorage {
 
   close () {
     if (this.view !== null) {
+      this.store.opened--
       this.view.readStop()
       this.view = null
     }
@@ -136,6 +160,7 @@ class HypercoreStorage {
 class CorestoreStorage {
   constructor (db) {
     this.db = typeof db === 'string' ? new RocksDB(db) : db
+    this.opened = 0
     this.tx = null
     this.enters = 0
     this.lock = new ScopeLock()
@@ -200,6 +225,10 @@ class CorestoreStorage {
     }
 
     return dataPointer
+  }
+
+  atom () {
+    return new Atom(this.db)
   }
 
   async close () {
@@ -316,7 +345,7 @@ class CorestoreStorage {
       dependencies: dependencies || []
     }
 
-    return new HypercoreStorage(this, this.db.session(), result, EMPTY)
+    return new HypercoreStorage(this, this.db.session(), result, EMPTY, null)
   }
 
   // not allowed to throw validation errors as its a shared tx!
@@ -359,7 +388,7 @@ class CorestoreStorage {
       }
     }
 
-    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY)
+    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
   }
 
   async create (data) {

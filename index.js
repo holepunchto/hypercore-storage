@@ -233,6 +233,13 @@ class CorestoreStorage {
     return new this(db)
   }
 
+  async _flush () {
+    while (this.enters > 0) {
+      await this.lock.lock()
+      await this.lock.unlock()
+    }
+  }
+
   async _enter () {
     this.enters++
     await this.lock.lock()
@@ -294,9 +301,7 @@ class CorestoreStorage {
 
   async close () {
     if (this.db.closed) return
-
-    await this._enter()
-    await this._exit()
+    await this._flush()
     await this.db.close()
   }
 

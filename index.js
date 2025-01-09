@@ -95,15 +95,15 @@ class HypercoreStorage {
     return this.store.atom()
   }
 
-  createBlockStream (start, end) {
-    return createBlockStream(this.core, this.db, this.view, start, end)
+  createBlockStream (start, end, reverse) {
+    return createBlockStream(this.core, this.db, this.view, start, end, reverse)
   }
 
   createBitfieldStream (start, end) {
     return createBitfieldStream(this.core, this.db, this.view, start, end)
   }
 
-  createUserDataStream (start, end) {
+  createUserDataStream (start, end = null) {
     return createUserDataStream(this.core, this.db, this.view, start, end)
   }
 

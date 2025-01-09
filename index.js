@@ -69,6 +69,7 @@ class HypercoreStorage {
     return null
   }
 
+  // TODO: this might have to be async if the dependents have changed, but prop ok for now
   updateDependencyLength (length) {
     const deps = this.core.dependencies
 
@@ -129,7 +130,7 @@ class HypercoreStorage {
     batchRx.tryFlush()
 
     const dependency = await dependencyPromise
-    if (dependency) core.dependencies = this.core.dependencies.concat(dependency)
+    if (dependency) core.dependencies = this._addDependency(dependency)
 
     return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
@@ -162,7 +163,7 @@ class HypercoreStorage {
     const core = {
       corePointer: this.core.corePointer,
       dataPointer: batch.dataPointer,
-      dependencies: this.core.dependencies.concat([{ dataPointer: this.core.dataPointer, length }])
+      dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
     }
 
     const batchTx = new CoreTX(core, this.db, tx.view, tx.changes)
@@ -173,6 +174,24 @@ class HypercoreStorage {
     await tx.flush()
 
     return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
+  }
+
+  _addDependency (dep) {
+    const deps = []
+
+    for (let i = 0; i < this.core.dependencies.length; i++) {
+      const d = this.core.dependencies[i]
+
+      if (d.length > dep.length) {
+        deps.push({ dataPointer: d.dataPointer, length: dep.length })
+        return deps
+      }
+
+      deps.push(d)
+    }
+
+    deps.push(dep)
+    return deps
   }
 
   read () {

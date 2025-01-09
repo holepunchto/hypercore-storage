@@ -339,7 +339,7 @@ class CorestoreStorage {
 
       rx.tryFlush()
 
-      const head = (await headPromise) || initStoreHead()
+      const head = (await headPromise) || initStoreHead(null)
 
       head.seed = seed
       tx.setHead(head)
@@ -366,7 +366,7 @@ class CorestoreStorage {
 
       rx.tryFlush()
 
-      const head = (await headPromise) || initStoreHead()
+      const head = (await headPromise) || initStoreHead(null)
 
       head.defaultKey = defaultKey
       tx.setHead(head)
@@ -428,10 +428,7 @@ class CorestoreStorage {
     let [core, head] = await Promise.all([corePromise, headPromise])
     if (core) return this._resumeFromPointers(tx.view, core)
 
-    if (head === null) {
-      head = initStoreHead()
-      head.defaultKey = discoveryKey
-    }
+    if (head === null) head = initStoreHead(discoveryKey)
 
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++
@@ -475,14 +472,15 @@ class CorestoreStorage {
 
 module.exports = CorestoreStorage
 
-function initStoreHead () {
+function initStoreHead (defaultKey) {
   return {
     version: 0,
     allocated: {
       datas: 0,
       cores: 0
     },
-    seed: null
+    seed: null,
+    defaultKey
   }
 }
 

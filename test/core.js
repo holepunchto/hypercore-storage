@@ -410,7 +410,6 @@ test('set and get hypercore hints', async (t) => {
     const rx = core.read()
     const p = rx.getHints()
     rx.tryFlush()
-    console.log(await p)
     t.alike(await p, null, 'No hints on init core')
   }
 
@@ -426,7 +425,6 @@ test('set and get hypercore hints', async (t) => {
     const rx = core.read()
     const p = rx.getHints()
     rx.tryFlush()
-    console.log(await p)
     t.alike(
       await p,
       { contiguousLength: 1 },

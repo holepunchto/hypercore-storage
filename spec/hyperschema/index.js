@@ -38,20 +38,20 @@ const encoding1 = {
 
     if (m.allocated) encoding0.preencode(state, m.allocated)
     if (m.seed) c.fixed32.preencode(state, m.seed)
-    if (m.defaultKey) c.fixed32.preencode(state, m.defaultKey)
+    if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
   },
   encode (state, m) {
     const flags =
       (m.allocated ? 1 : 0) |
       (m.seed ? 2 : 0) |
-      (m.defaultKey ? 4 : 0)
+      (m.defaultDiscoveryKey ? 4 : 0)
 
     c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
 
     if (m.allocated) encoding0.encode(state, m.allocated)
     if (m.seed) c.fixed32.encode(state, m.seed)
-    if (m.defaultKey) c.fixed32.encode(state, m.defaultKey)
+    if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
   },
   decode (state) {
     const r0 = c.uint.decode(state)
@@ -61,7 +61,7 @@ const encoding1 = {
       version: r0,
       allocated: (flags & 1) !== 0 ? encoding0.decode(state) : null,
       seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
-      defaultKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
+      defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
     }
   }
 }

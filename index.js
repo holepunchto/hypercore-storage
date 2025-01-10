@@ -47,7 +47,6 @@ class HypercoreStorage {
     this.atomic = atomic
 
     this.view.readStart()
-    store.opened++
   }
 
   get dependencies () {
@@ -209,7 +208,6 @@ class HypercoreStorage {
 
   close () {
     if (this.view !== null) {
-      this.store.opened--
       this.view.readStop()
       this.view = null
     }
@@ -221,12 +219,18 @@ class HypercoreStorage {
 class CorestoreStorage {
   constructor (db) {
     this.db = typeof db === 'string' ? new RocksDB(db) : db
-    this.opened = 0
     this.view = null
-    this.tx = null
     this.enters = 0
     this.lock = new ScopeLock()
     this.flushing = null
+  }
+
+  get opened () {
+    return this.db.opened
+  }
+
+  get closed () {
+    return this.db.closed
   }
 
   static isCoreStorage (db) {
@@ -289,7 +293,7 @@ class CorestoreStorage {
       rx.tryFlush()
 
       let head = await headPromise
-      if (head === null) head = initStoreHead()
+      if (head === null) head = initStoreHead(null, null)
 
       dataPointer = head.allocated.datas++
 
@@ -347,7 +351,7 @@ class CorestoreStorage {
     return head === null ? null : head.seed
   }
 
-  async setSeed (seed) {
+  async setSeed (seed, { overwrite = true } = {}) {
     const view = await this._enter()
     const tx = new CorestoreTX(view)
 
@@ -357,27 +361,29 @@ class CorestoreStorage {
 
       rx.tryFlush()
 
-      const head = (await headPromise) || initStoreHead(null)
+      const head = (await headPromise) || initStoreHead(null, null)
 
-      head.seed = seed
+      if (head.seed === null || overwrite) head.seed = seed
       tx.setHead(head)
       tx.apply()
+
+      return head.seed
     } finally {
       await this._exit()
     }
   }
 
-  async getDefaultKey () {
+  async getDefaultDiscoveryKey () {
     const rx = new CorestoreRX(this.db, EMPTY)
     const headPromise = rx.getHead()
 
     rx.tryFlush()
 
     const head = await headPromise
-    return head === null ? null : head.defaultKey
+    return head === null ? null : head.defaultDiscoveryKey
   }
 
-  async setDefaultKey (defaultKey) {
+  async setDefaultDiscoveryKey (discoveryKey, { overwrite = true } = {}) {
     const view = await this._enter()
     const tx = new CorestoreTX(view)
 
@@ -387,11 +393,13 @@ class CorestoreStorage {
 
       rx.tryFlush()
 
-      const head = (await headPromise) || initStoreHead(null)
+      const head = (await headPromise) || initStoreHead(null, null)
 
-      head.defaultKey = defaultKey
+      if (head.defaultDiscoveryKey === null || overwrite) head.defaultDiscoveryKey = discoveryKey
       tx.setHead(head)
       tx.apply()
+
+      return head.defaultDiscoveryKey
     } finally {
       await this._exit()
     }
@@ -408,7 +416,7 @@ class CorestoreStorage {
 
   async resume (discoveryKey) {
     if (!discoveryKey) {
-      discoveryKey = await this.getDefaultKey()
+      discoveryKey = await this.getDefaultDiscoveryKey()
       if (!discoveryKey) return null
     }
 
@@ -451,7 +459,7 @@ class CorestoreStorage {
     let [core, head] = await Promise.all([corePromise, headPromise])
     if (core) return this._resumeFromPointers(view, core)
 
-    if (head === null) head = initStoreHead(discoveryKey)
+    if (head === null) head = initStoreHead(null, discoveryKey)
 
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++
@@ -497,15 +505,15 @@ class CorestoreStorage {
 
 module.exports = CorestoreStorage
 
-function initStoreHead (defaultKey) {
+function initStoreHead (seed, defaultDiscoveryKey) {
   return {
     version: 0,
     allocated: {
       datas: 0,
       cores: 0
     },
-    seed: null,
-    defaultKey
+    seed,
+    defaultDiscoveryKey
   }
 }
 
@@ -522,5 +530,5 @@ function getBatch (batches, name, alloc) {
 }
 
 function isCorestoreStorage (s) {
-  return typeof s === 'object' && !!s && typeof s.setDefaultKey === 'function'
+  return typeof s === 'object' && !!s && typeof s.setDefaultDiscoveryKey === 'function'
 }

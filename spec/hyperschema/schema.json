@@ -44,7 +44,7 @@
           "version": 1
         },
         {
-          "name": "defaultKey",
+          "name": "defaultDiscoveryKey",
           "type": "fixed32",
           "version": 1
         }

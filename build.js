@@ -32,7 +32,7 @@ corestore.register({
     name: 'seed',
     type: 'fixed32'
   }, {
-    name: 'defaultKey',
+    name: 'defaultDiscoveryKey',
     type: 'fixed32'
   }]
 })

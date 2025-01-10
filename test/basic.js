@@ -47,3 +47,20 @@ test('make many in parallel', async function (t) {
 
   await s.close()
 })
+
+test('first core created is the default core', async function (t) {
+  const s = await create(t)
+
+  t.is(await s.getDefaultDiscoveryKey(), null)
+  const c = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+
+  t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32))
+
+  const c1 = await s.create({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 1) })
+
+  t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32))
+
+  await c.close()
+  await c1.close()
+  await s.close()
+})

@@ -231,7 +231,7 @@ core.register({
 })
 
 core.register({
-  name: 'batches',
+  name: 'sessions',
   compact: true,
   array: true,
   fields: [{

@@ -400,7 +400,7 @@ const encoding13 = {
   }
 }
 
-// @core/batches
+// @core/sessions
 const encoding14 = c.array({
   preencode (state, m) {
     c.string.preencode(state, m.name)
@@ -480,7 +480,7 @@ function getEncoding (name) {
     case '@core/auth': return encoding11
     case '@core/head': return encoding12
     case '@core/hints': return encoding13
-    case '@core/batches': return encoding14
+    case '@core/sessions': return encoding14
     case '@core/dependency': return encoding15
     default: throw new Error('Encoder not found ' + name)
   }

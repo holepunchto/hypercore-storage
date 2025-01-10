@@ -333,7 +333,7 @@
       ]
     },
     {
-      "name": "batches",
+      "name": "sessions",
       "namespace": "core",
       "compact": true,
       "flagsPosition": -1,

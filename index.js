@@ -110,28 +110,28 @@ class HypercoreStorage {
     return createUserDataStream(this.core, this.db, this.view, start, end)
   }
 
-  async resumeBatch (name) {
+  async resumeSession (name) {
     const rx = this.read()
-    const existingBatchesPromise = rx.getBatches()
+    const existingSessionsPromise = rx.getSessions()
 
     rx.tryFlush()
-    const existingBatches = await existingBatchesPromise
+    const existingSessions = await existingSessionsPromise
 
-    const batches = existingBatches || []
-    const batch = getBatch(batches, name, false)
+    const sessions = existingSessions || []
+    const session = getBatch(sessions, name, false)
 
-    if (batch === null) return null
+    if (session === null) return null
 
     const core = {
       corePointer: this.core.corePointer,
-      dataPointer: batch.dataPointer,
+      dataPointer: session.dataPointer,
       dependencies: []
     }
 
-    const batchRx = new CoreRX(core, this.db, this.view)
+    const coreRx = new CoreRX(core, this.db, this.view)
 
-    const dependencyPromise = batchRx.getDependency()
-    batchRx.tryFlush()
+    const dependencyPromise = coreRx.getDependency()
+    coreRx.tryFlush()
 
     const dependency = await dependencyPromise
     if (dependency) core.dependencies = this._addDependency(dependency)
@@ -139,48 +139,48 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
-  async createBatch (name, head, atom) {
+  async createSession (name, head, atom) {
     const rx = this.read()
 
-    const existingBatchesPromise = rx.getBatches()
+    const existingSessionsPromise = rx.getSessions()
     const existingHeadPromise = rx.getHead()
 
     rx.tryFlush()
 
-    const [existingBatches, existingHead] = await Promise.all([existingBatchesPromise, existingHeadPromise])
+    const [existingSessions, existingHead] = await Promise.all([existingSessionsPromise, existingHeadPromise])
     if (head === null) head = existingHead
 
     if (existingHead !== null && head.length > existingHead.length) {
       throw new Error('Invalid head passed, ahead of core')
     }
 
-    const batches = existingBatches || []
-    const batch = getBatch(batches, name, true)
+    const sessions = existingSessions || []
+    const session = getBatch(sessions, name, true)
 
-    batch.dataPointer = await this.store._allocData()
+    session.dataPointer = await this.store._allocData()
 
     const tx = this.write()
 
-    tx.setBatches(batches)
+    tx.setSessions(sessions)
 
     const length = head === null ? 0 : head.length
     const core = {
       corePointer: this.core.corePointer,
-      dataPointer: batch.dataPointer,
+      dataPointer: session.dataPointer,
       dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
     }
 
-    const batchTx = new CoreTX(core, this.db, tx.view, tx.changes)
+    const coreTx = new CoreTX(core, this.db, tx.view, tx.changes)
 
-    if (length > 0) batchTx.setHead(head)
-    batchTx.setDependency(core.dependencies[core.dependencies.length - 1])
+    if (length > 0) coreTx.setHead(head)
+    coreTx.setDependency(core.dependencies[core.dependencies.length - 1])
 
     await tx.flush()
 
     return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
-  async createAtomicBatch (atom, head) {
+  async createAtomicSession (atom, head) {
     const length = head === null ? 0 : head.length
     const core = {
       corePointer: this.core.corePointer,
@@ -188,12 +188,12 @@ class HypercoreStorage {
       dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
     }
 
-    const batchTx = new CoreTX(core, this.db, atom.view, [])
+    const coreTx = new CoreTX(core, this.db, atom.view, [])
 
-    if (length > 0) batchTx.setHead(head)
-    batchTx.setDependency(core.dependencies[core.dependencies.length - 1])
+    if (length > 0) coreTx.setHead(head)
+    coreTx.setDependency(core.dependencies[core.dependencies.length - 1])
 
-    await batchTx.flush()
+    await coreTx.flush()
 
     return this.atomize(atom)
   }
@@ -535,15 +535,15 @@ function initStoreHead (seed, defaultDiscoveryKey) {
   }
 }
 
-function getBatch (batches, name, alloc) {
-  for (let i = 0; i < batches.length; i++) {
-    if (batches[i].name === name) return batches[i]
+function getBatch (sessions, name, alloc) {
+  for (let i = 0; i < sessions.length; i++) {
+    if (sessions[i].name === name) return sessions[i]
   }
 
   if (!alloc) return null
 
   const result = { name, dataPointer: 0 }
-  batches.push(result)
+  sessions.push(result)
   return result
 }
 

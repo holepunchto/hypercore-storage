@@ -388,7 +388,7 @@ function readAll (filename, length, pos, cb) {
 
 async function readdir (dir) {
   try {
-    return fs.promises.readdir(dir)
+    return await fs.promises.readdir(dir)
   } catch {
     return []
   }
@@ -396,8 +396,8 @@ async function readdir (dir) {
 
 async function readFile (file) {
   try {
-    return fs.promises.readFile(file)
+    return await fs.promises.readFile(file)
   } catch {
-    return []
+    return null
   }
 }

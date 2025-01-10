@@ -369,9 +369,8 @@ class CorestoreStorage {
     const headPromise = rx.getHead()
     rx.tryFlush()
 
-    let head = await headPromise
-    if (head === null) head = initStoreHead(null, null)
-    return head
+    const head = await headPromise
+    return head === null ? initStoreHead() : head
   }
 
   atom () {
@@ -435,7 +434,7 @@ class CorestoreStorage {
 
       rx.tryFlush()
 
-      const head = (await headPromise) || initStoreHead(null, null)
+      const head = (await headPromise) || initStoreHead()
 
       if (head.seed === null || overwrite) head.seed = seed
       tx.setHead(head)
@@ -471,7 +470,7 @@ class CorestoreStorage {
 
       rx.tryFlush()
 
-      const head = (await headPromise) || initStoreHead(null, null)
+      const head = (await headPromise) || initStoreHead()
 
       if (head.defaultDiscoveryKey === null || overwrite) head.defaultDiscoveryKey = discoveryKey
       tx.setHead(head)
@@ -541,7 +540,8 @@ class CorestoreStorage {
     let [core, head] = await Promise.all([corePromise, headPromise])
     if (core) return this._resumeFromPointers(view, core)
 
-    if (head === null) head = initStoreHead(null, discoveryKey)
+    if (head === null) head = initStoreHead()
+    if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++
@@ -589,15 +589,15 @@ class CorestoreStorage {
 
 module.exports = CorestoreStorage
 
-function initStoreHead (seed, defaultDiscoveryKey) {
+function initStoreHead () {
   return {
     version: 0, // cause we wanna run the migration
     allocated: {
       datas: 0,
       cores: 0
     },
-    seed,
-    defaultDiscoveryKey
+    seed: null,
+    defaultDiscoveryKey: null
   }
 }
 

@@ -139,7 +139,7 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
-  async createSession (name, head, atom) {
+  async createSession (name, head) {
     const rx = this.read()
 
     const existingSessionsPromise = rx.getSessions()

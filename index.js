@@ -41,7 +41,7 @@ class Atom {
     const promises = []
     while (this.flushes.length) promises.push(this.flushes.pop()())
 
-    return Promise.all(promises)
+    await Promise.all(promises)
   }
 }
 
@@ -272,6 +272,7 @@ class CorestoreStorage {
 
   async ready () {
     if (this.version === 0) await this._migrateStore()
+    return this.db.ready()
   }
 
   static isCoreStorage (db) {

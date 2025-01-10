@@ -83,6 +83,10 @@ class HypercoreStorage {
     throw new Error('Dependency not found')
   }
 
+  get snapshotted () {
+    return this.db._snapshot !== null
+  }
+
   snapshot () {
     return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atomic)
   }

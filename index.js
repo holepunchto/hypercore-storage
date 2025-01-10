@@ -140,8 +140,6 @@ class HypercoreStorage {
   }
 
   async createBatch (name, head, atom) {
-    if (atom) return this._createAtomicBatch(atom, head)
-
     const rx = this.read()
 
     const existingBatchesPromise = rx.getBatches()
@@ -182,7 +180,7 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
-  async _createAtomicBatch (atom, head) {
+  async createAtomicBatch (atom, head) {
     const length = head === null ? 0 : head.length
     const core = {
       corePointer: this.core.corePointer,
@@ -197,7 +195,7 @@ class HypercoreStorage {
 
     await batchTx.flush()
 
-    return this.atomize()
+    return this.atomize(atom)
   }
 
   _addDependency (dep) {

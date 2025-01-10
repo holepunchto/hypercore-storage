@@ -363,7 +363,7 @@ class CorestoreStorage {
     const tx = new CorestoreTX(view)
 
     try {
-      const head = this._getHead(view)
+      const head = await this._getHead(view)
 
       dataPointer = head.allocated.datas++
 

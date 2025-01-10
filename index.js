@@ -17,7 +17,8 @@ const {
   createAliasStream,
   createBlockStream,
   createBitfieldStream,
-  createUserDataStream
+  createUserDataStream,
+  createTreeNodeStream
 } = require('./lib/streams.js')
 
 const EMPTY = new View()
@@ -106,6 +107,10 @@ class HypercoreStorage {
 
   createBlockStream (opts) {
     return createBlockStream(this.core, this.db, this.view, opts)
+  }
+
+  createTreeNodeStream (opts) {
+    return createTreeNodeStream(this.core, this.db, this.view, opts)
   }
 
   createBitfieldStream (opts) {
@@ -266,7 +271,7 @@ class CorestoreStorage {
   }
 
   async ready () {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
   }
 
   static isCoreStorage (db) {
@@ -285,7 +290,8 @@ class CorestoreStorage {
     }
   }
 
-  async _migrate () {
+  // runs pre any other mutation and read
+  async _migrateStore () {
     const view = await this._enter()
 
     try {
@@ -315,6 +321,47 @@ class CorestoreStorage {
       this.version = VERSION
     } finally {
       await this._exit()
+    }
+  }
+
+  // runs pre the core is returned to the user
+  async _migrateCore (core, discoveryKey, locked) {
+    const view = locked ? this.view : await this._enter()
+
+    const version = core.core.version
+
+    try {
+      if (version === VERSION) return
+
+      const target = { version: VERSION, dryRun: false }
+
+      switch (version) {
+        case 0: {
+          await require('./migrations/0').core(core, target)
+          break
+        }
+        default: {
+          throw new Error('Unsupported version: ' + version + ' - you should probably upgrade your dependencies')
+        }
+      }
+
+      core.core.version = VERSION
+
+      if (locked === false) return
+
+      // if its locked, then move the core state into the memview
+      // in case the core is reopened from the memview, pre flush
+
+      const rx = new CorestoreRX(this.db, EMPTY)
+      const tx = new CorestoreTX(view)
+
+      const corePromise = rx.getCore(discoveryKey)
+      rx.tryFlush()
+
+      tx.putCore(discoveryKey, await corePromise)
+      tx.apply()
+    } finally {
+      if (!locked) await this._exit()
     }
   }
 
@@ -390,7 +437,7 @@ class CorestoreStorage {
   }
 
   async clear () {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
     const tx = new CorestoreTX(view)
@@ -402,14 +449,18 @@ class CorestoreStorage {
   }
 
   createCoreStream () {
+    // TODO: be nice to run the mgiration here also, but too much plumbing atm
     return createCoreStream(this.db, EMPTY)
   }
 
   createAliasStream (namespace) {
+    // TODO: be nice to run the mgiration here also, but too much plumbing atm
     return createAliasStream(this.db, EMPTY, namespace)
   }
 
-  getAlias (alias) {
+  async getAlias (alias) {
+    if (this.version === 0) await this._migrateStore()
+
     const rx = new CorestoreRX(this.db, EMPTY)
     const discoveryKeyPromise = rx.getCoreByAlias(alias)
     rx.tryFlush()
@@ -417,7 +468,7 @@ class CorestoreStorage {
   }
 
   async getSeed () {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
     const headPromise = rx.getHead()
@@ -429,7 +480,7 @@ class CorestoreStorage {
   }
 
   async setSeed (seed, { overwrite = true } = {}) {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
     const tx = new CorestoreTX(view)
@@ -453,7 +504,7 @@ class CorestoreStorage {
   }
 
   async getDefaultDiscoveryKey () {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
     const headPromise = rx.getHead()
@@ -465,7 +516,7 @@ class CorestoreStorage {
   }
 
   async setDefaultDiscoveryKey (discoveryKey, { overwrite = true } = {}) {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
     const tx = new CorestoreTX(view)
@@ -489,7 +540,7 @@ class CorestoreStorage {
   }
 
   async has (discoveryKey) {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
     const promise = rx.getCore(discoveryKey)
@@ -500,7 +551,7 @@ class CorestoreStorage {
   }
 
   async resume (discoveryKey) {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     if (!discoveryKey) {
       discoveryKey = await this.getDefaultDiscoveryKey()
@@ -514,10 +565,10 @@ class CorestoreStorage {
     const core = await corePromise
 
     if (core === null) return null
-    return this._resumeFromPointers(EMPTY, core)
+    return this._resumeFromPointers(EMPTY, discoveryKey, false, core)
   }
 
-  async _resumeFromPointers (view, { version, corePointer, dataPointer }) {
+  async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {
     const core = { version, corePointer, dataPointer, dependencies: [] }
 
     while (true) {
@@ -530,7 +581,10 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    return new HypercoreStorage(this, this.db.session(), core, EMPTY, false)
+    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, false)
+
+    if (result.core.version === 0) await this._migrateCore(result, discoveryKey, create)
+    return result
   }
 
   // not allowed to throw validation errors as its a shared tx!
@@ -544,7 +598,7 @@ class CorestoreStorage {
     rx.tryFlush()
 
     let [core, head] = await Promise.all([corePromise, headPromise])
-    if (core) return this._resumeFromPointers(view, core)
+    if (core) return this._resumeFromPointers(view, discoveryKey, true, core)
 
     if (head === null) head = initStoreHead()
     if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
@@ -581,7 +635,7 @@ class CorestoreStorage {
   }
 
   async create (data) {
-    if (this.version === 0) await this._migrate()
+    if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
 

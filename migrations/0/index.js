@@ -32,68 +32,23 @@ class CoreListStream extends Readable {
     cb(null)
   }
 
-  _read (cb) {
-    const next = this.stack.pop()
-    if (!next) {
-      this.push(null)
-      cb(null)
-      return
-    }
-
-    const oplog = path.join(next, 'oplog')
-    fs.readFile(oplog, (err, buffer) => {
-      if (err) return this._read(cb) // next
-
-      const state = { start: 0, end: buffer.byteLength, buffer }
-      const headers = [1, 0]
-
-      const h1 = decodeOplogHeader(state)
-      state.start = 4096
-
-      const h2 = decodeOplogHeader(state)
-      state.start = 4096 * 2
-
-      if (!h1 && !h2) return this._read(cb)
-
-      if (h1 && !h2) {
-        headers[0] = h1.header
-        headers[1] = h1.header
-      } else if (!h1 && h2) {
-        headers[0] = (h2.header + 1) & 1
-        headers[1] = h2.header
-      } else {
-        headers[0] = h1.header
-        headers[1] = h2.header
+  async _read (cb) {
+    while (true) {
+      const next = this.stack.pop()
+      if (!next) {
+        this.push(null)
+        break
       }
 
-      const header = (headers[0] + headers[1]) & 1
-      const result = { path: next, header: null, entries: [] }
-      const decoded = []
-
-      result.header = header ? h2.message : h1.message
-
-      if (result.header.external) {
-        throw new Error('External headers not migrate-able atm')
-      }
-
-      while (true) {
-        const entry = decodeOplogEntry(state)
-        if (!entry) break
-        if (entry.header !== header) break
-
-        decoded.push(entry)
-      }
-
-      while (decoded.length > 0 && decoded[decoded.length - 1].partial) decoded.pop()
-
-      for (const e of decoded) {
-        result.entries.push(e.message)
-      }
+      const oplog = path.join(next, 'oplog')
+      const result = await readOplog(oplog)
+      if (!result) continue
 
       this.push(result)
+      break
+    }
 
-      cb(null)
-    })
+    cb(null)
   }
 }
 
@@ -188,7 +143,6 @@ async function store (storage, { version, dryRun = true, gc = true }) {
       encryptionKey: null
     }
 
-    const blocks = []
     const tree = {
       length: 0,
       fork: 0,
@@ -196,17 +150,11 @@ async function store (storage, { version, dryRun = true, gc = true }) {
       signature: null
     }
 
-    let contiguousLength = 0
-
     if (data.header.tree && data.header.tree.length) {
       tree.length = data.header.tree.length
       tree.fork = data.header.tree.fork
       tree.rootHash = data.header.tree.rootHash
       tree.signature = data.header.tree.signature
-    }
-
-    if (data.header.hints) {
-      contiguousLength = data.header.hints.contiguousLength
     }
 
     for (const { key, value } of data.header.userData) {
@@ -233,16 +181,6 @@ async function store (storage, { version, dryRun = true, gc = true }) {
         tree.rootHash = null
         tree.signature = e.treeUpgrade.signature
       }
-
-      if (e.bitfield) {
-        if (e.bitfield.drop) {
-          throw new Error('Unflushed truncations not migrate-able atm')
-        }
-
-        for (let i = e.bitfield.start; i < e.bitfield.start + e.bitfield.length; i++) {
-          blocks.push(i)
-        }
-      }
     }
 
     if (userData.has('corestore/name') && userData.has('corestore/namespace')) {
@@ -261,23 +199,10 @@ async function store (storage, { version, dryRun = true, gc = true }) {
     ctx.setAuth(auth)
 
     const getTreeNode = (index) => (treeNodes.get(index) || getTreeNodeFromFile(files.tree, index))
-    const roots = tree.rootHash === null || blocks.length > 0 ? await getRoots(tree.length, getTreeNode) : null
 
     if (tree.length) {
-      if (tree.rootHash === null) tree.rootHash = crypto.tree(roots)
+      if (tree.rootHash === null) tree.rootHash = crypto.tree(await getRoots(tree.length, getTreeNode))
       ctx.setHead(tree)
-    }
-
-    blocks.sort((a, b) => a - b)
-
-    for (const index of blocks) {
-      if (index === contiguousLength) contiguousLength++
-      const blk = await getBlockFromFile(files.data, index, roots, getTreeNode)
-      ctx.putBlock(index, blk)
-    }
-
-    if (contiguousLength > 0) {
-      ctx.setHints({ contiguousLength })
     }
 
     tx.putCore(discoveryKey, core)
@@ -344,6 +269,9 @@ async function core (core, { version, dryRun = true, gc = true }) {
     return // no data
   }
 
+  const oplog = await readOplog(files.oplog)
+  if (!oplog) throw new Error('No oplog available')
+
   const treeData = new Slicer()
 
   let treeIndex = 0
@@ -379,18 +307,23 @@ async function core (core, { version, dryRun = true, gc = true }) {
   if (bitfield.byteLength & 4095) bitfield = b4a.concat([bitfield, b4a.alloc(4096 - (bitfield.byteLength & 4095))])
 
   const pages = new Map()
-
-  for await (const data of core.createBlockStream()) {
-    const { page, n } = getPage(data.index)
-    setBit(page, n)
-  }
+  const headerBits = new Map()
 
   const roots = await getRoots(head.length, getTreeNode)
 
+  for (const e of oplog.entries) {
+    if (!e.bitfield) continue
+
+    for (let i = 0; i < e.bitfield.length; i++) {
+      headerBits.set(i + e.bitfield.start, !e.bitfield.drop)
+    }
+  }
+
   let w = core.write()
   for (const index of allBits(bitfield)) {
-    const { page, n } = getPage(index)
-    setBit(page, n)
+    if (headerBits.get(index) === false) continue
+
+    setBitInPage(index)
 
     const blk = await getBlockFromFile(files.data, index, roots, getTreeNode)
 
@@ -402,11 +335,32 @@ async function core (core, { version, dryRun = true, gc = true }) {
     w.putBlock(index, blk)
   }
 
+  for (const [index, bit] of headerBits) {
+    if (!bit) continue
+
+    setBitInPage(index)
+
+    const blk = await getBlockFromFile(files.data, index, roots, getTreeNode)
+    w.putBlock(index, blk)
+  }
+
   for (const [index, page] of pages) {
     w.putBitfieldPage(index, b4a.from(page.buffer, page.byteOffset, page.byteLength))
   }
 
   await w.flush()
+
+  let contiguousLength = 0
+  for await (const data of core.createBlockStream()) {
+    if (data.index === contiguousLength) contiguousLength++
+    else break
+  }
+
+  if (contiguousLength) {
+    const w = core.write()
+    w.setHints({ contiguousLength })
+    await w.flush()
+  }
 
   await commitCoreMigration(auth, core, version)
 
@@ -419,17 +373,22 @@ async function core (core, { version, dryRun = true, gc = true }) {
     await rmdir(path.join(core.store.path, 'cores'))
   }
 
-  function getPage (index) {
+  function setBitInPage (index) {
     const n = index & 32767
     const p = (index - n) / 32768
 
     let page = pages.get(p)
-    if (page) return { n, page }
 
-    page = new Uint32Array(1024)
-    pages.set(p, page)
+    if (!page) {
+      page = new Uint32Array(1024)
+      pages.set(p, page)
+    }
 
-    return { n, page }
+    const o = n & 31
+    const b = (n - o) / 32
+    const v = 1 << o
+
+    page[b] |= v
   }
 
   function getTreeNode (index) {
@@ -606,16 +565,64 @@ function * allBits (buffer) {
 
       for (let k = 0; k < 32; k++) {
         const m = 1 << k
-        if (n & m) yield i * EMPTY_PAGE.byteLength * 8 + j * 32 + k
+        if (n & m) yield i * 8 + j * 32 + k
       }
     }
   }
 }
 
-function setBit (page, n) {
-  const o = n & 31
-  const b = (n - o) / 32
-  const v = 1 << o
+function readOplog (oplog) {
+  return new Promise(function (resolve) {
+    fs.readFile(oplog, function (err, buffer) {
+      if (err) return resolve(null)
 
-  page[b] |= v
+      const state = { start: 0, end: buffer.byteLength, buffer }
+      const headers = [1, 0]
+
+      const h1 = decodeOplogHeader(state)
+      state.start = 4096
+
+      const h2 = decodeOplogHeader(state)
+      state.start = 4096 * 2
+
+      if (!h1 && !h2) return resolve(null)
+
+      if (h1 && !h2) {
+        headers[0] = h1.header
+        headers[1] = h1.header
+      } else if (!h1 && h2) {
+        headers[0] = (h2.header + 1) & 1
+        headers[1] = h2.header
+      } else {
+        headers[0] = h1.header
+        headers[1] = h2.header
+      }
+
+      const header = (headers[0] + headers[1]) & 1
+      const result = { path: path.dirname(oplog), header: null, entries: [] }
+      const decoded = []
+
+      result.header = header ? h2.message : h1.message
+
+      if (result.header.external) {
+        throw new Error('External headers not migrate-able atm')
+      }
+
+      while (true) {
+        const entry = decodeOplogEntry(state)
+        if (!entry) break
+        if (entry.header !== header) break
+
+        decoded.push(entry)
+      }
+
+      while (decoded.length > 0 && decoded[decoded.length - 1].partial) decoded.pop()
+
+      for (const e of decoded) {
+        result.entries.push(e.message)
+      }
+
+      resolve(result)
+    })
+  })
 }

@@ -36,7 +36,11 @@ class Atom {
   async flush () {
     await View.flush(this.view.changes, this.db)
     this.view.reset()
-    while (this.flushes.length) this.flushes.pop()()
+
+    const promises = []
+    while (this.flushes.length) promises.push(this.flushes.pop()())
+
+    return Promise.all(promises)
   }
 }
 
@@ -112,6 +116,17 @@ class HypercoreStorage {
     return createUserDataStream(this.core, this.db, this.view, opts)
   }
 
+  async assumeSessionUnsafe (session) {
+    const core = {
+      version: this.core.version,
+      corePointer: this.core.corePointer,
+      dataPointer: session.dataPointer,
+      dependencies: []
+    }
+
+    return new HypercoreStorage(this.store, this.db.session(), core, new View(), false)
+  }
+
   async resumeSession (name) {
     const rx = this.read()
     const existingSessionsPromise = rx.getSessions()
@@ -142,8 +157,8 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
-  async createSession (name, head) {
-    const rx = this.read()
+  async createSession (name, head, atom) {
+    const rx = this.read(atom)
 
     const existingSessionsPromise = rx.getSessions()
     const existingHeadPromise = rx.getHead()
@@ -160,9 +175,11 @@ class HypercoreStorage {
     const sessions = existingSessions || []
     const session = getBatch(sessions, name, true)
 
-    session.dataPointer = await this.store._allocData()
+    if (session.dataPointer === -1) {
+      session.dataPointer = await this.store._allocData()
+    }
 
-    const tx = this.write()
+    const tx = this.write(atom)
 
     tx.setSessions(sessions)
 
@@ -181,7 +198,7 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
+    return new HypercoreStorage(this.store, this.db.session(), core, atom ? atom.view : this.atomic ? this.view : new View(), !!atom || this.atomic)
   }
 
   async createAtomicSession (atom, head) {
@@ -221,12 +238,12 @@ class HypercoreStorage {
     return deps
   }
 
-  read () {
-    return new CoreRX(this.core, this.db, this.view)
+  read (atom) {
+    return new CoreRX(this.core, this.db, atom ? atom.view : this.view)
   }
 
-  write () {
-    return new CoreTX(this.core, this.db, this.atomic ? this.view : null, [])
+  write (atom) {
+    return new CoreTX(this.core, this.db, atom ? atom.view : this.atomic ? this.view : null, [])
   }
 
   close () {
@@ -350,7 +367,7 @@ class CorestoreStorage {
     const tx = new CorestoreTX(view)
 
     try {
-      const head = this._getHead(view)
+      const head = await this._getHead(view)
 
       dataPointer = head.allocated.datas++
 
@@ -608,7 +625,7 @@ function getBatch (sessions, name, alloc) {
 
   if (!alloc) return null
 
-  const result = { name, dataPointer: 0 }
+  const result = { name, dataPointer: -1 }
   sessions.push(result)
   return result
 }

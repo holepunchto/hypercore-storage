@@ -253,6 +253,384 @@ test('delete tree node range', async (t) => {
   t.alike(res3, node3)
 })
 
+test('set and get auth', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const rx = core.read()
+    const p = rx.getAuth()
+    rx.tryFlush()
+    const initAuth = await p
+    t.alike(
+      initAuth,
+      {
+        key: b4a.alloc(32),
+        discoveryKey: b4a.alloc(32),
+        manifest: null,
+        keyPair: null,
+        encryptionKey: null
+      },
+      'fresh core auth'
+    )
+  }
+
+  {
+    const tx = core.write()
+    tx.setAuth({
+      key: b4a.alloc(32),
+      discoveryKey: b4a.alloc(32),
+      manifest: null,
+      keyPair: null,
+      encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+    })
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = rx.getAuth()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      {
+        key: b4a.alloc(32),
+        discoveryKey: b4a.alloc(32),
+        manifest: null,
+        keyPair: null,
+        encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+      },
+      'updated auth'
+    )
+  }
+})
+
+test('set and get hypercore blocks', async (t) => {
+  const core = await createCore(t)
+  {
+    const rx = core.read()
+    const p = rx.getSessions()
+    rx.tryFlush()
+    t.alike(await p, null, 'No sessions on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setSessions([
+      { name: 'session0', dataPointer: 0 },
+      { name: 'session1', dataPointer: 1 }
+    ])
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = rx.getSessions()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      [
+        { name: 'session0', dataPointer: 0 },
+        { name: 'session1', dataPointer: 1 }
+      ]
+    )
+  }
+})
+
+test('set and get hypercore head', async (t) => {
+  const core = await createCore(t)
+  {
+    const rx = core.read()
+    const p = rx.getHead()
+    rx.tryFlush()
+    t.alike(await p, null, 'No head on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setHead({
+      fork: 1,
+      length: 3,
+      rootHash: b4a.from('a'.repeat(64), 'hex'),
+      signature: b4a.from('b'.repeat(64), 'hex')
+    })
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = rx.getHead()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      {
+        fork: 1,
+        length: 3,
+        rootHash: b4a.from('a'.repeat(64), 'hex'),
+        signature: b4a.from('b'.repeat(64), 'hex')
+      },
+      'updated head')
+  }
+})
+
+test('set and get hypercore dependency', async (t) => {
+  const core = await createCore(t)
+  {
+    const rx = core.read()
+    const p = rx.getDependency()
+    rx.tryFlush()
+    t.alike(await p, null, 'No dependency on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setDependency({
+      dataPointer: 1,
+      length: 3
+    })
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = rx.getDependency()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      {
+        dataPointer: 1,
+        length: 3
+      },
+      'updated dependency')
+  }
+})
+
+test('set and get hypercore hints', async (t) => {
+  const core = await createCore(t)
+  {
+    const rx = core.read()
+    const p = rx.getHints()
+    rx.tryFlush()
+    t.alike(await p, null, 'No hints on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setHints({
+      contiguousLength: 1
+    })
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = rx.getHints()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      { contiguousLength: 1 },
+      'updated hints')
+  }
+})
+
+test('set and get hypercore userdata', async (t) => {
+  const core = await createCore(t)
+  {
+    const rx = core.read()
+    const p = rx.getUserData()
+    rx.tryFlush()
+    t.alike(await p, null, 'No userdata on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.putUserData('key', 'value')
+    tx.putUserData('key2', 'value2')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getUserData('key'),
+      rx.getUserData('key2'),
+      rx.getUserData('no-key')
+    ])
+    rx.tryFlush()
+    const [data1, data2, data3] = await p
+
+    t.is(b4a.toString(data1), 'value')
+    t.is(b4a.toString(data2), 'value2')
+    t.is(data3, null)
+  }
+})
+
+test('delete hypercore userdata', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putUserData('key', 'value')
+    tx.putUserData('key2', 'value2')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getUserData('key'),
+      rx.getUserData('key2')
+    ])
+    rx.tryFlush()
+    const [data1, data2] = await p
+
+    t.is(b4a.toString(data1), 'value', 'sanity check')
+    t.is(b4a.toString(data2), 'value2', 'sanity check')
+  }
+
+  {
+    const tx = core.write()
+    tx.deleteUserData('key')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getUserData('key'),
+      rx.getUserData('key2')
+    ])
+    rx.tryFlush()
+    const [data1, data2] = await p
+
+    t.is(data1, null, 'deleted')
+    t.is(b4a.toString(data2), 'value2')
+  }
+})
+
+test('set and get bitfield page', async (t) => {
+  const core = await createCore(t)
+
+  {
+    // Note: not sure these values are valid bitfield data
+    // but the API seems to accept generic buffers
+    const tx = core.write()
+    tx.putBitfieldPage(0, 'bitfield-data-1')
+    tx.putBitfieldPage(1, 'bitfield-data-2')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getBitfieldPage(0),
+      rx.getBitfieldPage(1),
+      rx.getBitfieldPage(2)
+    ])
+    rx.tryFlush()
+    const [data1, data2, data3] = await p
+
+    t.is(b4a.toString(data1), 'bitfield-data-1')
+    t.is(b4a.toString(data2), 'bitfield-data-2')
+    t.is(data3, null)
+  }
+})
+
+test('delete bitfield page', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putBitfieldPage(0, 'bitfield-data-1')
+    tx.putBitfieldPage(1, 'bitfield-data-2')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getBitfieldPage(0),
+      rx.getBitfieldPage(1)
+    ])
+    rx.tryFlush()
+    const [data1, data2] = await p
+
+    t.is(b4a.toString(data1), 'bitfield-data-1', 'sanity check')
+    t.is(b4a.toString(data2), 'bitfield-data-2', 'sanity check')
+  }
+
+  {
+    const tx = core.write()
+    tx.deleteBitfieldPage(0)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getBitfieldPage(0),
+      rx.getBitfieldPage(1)
+    ])
+    rx.tryFlush()
+    const [data1, data2] = await p
+
+    t.is(data1, null, 'deleted')
+    t.is(b4a.toString(data2), 'bitfield-data-2', 'sanity check')
+  }
+})
+
+test('delete bitfield page range', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putBitfieldPage(0, 'bitfield-data-1')
+    tx.putBitfieldPage(1, 'bitfield-data-2')
+    tx.putBitfieldPage(2, 'bitfield-data-3')
+    tx.putBitfieldPage(3, 'bitfield-data-4')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getBitfieldPage(0),
+      rx.getBitfieldPage(1),
+      rx.getBitfieldPage(2),
+      rx.getBitfieldPage(3)
+    ])
+    rx.tryFlush()
+    const [data1, data2, data3, data4] = await p
+
+    t.is(b4a.toString(data1), 'bitfield-data-1', 'sanity check')
+    t.is(b4a.toString(data2), 'bitfield-data-2', 'sanity check')
+    t.is(b4a.toString(data3), 'bitfield-data-3', 'sanity check')
+    t.is(b4a.toString(data4), 'bitfield-data-4', 'sanity check')
+  }
+
+  {
+    const tx = core.write()
+    tx.deleteBitfieldPageRange(1, 3)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getBitfieldPage(0),
+      rx.getBitfieldPage(1),
+      rx.getBitfieldPage(2),
+      rx.getBitfieldPage(3)
+    ])
+    rx.tryFlush()
+    const [data1, data2, data3, data4] = await p
+
+    t.is(b4a.toString(data1), 'bitfield-data-1')
+    t.is(data2, null)
+    t.is(data3, null)
+    t.is(b4a.toString(data4), 'bitfield-data-4')
+  }
+})
+
 async function writeBlocks (core, amount, { start = 0, pre = '' } = {}) {
   const tx = core.write()
   for (let i = start; i < amount + start; i++) {

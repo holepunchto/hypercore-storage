@@ -36,7 +36,11 @@ class Atom {
   async flush () {
     await View.flush(this.view.changes, this.db)
     this.view.reset()
-    while (this.flushes.length) this.flushes.pop()()
+
+    const promises = []
+    while (this.flushes.length) promises.push(this.flushes.pop()())
+
+    return Promise.all(promises)
   }
 }
 

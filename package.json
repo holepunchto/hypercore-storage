@@ -16,8 +16,20 @@
   "author": "Holepunch Inc.",
   "license": "Apache-2.0",
   "description": "",
+  "imports": {
+    "fs": {
+      "bare": "bare-fs",
+      "default": "fs"
+    },
+    "path": {
+      "bare": "bare-path",
+      "default": "path"
+    }
+  },
   "dependencies": {
     "b4a": "^1.6.7",
+    "bare-fs": "^4.0.1",
+    "bare-path": "^3.0.0",
     "compact-encoding": "^2.16.0",
     "flat-tree": "^1.12.1",
     "hypercore-crypto": "^3.4.2",

@@ -98,16 +98,16 @@ class HypercoreStorage {
     return this.store.atom()
   }
 
-  createBlockStream (start, end, reverse) {
-    return createBlockStream(this.core, this.db, this.view, start, end, !!reverse)
+  createBlockStream (opts) {
+    return createBlockStream(this.core, this.db, this.view, opts)
   }
 
-  createBitfieldStream (start, end) {
-    return createBitfieldStream(this.core, this.db, this.view, start, end)
+  createBitfieldStream (opts) {
+    return createBitfieldStream(this.core, this.db, this.view, opts)
   }
 
-  createUserDataStream (start, end = null) {
-    return createUserDataStream(this.core, this.db, this.view, start, end)
+  createUserDataStream (opts) {
+    return createUserDataStream(this.core, this.db, this.view, opts)
   }
 
   async resumeSession (name) {

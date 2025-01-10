@@ -53,7 +53,7 @@
     {
       "name": "alias",
       "namespace": "corestore",
-      "compact": false,
+      "compact": true,
       "flagsPosition": -1,
       "fields": [
         {
@@ -74,8 +74,14 @@
       "name": "core",
       "namespace": "corestore",
       "compact": false,
-      "flagsPosition": 2,
+      "flagsPosition": 3,
       "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
         {
           "name": "corePointer",
           "required": true,

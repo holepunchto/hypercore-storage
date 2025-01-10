@@ -39,6 +39,7 @@ corestore.register({
 
 corestore.register({
   name: 'alias',
+  compact: true,
   fields: [{
     name: 'name',
     type: 'string',
@@ -53,6 +54,10 @@ corestore.register({
 corestore.register({
   name: 'core',
   fields: [{
+    name: 'version',
+    type: 'uint',
+    required: true
+  }, {
     name: 'corePointer',
     type: 'uint',
     required: true

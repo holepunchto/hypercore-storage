@@ -3,6 +3,8 @@ const rrp = require('resolve-reject-promise')
 const ScopeLock = require('scope-lock')
 const View = require('./lib/view.js')
 
+const VERSION = 1
+
 const {
   CorestoreRX,
   CorestoreTX,
@@ -123,6 +125,7 @@ class HypercoreStorage {
     if (session === null) return null
 
     const core = {
+      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
       dependencies: []
@@ -165,6 +168,7 @@ class HypercoreStorage {
 
     const length = head === null ? 0 : head.length
     const core = {
+      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
       dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
@@ -183,6 +187,7 @@ class HypercoreStorage {
   async createAtomicSession (atom, head) {
     const length = head === null ? 0 : head.length
     const core = {
+      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: this.core.dataPointer,
       dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
@@ -448,11 +453,11 @@ class CorestoreStorage {
     return this._resumeFromPointers(EMPTY, core)
   }
 
-  async _resumeFromPointers (view, { corePointer, dataPointer }) {
-    const core = { corePointer, dataPointer, dependencies: [] }
+  async _resumeFromPointers (view, { version, corePointer, dataPointer }) {
+    const core = { version, corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
+      const rx = new CoreRX({ version, dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -482,7 +487,7 @@ class CorestoreStorage {
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++
 
-    core = { corePointer, dataPointer, alias }
+    core = { version: VERSION, corePointer, dataPointer, alias }
 
     tx.setHead(head)
     tx.putCore(discoveryKey, core)
@@ -525,7 +530,7 @@ module.exports = CorestoreStorage
 
 function initStoreHead (seed, defaultDiscoveryKey) {
   return {
-    version: 0,
+    version: VERSION,
     allocated: {
       datas: 0,
       cores: 0

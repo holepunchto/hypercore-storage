@@ -87,36 +87,37 @@ const encoding2 = {
   }
 }
 
-// @corestore/core.alias
-const encoding3_2 = c.frame(encoding2)
-
 // @corestore/core
 const encoding3 = {
   preencode (state, m) {
+    c.uint.preencode(state, m.version)
     c.uint.preencode(state, m.corePointer)
     c.uint.preencode(state, m.dataPointer)
     state.end++ // max flag is 1 so always one byte
 
-    if (m.alias) encoding3_2.preencode(state, m.alias)
+    if (m.alias) encoding2.preencode(state, m.alias)
   },
   encode (state, m) {
     const flags = m.alias ? 1 : 0
 
+    c.uint.encode(state, m.version)
     c.uint.encode(state, m.corePointer)
     c.uint.encode(state, m.dataPointer)
     c.uint.encode(state, flags)
 
-    if (m.alias) encoding3_2.encode(state, m.alias)
+    if (m.alias) encoding2.encode(state, m.alias)
   },
   decode (state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
+    const r2 = c.uint.decode(state)
     const flags = c.uint.decode(state)
 
     return {
-      corePointer: r0,
-      dataPointer: r1,
-      alias: (flags & 1) !== 0 ? encoding3_2.decode(state) : null
+      version: r0,
+      corePointer: r1,
+      dataPointer: r2,
+      alias: (flags & 1) !== 0 ? encoding2.decode(state) : null
     }
   }
 }

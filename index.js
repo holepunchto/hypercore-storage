@@ -241,11 +241,14 @@ class HypercoreStorage {
 
 class CorestoreStorage {
   constructor (db) {
+    this.path = typeof db === 'string' ? db : db.path
     this.db = typeof db === 'string' ? new RocksDB(db) : db
     this.view = null
     this.enters = 0
     this.lock = new ScopeLock()
     this.flushing = null
+    this.version = 0
+    this.migrating = null
   }
 
   get opened () {
@@ -254,6 +257,10 @@ class CorestoreStorage {
 
   get closed () {
     return this.db.closed
+  }
+
+  async ready () {
+    if (this.version === 0) await this._migrate()
   }
 
   static isCoreStorage (db) {
@@ -269,6 +276,39 @@ class CorestoreStorage {
     while (this.enters > 0) {
       await this.lock.lock()
       await this.lock.unlock()
+    }
+  }
+
+  async _migrate () {
+    const view = await this._enter()
+
+    try {
+      if (this.version === VERSION) return
+
+      const rx = new CorestoreRX(this.db, view)
+      const headPromise = rx.getHead()
+
+      rx.tryFlush()
+      const head = await headPromise
+
+      const version = head === null ? 0 : head.version
+      if (version === VERSION) return
+
+      const target = { version: VERSION, dryRun: false }
+
+      switch (version) {
+        case 0: {
+          await require('./migrations/0').store(this, target)
+          break
+        }
+        default: {
+          throw new Error('Unsupported version: ' + version + ' - you should probably upgrade your dependencies')
+        }
+      }
+
+      this.version = VERSION
+    } finally {
+      await this._exit()
     }
   }
 
@@ -310,13 +350,7 @@ class CorestoreStorage {
     const tx = new CorestoreTX(view)
 
     try {
-      const rx = new CorestoreRX(this.db, view)
-
-      const headPromise = rx.getHead()
-      rx.tryFlush()
-
-      let head = await headPromise
-      if (head === null) head = initStoreHead(null, null)
+      const head = this._getHead(view)
 
       dataPointer = head.allocated.datas++
 
@@ -327,6 +361,17 @@ class CorestoreStorage {
     }
 
     return dataPointer
+  }
+
+  // exposes here so migrations can easily access the head in an init state
+  async _getHead (view) {
+    const rx = new CorestoreRX(this.db, view)
+    const headPromise = rx.getHead()
+    rx.tryFlush()
+
+    let head = await headPromise
+    if (head === null) head = initStoreHead(null, null)
+    return head
   }
 
   atom () {
@@ -340,6 +385,8 @@ class CorestoreStorage {
   }
 
   async clear () {
+    if (this.version === 0) await this._migrate()
+
     const view = await this._enter()
     const tx = new CorestoreTX(view)
 
@@ -365,6 +412,8 @@ class CorestoreStorage {
   }
 
   async getSeed () {
+    if (this.version === 0) await this._migrate()
+
     const rx = new CorestoreRX(this.db, EMPTY)
     const headPromise = rx.getHead()
 
@@ -375,6 +424,8 @@ class CorestoreStorage {
   }
 
   async setSeed (seed, { overwrite = true } = {}) {
+    if (this.version === 0) await this._migrate()
+
     const view = await this._enter()
     const tx = new CorestoreTX(view)
 
@@ -397,6 +448,8 @@ class CorestoreStorage {
   }
 
   async getDefaultDiscoveryKey () {
+    if (this.version === 0) await this._migrate()
+
     const rx = new CorestoreRX(this.db, EMPTY)
     const headPromise = rx.getHead()
 
@@ -407,6 +460,8 @@ class CorestoreStorage {
   }
 
   async setDefaultDiscoveryKey (discoveryKey, { overwrite = true } = {}) {
+    if (this.version === 0) await this._migrate()
+
     const view = await this._enter()
     const tx = new CorestoreTX(view)
 
@@ -429,6 +484,8 @@ class CorestoreStorage {
   }
 
   async has (discoveryKey) {
+    if (this.version === 0) await this._migrate()
+
     const rx = new CorestoreRX(this.db, EMPTY)
     const promise = rx.getCore(discoveryKey)
 
@@ -438,6 +495,8 @@ class CorestoreStorage {
   }
 
   async resume (discoveryKey) {
+    if (this.version === 0) await this._migrate()
+
     if (!discoveryKey) {
       discoveryKey = await this.getDefaultDiscoveryKey()
       if (!discoveryKey) return null
@@ -516,6 +575,8 @@ class CorestoreStorage {
   }
 
   async create (data) {
+    if (this.version === 0) await this._migrate()
+
     const view = await this._enter()
 
     try {
@@ -530,7 +591,7 @@ module.exports = CorestoreStorage
 
 function initStoreHead (seed, defaultDiscoveryKey) {
   return {
-    version: VERSION,
+    version: 0, // cause we wanna run the migration
     allocated: {
       datas: 0,
       cores: 0

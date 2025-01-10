@@ -116,17 +116,6 @@ class HypercoreStorage {
     return createUserDataStream(this.core, this.db, this.view, opts)
   }
 
-  async assumeSessionUnsafe (session) {
-    const core = {
-      version: this.core.version,
-      corePointer: this.core.corePointer,
-      dataPointer: session.dataPointer,
-      dependencies: []
-    }
-
-    return new HypercoreStorage(this.store, this.db.session(), core, new View(), false)
-  }
-
   async resumeSession (name) {
     const rx = this.read()
     const existingSessionsPromise = rx.getSessions()

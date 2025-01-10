@@ -64,6 +64,9 @@ test('read and write hypercore blocks across multiple cores', async (t) => {
   t.is(b4a.toString(c1Block1), 'core1-block1')
   t.is(b4a.toString(c2Block0), 'core2-block0')
   t.is(b4a.toString(c2Block1), 'core2-block1')
+
+  await Promise.all([core0.close(), core1.close(), core2.close()])
+  await storage.close()
 })
 
 test('read and write hypercore blocks from snapshot', async (t) => {

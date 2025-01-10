@@ -36,7 +36,6 @@ test('read and write hypercore blocks from snapshot', async (t) => {
     const rx = core.read()
     const p = rx.getBlock(2)
     rx.tryFlush()
-    console.log(await p)
     t.is(b4a.toString(await p), 'block2', 'sanity check: does exist in non-snapshot core')
   }
 })
@@ -52,11 +51,12 @@ test('delete hypercore block', async (t) => {
   await tx.flush()
 
   const rx = core.read()
-  const [p0, p1, p2] = [rx.getBlock(0), rx.getBlock(1), rx.getBlock(2)]
+  const p = Promise.all([rx.getBlock(0), rx.getBlock(1), rx.getBlock(2)])
   rx.tryFlush()
-  t.is(await p0, null)
-  t.is(b4a.toString(await p1), 'block1')
-  t.is(await p2, null)
+  const [res0, res1, res2] = await p
+  t.is(res0, null)
+  t.is(b4a.toString(res1), 'block1')
+  t.is(res2, null)
 })
 
 test('put and get tree node', async (t) => {
@@ -79,11 +79,13 @@ test('put and get tree node', async (t) => {
   await tx.flush()
 
   const rx = core.read()
-  const [p1, p2, p3] = [rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2)]
+  const p = Promise.all([rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2)])
   rx.tryFlush()
-  t.alike(await p1, node1)
-  t.alike(await p2, node2)
-  t.is(await p3, null)
+  const [res0, res1, res2] = await p
+
+  t.alike(res0, node1)
+  t.alike(res1, node2)
+  t.is(res2, null)
 })
 
 async function writeBlocks (core, amount, { start = 0 } = {}) {

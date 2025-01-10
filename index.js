@@ -222,6 +222,7 @@ class CorestoreStorage {
   constructor (db) {
     this.db = typeof db === 'string' ? new RocksDB(db) : db
     this.opened = 0
+    this.view = null
     this.tx = null
     this.enters = 0
     this.lock = new ScopeLock()
@@ -247,26 +248,25 @@ class CorestoreStorage {
   async _enter () {
     this.enters++
     await this.lock.lock()
-    if (this.tx === null) this.tx = new CorestoreTX(this.db, new View())
-    return this.tx
+    if (this.view === null) this.view = new View()
+    return this.view
   }
 
   async _exit () {
     this.enters--
-    this.tx.apply()
 
     if (this.flushing === null) this.flushing = rrp()
     const flushed = this.flushing.promise
 
-    if (this.enters === 0 || this.tx.view.size() > 128) {
+    if (this.enters === 0 || this.view.size() > 128) {
       try {
-        await View.flush(this.tx.view.changes, this.db)
+        await View.flush(this.view.changes, this.db)
         this.flushing.resolve()
       } catch (err) {
         this.flushing.reject(err)
       } finally {
         this.flushing = null
-        this.tx = null
+        this.view = null
       }
     }
 
@@ -279,10 +279,11 @@ class CorestoreStorage {
   async _allocData () {
     let dataPointer = 0
 
-    const tx = await this._enter()
+    const view = await this._enter()
+    const tx = new CorestoreTX(view)
 
     try {
-      const rx = new CorestoreRX(this.db, tx.view)
+      const rx = new CorestoreRX(this.db, view)
 
       const headPromise = rx.getHead()
       rx.tryFlush()
@@ -291,7 +292,9 @@ class CorestoreStorage {
       if (head === null) head = initStoreHead()
 
       dataPointer = head.allocated.datas++
+
       tx.setHead(head)
+      tx.apply()
     } finally {
       await this._exit()
     }
@@ -310,8 +313,12 @@ class CorestoreStorage {
   }
 
   async clear () {
-    const tx = await this._enter()
+    const view = await this._enter()
+    const tx = new CorestoreTX(view)
+
     tx.clear()
+    tx.apply()
+
     await this._exit()
   }
 
@@ -341,9 +348,11 @@ class CorestoreStorage {
   }
 
   async setSeed (seed) {
-    const tx = await this._enter()
+    const view = await this._enter()
+    const tx = new CorestoreTX(view)
+
     try {
-      const rx = new CorestoreRX(this.db, tx.view)
+      const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
 
       rx.tryFlush()
@@ -352,6 +361,7 @@ class CorestoreStorage {
 
       head.seed = seed
       tx.setHead(head)
+      tx.apply()
     } finally {
       await this._exit()
     }
@@ -368,9 +378,11 @@ class CorestoreStorage {
   }
 
   async setDefaultKey (defaultKey) {
-    const tx = await this._enter()
+    const view = await this._enter()
+    const tx = new CorestoreTX(view)
+
     try {
-      const rx = new CorestoreRX(this.db, tx.view)
+      const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
 
       rx.tryFlush()
@@ -379,6 +391,7 @@ class CorestoreStorage {
 
       head.defaultKey = defaultKey
       tx.setHead(head)
+      tx.apply()
     } finally {
       await this._exit()
     }
@@ -426,8 +439,9 @@ class CorestoreStorage {
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _create (tx, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
-    const rx = new CorestoreRX(this.db, tx.view)
+  async _create (view, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
+    const rx = new CorestoreRX(this.db, view)
+    const tx = new CorestoreTX(view)
 
     const corePromise = rx.getCore(discoveryKey)
     const headPromise = rx.getHead()
@@ -435,7 +449,7 @@ class CorestoreStorage {
     rx.tryFlush()
 
     let [core, head] = await Promise.all([corePromise, headPromise])
-    if (core) return this._resumeFromPointers(tx.view, core)
+    if (core) return this._resumeFromPointers(view, core)
 
     if (head === null) head = initStoreHead(discoveryKey)
 
@@ -449,7 +463,7 @@ class CorestoreStorage {
     if (alias) tx.putCoreByAlias(alias, discoveryKey)
 
     const ptr = { corePointer, dataPointer, dependencies: [] }
-    const ctx = new CoreTX(ptr, this.db, tx.view, tx.changes)
+    const ctx = new CoreTX(ptr, this.db, view, tx.changes)
 
     ctx.setAuth({
       key,
@@ -465,14 +479,16 @@ class CorestoreStorage {
       }
     }
 
+    tx.apply()
+
     return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, false)
   }
 
   async create (data) {
-    const tx = await this._enter()
+    const view = await this._enter()
 
     try {
-      return await this._create(tx, data)
+      return await this._create(view, data)
     } finally {
       await this._exit()
     }

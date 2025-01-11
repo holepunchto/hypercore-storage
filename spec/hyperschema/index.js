@@ -505,4 +505,6 @@ function getStruct (name, v = VERSION) {
   }
 }
 
-module.exports = { resolveStruct: getStruct, getStruct, getEnum, getEncoding, encode, decode, setVersion, version }
+const resolveStruct = getStruct // compat
+
+module.exports = { resolveStruct, getStruct, getEnum, getEncoding, encode, decode, setVersion, version }

@@ -2,7 +2,7 @@ const Hyperschema = require('hyperschema')
 
 const SPEC = './spec/hyperschema'
 
-const schema = Hyperschema.from(SPEC)
+const schema = Hyperschema.from(SPEC, { versioned: false })
 const corestore = schema.namespace('corestore')
 
 corestore.register({

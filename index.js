@@ -152,7 +152,7 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
 
-  async createSession (name, head) {
+  async createSession (name, head, atom) {
     const rx = this.read()
 
     const existingSessionsPromise = rx.getSessions()
@@ -193,7 +193,7 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
+    return new HypercoreStorage(this.store, this.db.session(), core, atom ? atom.view : this.atom ? this.view : new View(), atom || this.atom)
   }
 
   async createAtomicSession (atom, head) {

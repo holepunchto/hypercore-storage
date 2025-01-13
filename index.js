@@ -152,8 +152,8 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
-  async createSession (name, head, atom) {
-    const rx = this.read(atom)
+  async createSession (name, head) {
+    const rx = this.read()
 
     const existingSessionsPromise = rx.getSessions()
     const existingHeadPromise = rx.getHead()
@@ -174,7 +174,7 @@ class HypercoreStorage {
       session.dataPointer = await this.store._allocData()
     }
 
-    const tx = this.write(atom)
+    const tx = this.write()
 
     tx.setSessions(sessions)
 
@@ -193,7 +193,7 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, atom ? atom.view : this.atomic ? this.view : new View(), !!atom || this.atomic)
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
   }
 
   async createAtomicSession (atom, head) {
@@ -233,12 +233,12 @@ class HypercoreStorage {
     return deps
   }
 
-  read (atom) {
-    return new CoreRX(this.core, this.db, atom ? atom.view : this.view)
+  read () {
+    return new CoreRX(this.core, this.db, this.view)
   }
 
-  write (atom) {
-    return new CoreTX(this.core, this.db, atom ? atom.view : this.atomic ? this.view : null, [])
+  write () {
+    return new CoreTX(this.core, this.db, this.atomic ? this.view : null, [])
   }
 
   close () {

@@ -40,7 +40,7 @@ test('reverse block stream', async function (t) {
 
 test('block stream (atom)', async function (t) {
   const core = await createCore(t)
-  const atom = core.atom()
+  const atom = core.createAtom()
 
   const a = core.atomize(atom)
 

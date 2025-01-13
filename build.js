@@ -236,9 +236,8 @@ core.register({
 })
 
 core.register({
-  name: 'sessions',
+  name: 'session',
   compact: true,
-  array: true,
   fields: [{
     name: 'name',
     type: 'string',
@@ -248,6 +247,12 @@ core.register({
     type: 'uint',
     required: true
   }]
+})
+
+core.register({
+  name: 'sessions',
+  array: true,
+  type: '@core/session'
 })
 
 core.register({

@@ -339,7 +339,7 @@
       ]
     },
     {
-      "name": "sessions",
+      "name": "session",
       "namespace": "core",
       "compact": true,
       "flagsPosition": -1,
@@ -357,6 +357,12 @@
           "version": 1
         }
       ]
+    },
+    {
+      "name": "sessions",
+      "namespace": "core",
+      "array": true,
+      "type": "@core/session"
     },
     {
       "name": "dependency",

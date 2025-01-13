@@ -401,8 +401,8 @@ const encoding13 = {
   }
 }
 
-// @core/sessions
-const encoding14 = c.array({
+// @core/session
+const encoding14 = {
   preencode (state, m) {
     c.string.preencode(state, m.name)
     c.uint.preencode(state, m.dataPointer)
@@ -420,10 +420,13 @@ const encoding14 = c.array({
       dataPointer: r1
     }
   }
-})
+}
+
+// @core/sessions
+const encoding15 = c.array(encoding14)
 
 // @core/dependency
-const encoding15 = {
+const encoding16 = {
   preencode (state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
@@ -481,8 +484,9 @@ function getEncoding (name) {
     case '@core/auth': return encoding11
     case '@core/head': return encoding12
     case '@core/hints': return encoding13
-    case '@core/sessions': return encoding14
-    case '@core/dependency': return encoding15
+    case '@core/session': return encoding14
+    case '@core/sessions': return encoding15
+    case '@core/dependency': return encoding16
     default: throw new Error('Encoder not found ' + name)
   }
 }

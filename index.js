@@ -40,7 +40,7 @@ class Atom {
     this.view.reset()
 
     const promises = []
-    while (this.flushes.length) promises.push(this.flushes.pop()())
+    for (let i = 0; i < this.flushes.length; i++) promises.push(this.flushes[i]())
 
     await Promise.all(promises)
   }

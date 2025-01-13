@@ -4,6 +4,7 @@ const ScopeLock = require('scope-lock')
 const View = require('./lib/view.js')
 
 const VERSION = 1
+const COLUMN_FAMILY = 'corestore'
 
 const {
   CorestoreRX,
@@ -253,7 +254,8 @@ class HypercoreStorage {
 class CorestoreStorage {
   constructor (db) {
     this.path = typeof db === 'string' ? db : db.path
-    this.db = typeof db === 'string' ? new RocksDB(db) : db
+    this.rocks = typeof db === 'string' ? new RocksDB(db) : db
+    this.db = createColumnFamily(this.rocks)
     this.view = null
     this.enters = 0
     this.lock = new ScopeLock()
@@ -435,6 +437,7 @@ class CorestoreStorage {
     if (this.db.closed) return
     await this._flush()
     await this.db.close()
+    await this.rocks.close()
   }
 
   async clear () {
@@ -676,4 +679,19 @@ function getBatch (sessions, name, alloc) {
 
 function isCorestoreStorage (s) {
   return typeof s === 'object' && !!s && typeof s.setDefaultDiscoveryKey === 'function'
+}
+
+function createColumnFamily (db) {
+  const col = new RocksDB.ColumnFamily(COLUMN_FAMILY, {
+    // tuning! atm just the default tuning from rocks, TODO: tweak
+    enableBlobFiles: false,
+    minBlobSize: 0,
+    blobFileSize: 0,
+    enableBlobGarbageCollection: true,
+    tableBlockSize: 16384,
+    tableCacheIndexAndFilterBlocks: true,
+    tableFormatVersion: 4
+  })
+
+  return db.columnFamily(col)
 }

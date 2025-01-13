@@ -45,7 +45,7 @@ class Atom {
       this.view.reset()
 
       const promises = []
-      const len = this.flushing.length // in case of reentry
+      const len = this.flushes.length // in case of reentry
       for (let i = 0; i < len; i++) promises.push(this.flushes[i]())
 
       await Promise.all(promises)

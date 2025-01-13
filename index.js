@@ -28,6 +28,7 @@ class Atom {
   constructor (db) {
     this.db = db
     this.view = new View()
+    this.flushing = false
     this.flushes = []
   }
 
@@ -36,13 +37,21 @@ class Atom {
   }
 
   async flush () {
-    await View.flush(this.view.changes, this.db)
-    this.view.reset()
+    if (this.flushing) throw new Error('Atom already flushing')
+    this.flushing = true
 
-    const promises = []
-    for (let i = 0; i < this.flushes.length; i++) promises.push(this.flushes[i]())
+    try {
+      await View.flush(this.view.changes, this.db)
+      this.view.reset()
 
-    await Promise.all(promises)
+      const promises = []
+      const len = this.flushing.length // in case of reentry
+      for (let i = 0; i < len; i++) promises.push(this.flushes[i]())
+
+      await Promise.all(promises)
+    } finally {
+      this.flushing = false
+    }
   }
 }
 
@@ -99,6 +108,7 @@ class HypercoreStorage {
   }
 
   atomize (atom) {
+    if (this.atom && this.atom !== atom) throw new Error('Cannot atomize and atomized session with a new atom')
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 

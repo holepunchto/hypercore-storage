@@ -1,6 +1,6 @@
 {
   "name": "hypercore-storage",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "main": "index.js",
   "files": [
     "index.js",
@@ -15,7 +15,7 @@
   },
   "author": "Holepunch Inc.",
   "license": "Apache-2.0",
-  "description": "",
+  "description": "Storage engine for Hypercore",
   "imports": {
     "fs": {
       "bare": "bare-fs",

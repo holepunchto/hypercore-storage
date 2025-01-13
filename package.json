@@ -1,0 +1,48 @@
+{
+  "name": "hypercore-storage",
+  "version": "1.0.0",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "lib/*.js",
+    "spec/hyperschema/*.js",
+    "migrations/0/*.js"
+  ],
+  "scripts": {
+    "test": "standard && node test/all.js",
+    "test:bare": "bare test/all.js",
+    "test:generate": "brittle -r test/all.js test/*.js"
+  },
+  "author": "Holepunch Inc.",
+  "license": "Apache-2.0",
+  "description": "",
+  "imports": {
+    "fs": {
+      "bare": "bare-fs",
+      "default": "fs"
+    },
+    "path": {
+      "bare": "bare-path",
+      "default": "path"
+    }
+  },
+  "dependencies": {
+    "b4a": "^1.6.7",
+    "bare-fs": "^4.0.1",
+    "bare-path": "^3.0.0",
+    "compact-encoding": "^2.16.0",
+    "flat-tree": "^1.12.1",
+    "hypercore-crypto": "^3.4.2",
+    "hyperschema": "^1.7.0",
+    "index-encoder": "^3.3.2",
+    "resolve-reject-promise": "^1.0.0",
+    "rocksdb-native": "^3.1.1",
+    "scope-lock": "^1.2.4",
+    "streamx": "^2.21.1"
+  },
+  "devDependencies": {
+    "brittle": "^3.7.0",
+    "standard": "^17.1.2",
+    "test-tmp": "^1.3.1"
+  }
+}

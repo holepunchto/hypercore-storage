@@ -1,0 +1,382 @@
+{
+  "version": 1,
+  "schema": [
+    {
+      "name": "allocated",
+      "namespace": "corestore",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "cores",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "datas",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "allocated",
+          "type": "@corestore/allocated",
+          "version": 1
+        },
+        {
+          "name": "seed",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "defaultDiscoveryKey",
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "alias",
+      "namespace": "corestore",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "namespace",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "core",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "corePointer",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "dataPointer",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "alias",
+          "type": "@corestore/alias",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "hashes",
+      "namespace": "core",
+      "offset": 0,
+      "enum": [
+        {
+          "key": "blake2b",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "signatures",
+      "namespace": "core",
+      "offset": 0,
+      "enum": [
+        {
+          "key": "ed25519",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "tree-node",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "index",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "size",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "hash",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "signer",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "signature",
+          "required": true,
+          "type": "@core/signatures",
+          "version": 1
+        },
+        {
+          "name": "namespace",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "prologue",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "hash",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "manifest",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 1,
+      "fields": [
+        {
+          "name": "version",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "hash",
+          "required": true,
+          "type": "@core/hashes",
+          "version": 1
+        },
+        {
+          "name": "quorum",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "allowPatch",
+          "type": "bool",
+          "version": 1
+        },
+        {
+          "name": "signers",
+          "required": true,
+          "array": true,
+          "type": "@core/signer",
+          "version": 1
+        },
+        {
+          "name": "prologue",
+          "type": "@core/prologue",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "keyPair",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        },
+        {
+          "name": "secretKey",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "auth",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 2,
+      "fields": [
+        {
+          "name": "key",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "discoveryKey",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "manifest",
+          "type": "@core/manifest",
+          "version": 1
+        },
+        {
+          "name": "keyPair",
+          "type": "@core/keyPair",
+          "version": 1
+        },
+        {
+          "name": "encryptionKey",
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "fork",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "rootHash",
+          "required": true,
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "signature",
+          "required": true,
+          "type": "buffer",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "hints",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "contiguousLength",
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "name",
+          "required": true,
+          "type": "string",
+          "version": 1
+        },
+        {
+          "name": "dataPointer",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "dependency",
+      "namespace": "core",
+      "compact": true,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "dataPointer",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "length",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    }
+  ]
+}

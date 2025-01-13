@@ -47,12 +47,12 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor (store, db, core, view, atomic) {
+  constructor (store, db, core, view, atom) {
     this.store = store
     this.db = db
     this.core = core
     this.view = view
-    this.atomic = atomic
+    this.atom = atom
 
     this.view.readStart()
   }
@@ -95,15 +95,15 @@ class HypercoreStorage {
   }
 
   snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atomic)
+    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atom)
   }
 
   atomize (atom) {
-    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, true)
+    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 
-  atom () {
-    return this.store.atom()
+  createAtom () {
+    return this.store.createAtom()
   }
 
   createBlockStream (opts) {
@@ -149,7 +149,7 @@ class HypercoreStorage {
     const dependency = await dependencyPromise
     if (dependency) core.dependencies = this._addDependency(dependency)
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
 
   async createSession (name, head) {
@@ -193,7 +193,7 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atomic ? this.view : new View(), this.atomic)
+    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
   }
 
   async createAtomicSession (atom, head) {
@@ -238,7 +238,7 @@ class HypercoreStorage {
   }
 
   write () {
-    return new CoreTX(this.core, this.db, this.atomic ? this.view : null, [])
+    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
   close () {
@@ -429,7 +429,7 @@ class CorestoreStorage {
     return head === null ? initStoreHead() : head
   }
 
-  atom () {
+  createAtom () {
     return new Atom(this.db)
   }
 
@@ -585,7 +585,7 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, false)
+    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
 
     if (result.core.version === 0) await this._migrateCore(result, discoveryKey, create)
     return result
@@ -635,7 +635,7 @@ class CorestoreStorage {
 
     tx.apply()
 
-    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, false)
+    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
   }
 
   async create (data) {

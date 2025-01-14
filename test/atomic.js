@@ -214,6 +214,10 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
 
 test('basic atomized flow with multiple cores', async (t) => {
   const storage = await create(t)
+  t.teardown(async () => {
+    await storage.close()
+  }, 100000)
+
   const key0 = b4a.from('0'.repeat(64), 'hex')
   const key1 = b4a.from('1'.repeat(64), 'hex')
   const key2 = b4a.from('2'.repeat(64), 'hex')
@@ -224,6 +228,9 @@ test('basic atomized flow with multiple cores', async (t) => {
     storage.create({ key: key2, discoveryKey: key2 })
   ])
   const [core0, core1, core2] = cores
+  t.teardown(async () => {
+    await Promise.all(cores.map(c => c.close()))
+  }, 1)
 
   await Promise.all([
     writeBlocks(core0, 2, { pre: 'c0-' }),

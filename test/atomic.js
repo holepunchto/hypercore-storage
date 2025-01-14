@@ -17,8 +17,6 @@ test('basic atomized flow with a single core', async (t) => {
     const expected = [...initBlocks, b4a.from('block2'), null]
     t.alike(await readBlocks(core, 4), [...initBlocks, null, null], 'not added to original core')
     t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
-    console.log('original', await readBlocks(core, 4)) // [ <Buffer 62 6c 6f 63 6b 30>, <Buffer 62 6c 6f 63 6b 31>, null, null ]
-    console.log('atomized', await readBlocks(atomCore, 4)) // [ <Buffer 62 6c 6f 63 6b 30>, <Buffer 62 6c 6f 63 6b 31>, 'block2', null ]
   }
 })
 

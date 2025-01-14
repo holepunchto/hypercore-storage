@@ -1,6 +1,6 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { createCore, writeBlocks } = require('./helpers')
+const { createCore, writeBlocks, create } = require('./helpers')
 
 test('basic atomized flow with a single core', async (t) => {
   const core = await createCore(t)
@@ -210,6 +210,66 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   t.alike(await getHints(core), expHints, 'hints orig post flush')
   t.alike(await getUserData(core, 'key'), b4a.from('value'), 'userdata orig post flush')
   t.alike(await getBitfieldPages(core, 2), expBitfields, 'bitfields orig post flush')
+})
+
+test('basic atomized flow with multiple cores', async (t) => {
+  const storage = await create(t)
+  const key0 = b4a.from('0'.repeat(64), 'hex')
+  const key1 = b4a.from('1'.repeat(64), 'hex')
+  const key2 = b4a.from('2'.repeat(64), 'hex')
+
+  const cores = await Promise.all([
+    storage.create({ key: key0, discoveryKey: key0 }),
+    storage.create({ key: key1, discoveryKey: key1 }),
+    storage.create({ key: key2, discoveryKey: key2 })
+  ])
+  const [core0, core1, core2] = cores
+
+  await Promise.all([
+    writeBlocks(core0, 2, { pre: 'c0-' }),
+    writeBlocks(core1, 2, { pre: 'c1-' }),
+    writeBlocks(core2, 2, { pre: 'c2-' })
+  ])
+
+  const initBlocks = [
+    [b4a.from('c0-block0'), b4a.from('c0-block1'), null],
+    [b4a.from('c1-block0'), b4a.from('c1-block1'), null],
+    [b4a.from('c2-block0'), b4a.from('c2-block1'), null]
+  ]
+
+  const readAllBlocks = async (cores, length) => {
+    return await Promise.all([
+      readBlocks(cores[0], length),
+      readBlocks(cores[1], length),
+      readBlocks(cores[2], length)
+    ])
+  }
+  t.alike(await readAllBlocks(cores, 3), initBlocks, 'sanity check')
+
+  const atomStorage = storage.createAtom()
+  const atomCores = [
+    core0.atomize(atomStorage),
+    core1.atomize(atomStorage),
+    core2.atomize(atomStorage)
+  ]
+
+  await Promise.all([
+    writeBlocks(atomCores[0], 2, { start: 2, pre: 'c0-' }),
+    writeBlocks(atomCores[1], 2, { start: 2, pre: 'c1-' }),
+    writeBlocks(atomCores[2], 2, { start: 2, pre: 'c2-' })
+  ])
+
+  const expBlocks = [
+    [b4a.from('c0-block0'), b4a.from('c0-block1'), b4a.from('c0-block2'), b4a.from('c0-block3'), null],
+    [b4a.from('c1-block0'), b4a.from('c1-block1'), b4a.from('c1-block2'), b4a.from('c1-block3'), null],
+    [b4a.from('c2-block0'), b4a.from('c2-block1'), b4a.from('c2-block2'), b4a.from('c2-block3'), null]
+  ]
+
+  t.alike(await readAllBlocks(atomCores, 5), expBlocks, 'atom pre flush')
+  t.alike(await readAllBlocks(cores, 3), initBlocks, 'cores pre flush')
+
+  await atomStorage.flush()
+  t.alike(await readAllBlocks(cores, 5), expBlocks, 'cores post flush')
 })
 
 async function readBlocks (core, nr) {

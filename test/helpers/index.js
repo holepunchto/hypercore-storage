@@ -28,8 +28,9 @@ async function toArray (stream) {
 
 async function writeBlocks (core, amount, { start = 0, pre = '' } = {}) {
   const tx = core.write()
-  for (let i = start; i < amount + start + 1; i++) {
-    tx.putBlock(i, `${pre}block${i}`)
+  for (let i = start; i < amount + start; i++) {
+    const content = b4a.from(`${pre}block${i}`)
+    tx.putBlock(i, content)
   }
   await tx.flush()
 }

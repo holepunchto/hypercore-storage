@@ -2,7 +2,7 @@ const test = require('brittle')
 const b4a = require('b4a')
 const { createCore, writeBlocks } = require('./helpers')
 
-test.solo('basic atom flow with a single core', async (t) => {
+test('basic atomized flow with a single core', async (t) => {
   const core = await createCore(t)
   await writeBlocks(core, 2)
 
@@ -15,11 +15,29 @@ test.solo('basic atom flow with a single core', async (t) => {
   await writeBlocks(atomCore, 1, { start: 2 })
   {
     const expected = [...initBlocks, b4a.from('block2'), null]
+    t.alike(await readBlocks(core, 4), [...initBlocks, null, null], 'not added to original core')
+    t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
+    console.log('original', await readBlocks(core, 4)) // [ <Buffer 62 6c 6f 63 6b 30>, <Buffer 62 6c 6f 63 6b 31>, null, null ]
+    console.log('atomized', await readBlocks(atomCore, 4)) // [ <Buffer 62 6c 6f 63 6b 30>, <Buffer 62 6c 6f 63 6b 31>, 'block2', null ]
+  }
+})
+
+test('write to original core while there is an atomized one', async (t) => {
+  const core = await createCore(t)
+  await writeBlocks(core, 2)
+  const initBlocks = [b4a.from('block0'), b4a.from('block1')]
+
+  const atom = core.createAtom()
+  const atomCore = core.atomize(atom)
+
+  console.log('wrting more')
+  await writeBlocks(core, 1, { start: 2 })
+
+  {
+    const expected = [...initBlocks, b4a.from('block2'), null]
     t.alike(await readBlocks(core, 4), expected, 'added to original core')
     t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
   }
-  console.log('original', await readBlocks(core, 3)) // [<Buffer 62 6c 6f 63 6b 30>, <Buffer 62 6c 6f 63 6b 31>, <Buffer 62 6c 6f 63 6b 32>]
-  console.log('atomized', await readBlocks(atomCore, 3)) // [ <Buffer 62 6c 6f 63 6b 30>, <Buffer 62 6c 6f 63 6b 31>, 'block2' ]
 })
 
 async function readBlocks (core, nr) {

@@ -304,41 +304,6 @@ test('conflicting writes to original core before an atomized write--atomized win
   )
 
   await atom.flush()
-  console.log('core post flush', await readBlocks(core, 5), expected)
-
-  t.alike(
-    await readBlocks(core, 5),
-    expected,
-    'core equal to atom one after flush'
-  )
-})
-
-test('conflicting writes to original core before an atomized write--atomized wins', async (t) => {
-  const core = await createCore(t)
-  await writeBlocks(core, 2)
-  const initBlocks = [b4a.from('block0'), b4a.from('block1')]
-
-  const atom = core.createAtom()
-  const atomCore = core.atomize(atom)
-
-  await writeBlocks(core, 2, { pre: 'orig-', start: 2 })
-  await writeBlocks(atomCore, 1, { pre: 'atom-', start: 2 })
-
-  const expected = [...initBlocks, b4a.from('atom-block2'), b4a.from('orig-block3'), null]
-
-  t.alike(
-    await readBlocks(core, 5),
-    [...initBlocks, b4a.from('orig-block2'), b4a.from('orig-block3'), null],
-    'no atom blocks in original core pre flush'
-  )
-  t.alike(
-    await readBlocks(atomCore, 5),
-    expected,
-    'atomized core overrode the orig core change'
-  )
-
-  await atom.flush()
-  console.log('core post flush', await readBlocks(core, 5), expected)
 
   t.alike(
     await readBlocks(core, 5),
@@ -372,7 +337,6 @@ test('conflicting writes to original core after an atomized write--atomized wins
   )
 
   await atom.flush()
-  console.log('core post flush', await readBlocks(core, 5), expected)
 
   t.alike(
     await readBlocks(core, 5),

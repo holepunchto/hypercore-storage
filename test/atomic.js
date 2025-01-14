@@ -41,6 +41,55 @@ test('write to original core while there is an atomized one', async (t) => {
   }
 })
 
+test('first writes to a core are from an atom', async (t) => {
+  const core = await createCore(t)
+
+  const atom = core.createAtom()
+  const atomCore = core.atomize(atom)
+
+  await writeBlocks(atomCore, 1)
+
+  const expected = [b4a.from('block0'), null]
+  t.alike(await readBlocks(atomCore, 2), expected, 'added to atom core')
+  t.alike(await readBlocks(core, 2), [null, null], 'not yet added to original')
+  await atom.flush()
+  t.alike(await readBlocks(atomCore, 2), expected, 'added to original after flush')
+})
+
+test('atomized flow with write/delete operations on a single core', async (t) => {
+  const core = await createCore(t)
+  await writeBlocks(core, 3)
+
+  const initBlocks = [0, 1, 2].map(i => b4a.from(`block${i}`))
+  t.alike(await readBlocks(core, 4), [...initBlocks, null], 'sanity check')
+
+  const atom = core.createAtom()
+  const atomCore = core.atomize(atom)
+
+  {
+    const tx = atomCore.write()
+    tx.deleteBlock(1)
+    tx.deleteBlock(4) // doesn't exist yet
+    await tx.flush()
+  }
+  await writeBlocks(atomCore, 3, { start: 3 })
+
+  const expected = [
+    b4a.from('block0'),
+    null,
+    b4a.from('block2'),
+    b4a.from('block3'),
+    b4a.from('block4'),
+    b4a.from('block5'),
+    null
+  ]
+  t.alike(await readBlocks(atomCore, 7), expected)
+  t.alike(await readBlocks(core, 7), [...initBlocks, null, null, null, null], 'original not yet updated')
+
+  await atom.flush()
+  t.alike(await readBlocks(core, 7), expected)
+})
+
 async function readBlocks (core, nr) {
   const rx = core.read()
   const proms = []

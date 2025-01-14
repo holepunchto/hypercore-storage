@@ -13,11 +13,15 @@ test('basic atomized flow with a single core', async (t) => {
   const atomCore = core.atomize(atom)
 
   await writeBlocks(atomCore, 1, { start: 2 })
-  {
-    const expected = [...initBlocks, b4a.from('block2'), null]
-    t.alike(await readBlocks(core, 4), [...initBlocks, null, null], 'not added to original core')
-    t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
-  }
+  const expected = [...initBlocks, b4a.from('block2'), null]
+
+  t.alike(await readBlocks(core, 4), [...initBlocks, null, null], 'not added to original core')
+  t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
+
+  await atom.flush()
+
+  t.alike(await readBlocks(core, 4), expected, 'flushing adds to the original core')
+  t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
 })
 
 test('write to original core while there is an atomized one', async (t) => {
@@ -28,7 +32,6 @@ test('write to original core while there is an atomized one', async (t) => {
   const atom = core.createAtom()
   const atomCore = core.atomize(atom)
 
-  console.log('wrting more')
   await writeBlocks(core, 1, { start: 2 })
 
   {

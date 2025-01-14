@@ -292,10 +292,6 @@ test('conflicting writes to original core before an atomized write--atomized win
 
   const expected = [...initBlocks, b4a.from('atom-block2'), b4a.from('orig-block3'), null]
 
-  console.log('core pre flush', await readBlocks(core, 5))
-  console.log('atom pre flush', await readBlocks(atomCore, 5))
-  console.log(expected)
-
   t.alike(
     await readBlocks(core, 5),
     [...initBlocks, b4a.from('orig-block2'), b4a.from('orig-block3'), null],

@@ -33,12 +33,15 @@ test('write to original core while there is an atomized one', async (t) => {
   const atomCore = core.atomize(atom)
 
   await writeBlocks(core, 1, { start: 2 })
+  const expected = [...initBlocks, b4a.from('block2'), null]
 
-  {
-    const expected = [...initBlocks, b4a.from('block2'), null]
-    t.alike(await readBlocks(core, 4), expected, 'added to original core')
-    t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
-  }
+  t.alike(await readBlocks(core, 4), expected, 'added to original core')
+  t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
+
+  await atom.flush()
+
+  t.alike(await readBlocks(core, 4), expected, 'flushed core')
+  t.alike(await readBlocks(atomCore, 4), expected, 'flushed atom core')
 })
 
 test('first writes to a core are from an atom', async (t) => {
@@ -52,8 +55,10 @@ test('first writes to a core are from an atom', async (t) => {
   const expected = [b4a.from('block0'), null]
   t.alike(await readBlocks(atomCore, 2), expected, 'added to atom core')
   t.alike(await readBlocks(core, 2), [null, null], 'not yet added to original')
+
   await atom.flush()
-  t.alike(await readBlocks(atomCore, 2), expected, 'added to original after flush')
+
+  t.alike(await readBlocks(core, 2), expected, 'added to original after flush')
 })
 
 test('atomized flow with write/delete operations on a single core', async (t) => {

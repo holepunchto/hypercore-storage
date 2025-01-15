@@ -108,6 +108,7 @@ class HypercoreStorage {
   }
 
   atomize (atom) {
+    if (this.snapshotted) throw new Error('Cannot atomize a snapshot')
     if (this.atom && this.atom !== atom) throw new Error('Cannot atomize and atomized session with a new atom')
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
@@ -163,6 +164,7 @@ class HypercoreStorage {
   }
 
   async createSession (name, head) {
+    if (this.snapshotted) throw new Error('Cannot create session on snapshot')
     const rx = this.read()
 
     const existingSessionsPromise = rx.getSessions()
@@ -248,6 +250,7 @@ class HypercoreStorage {
   }
 
   write () {
+    if (this.snapshotted) throw new Error('Cannot write to snapshot')
     return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 

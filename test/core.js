@@ -1,6 +1,6 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { createCore, create, writeBlocks } = require('./helpers')
+const { createCore, create, writeBlocks, readBlocks } = require('./helpers')
 
 test('read and write hypercore blocks', async (t) => {
   const core = await createCore(t)
@@ -624,4 +624,35 @@ test('cannot create sessions on snapshot', async (t) => {
     async () => await snap.createSession(),
     /Cannot open core tx on snapshot/
   )
+})
+
+test('can resume a snapshot session, and that session is a snapshot too', async (t) => {
+  const core = await createCore(t)
+  await writeBlocks(core, 2)
+
+  const snap = core.snapshot()
+  const session = await core.createSession('sess', null)
+  const sessionSnap = session.snapshot()
+
+  t.is(session.snapshotted, false, 'sanity check')
+
+  const initBlocks = [b4a.from('block0'), b4a.from('block1'), null]
+  t.alike(await readBlocks(snap, 3), initBlocks, 'sanity check snap')
+  t.alike(await readBlocks(session, 3), [null, null, null], 'sanity check session')
+  t.alike(await readBlocks(sessionSnap, 3), [null, null, null], 'sanity check snap session')
+
+  await writeBlocks(core, 1, { pre: 'core-', start: 2 })
+  await writeBlocks(session, 1, { pre: 'sess-', start: 2 })
+  t.alike(await readBlocks(session, 3), [null, null, b4a.from('sess-block2')], 'session updated (sanity check)')
+  t.alike(await readBlocks(core, 3), [b4a.from('block0'), b4a.from('block1'), b4a.from('core-block2')], 'core updated (sanity check)')
+  t.alike(await readBlocks(snap, 3), initBlocks, 'snap did not change (sanity check)')
+  t.alike(await readBlocks(sessionSnap, 3), [null, null, null], 'post-session snap did not change (sanity check)')
+
+  const resumedSnapSession = await sessionSnap.resumeSession('sess')
+  const resumedSession = await core.resumeSession('sess')
+
+  t.is(resumedSnapSession.snapshotted, true, 'resumed snapshot session is snapshot')
+  t.is(resumedSession.snapshotted, false, 'resumed session is not snapshot')
+  t.alike(await readBlocks(resumedSession, 3), [null, null, b4a.from('sess-block2')], 'resumed session changed like original session')
+  t.alike(await readBlocks(resumedSnapSession, 3), [null, null, null], 'resumed snap session did not change')
 })

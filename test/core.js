@@ -279,7 +279,7 @@ test('set and get auth', async (t) => {
   }
 })
 
-test('set and get hypercore blocks', async (t) => {
+test('set and get hypercore sessions', async (t) => {
   const core = await createCore(t)
   {
     const rx = core.read()

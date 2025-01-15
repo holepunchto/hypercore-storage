@@ -1,6 +1,6 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { createCore, create } = require('./helpers')
+const { createCore, create, writeBlocks } = require('./helpers')
 
 test('read and write hypercore blocks', async (t) => {
   const core = await createCore(t)
@@ -630,11 +630,3 @@ test('delete bitfield page range', async (t) => {
     t.is(b4a.toString(data4), 'bitfield-data-4')
   }
 })
-
-async function writeBlocks (core, amount, { start = 0, pre = '' } = {}) {
-  const tx = core.write()
-  for (let i = start; i < amount + start; i++) {
-    tx.putBlock(i, `${pre}block${i}`)
-  }
-  await tx.flush()
-}

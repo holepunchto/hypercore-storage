@@ -7,6 +7,7 @@ async function runTests () {
 
   test.pause()
 
+  await import('./atomic.js')
   await import('./basic.js')
   await import('./core.js')
   await import('./streams.js')

@@ -630,3 +630,23 @@ test('delete bitfield page range', async (t) => {
     t.is(b4a.toString(data4), 'bitfield-data-4')
   }
 })
+
+test('cannot open tx on snapshot', async (t) => {
+  const core = await createCore(t)
+
+  const snap = core.snapshot()
+  t.exception(
+    () => snap.write(),
+    /Cannot open core tx on snapshot/
+  )
+})
+
+test('cannot create sessions on snapshot', async (t) => {
+  const core = await createCore(t)
+  const snap = core.snapshot()
+
+  await t.exception(
+    async () => await snap.createSession(),
+    /Cannot open core tx on snapshot/
+  )
+})

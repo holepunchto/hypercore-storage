@@ -1,6 +1,18 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { createCore, writeBlocks, create } = require('./helpers')
+const {
+  createCore,
+  writeBlocks,
+  create,
+  readBlocks,
+  readTreeNodes,
+  getAuth,
+  getHead,
+  getDependency,
+  getHints,
+  getUserData,
+  getBitfieldPages
+} = require('./helpers')
 
 test('basic atomized flow with a single core', async (t) => {
   const core = await createCore(t)
@@ -349,62 +361,3 @@ test('conflicting writes to original core after an atomized write--atomized wins
     'core equal to atom one after flush'
   )
 })
-
-async function readBlocks (core, nr) {
-  const rx = core.read()
-  const proms = []
-  for (let i = 0; i < nr; i++) proms.push(rx.getBlock(i))
-  rx.tryFlush()
-  return await Promise.all(proms)
-}
-
-async function readTreeNodes (core, nr) {
-  const rx = core.read()
-  const proms = []
-  for (let i = 0; i < nr; i++) proms.push(rx.getTreeNode(i))
-  rx.tryFlush()
-  return await Promise.all(proms)
-}
-
-async function getAuth (core) {
-  const rx = core.read()
-  const p = rx.getAuth()
-  rx.tryFlush()
-  return await p
-}
-
-async function getHead (core) {
-  const rx = core.read()
-  const p = rx.getHead()
-  rx.tryFlush()
-  return await p
-}
-
-async function getDependency (core) {
-  const rx = core.read()
-  const p = rx.getDependency()
-  rx.tryFlush()
-  return await p
-}
-
-async function getHints (core) {
-  const rx = core.read()
-  const p = rx.getHints()
-  rx.tryFlush()
-  return await p
-}
-
-async function getUserData (core, key) {
-  const rx = core.read()
-  const p = rx.getUserData(key)
-  rx.tryFlush()
-  return await p
-}
-
-async function getBitfieldPages (core, nr) {
-  const rx = core.read()
-  const proms = []
-  for (let i = 0; i < nr; i++) proms.push(rx.getBitfieldPage(i))
-  rx.tryFlush()
-  return await Promise.all(proms)
-}

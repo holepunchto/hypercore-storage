@@ -20,6 +20,62 @@ test('block stream', async function (t) {
   t.alike(blocks, expected)
 })
 
+test('dependency stream', async function (t) {
+  const core = await createCore(t)
+
+  const expected = []
+  for (let i = 0; i < 30; i++) expected.push({ index: i, value: b4a.from([i]) })
+
+  const head = {
+    fork: 0,
+    length: 0,
+    rootHash: b4a.alloc(32),
+    signature: b4a.alloc(64)
+  }
+
+  await writeBlocks(core, head, 10)
+
+  const sess1 = await core.createSession('first', null)
+
+  await writeBlocks(sess1, head, 10)
+
+  const sess2 = await sess1.createSession('second', null)
+
+  await writeBlocks(sess2, head, 10)
+
+  const blocks = await toArray(sess2.createBlockStream({ gte: 0, lt: 30 }))
+
+  t.alike(blocks, expected)
+})
+
+test('dependency stream with limits', async function (t) {
+  const core = await createCore(t)
+
+  const expected = []
+  for (let i = 5; i < 25; i++) expected.push({ index: i, value: b4a.from([i]) })
+
+  const head = {
+    fork: 0,
+    length: 0,
+    rootHash: b4a.alloc(32),
+    signature: b4a.alloc(64)
+  }
+
+  await writeBlocks(core, head, 10)
+
+  const sess1 = await core.createSession('first', null)
+
+  await writeBlocks(sess1, head, 10)
+
+  const sess2 = await sess1.createSession('second', null)
+
+  await writeBlocks(sess2, head, 10)
+
+  const blocks = await toArray(sess2.createBlockStream({ gte: 5, lt: 25 }))
+
+  t.alike(blocks, expected)
+})
+
 test('reverse block stream', async function (t) {
   const core = await createCore(t)
 
@@ -36,6 +92,62 @@ test('reverse block stream', async function (t) {
   const blocks = await toArray(core.createBlockStream({ gte: 0, lt: 10, reverse: true }))
 
   t.alike(blocks, expected.reverse())
+})
+
+test('reverse dependency stream', async function (t) {
+  const core = await createCore(t)
+
+  const expected = []
+  for (let i = 29; i >= 0; i--) expected.push({ index: i, value: b4a.from([i]) })
+
+  const head = {
+    fork: 0,
+    length: 0,
+    rootHash: b4a.alloc(32),
+    signature: b4a.alloc(64)
+  }
+
+  await writeBlocks(core, head, 10)
+
+  const sess1 = await core.createSession('first', null)
+
+  await writeBlocks(sess1, head, 10)
+
+  const sess2 = await sess1.createSession('second', null)
+
+  await writeBlocks(sess2, head, 10)
+
+  const blocks = await toArray(sess2.createBlockStream({ gte: 0, lt: 30, reverse: true }))
+
+  t.alike(blocks, expected)
+})
+
+test('reverse dependency stream with limits', async function (t) {
+  const core = await createCore(t)
+
+  const expected = []
+  for (let i = 24; i >= 5; i--) expected.push({ index: i, value: b4a.from([i]) })
+
+  const head = {
+    fork: 0,
+    length: 0,
+    rootHash: b4a.alloc(32),
+    signature: b4a.alloc(64)
+  }
+
+  await writeBlocks(core, head, 10)
+
+  const sess1 = await core.createSession('first', null)
+
+  await writeBlocks(sess1, head, 10)
+
+  const sess2 = await sess1.createSession('second', null)
+
+  await writeBlocks(sess2, head, 10)
+
+  const blocks = await toArray(sess2.createBlockStream({ gte: 5, lt: 25, reverse: true }))
+
+  t.alike(blocks, expected)
 })
 
 test('block stream (atom)', async function (t) {
@@ -161,4 +273,16 @@ test('block stream (atom)', async function (t) {
 
 function cmpBlock (a, b) {
   return a.index - b.index
+}
+
+async function writeBlocks (sess, head, n) {
+  const start = head.length
+
+  const tx = sess.write()
+  for (let i = start; i < start + n; i++) tx.putBlock(i, b4a.from([i]))
+
+  head.length += n
+  tx.setHead(head)
+
+  await tx.flush()
 }

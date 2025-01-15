@@ -69,31 +69,6 @@ test('read and write hypercore blocks across multiple cores', async (t) => {
   await storage.close()
 })
 
-test('read and write hypercore blocks from snapshot', async (t) => {
-  const core = await createCore(t)
-  await writeBlocks(core, 2)
-
-  const snap = core.snapshot()
-  await writeBlocks(core, 2, { start: 2 })
-
-  {
-    const rx = snap.read()
-    const proms = [rx.getBlock(0), rx.getBlock(1), rx.getBlock(2)]
-    rx.tryFlush()
-    const res = await Promise.all(proms)
-    t.is(b4a.toString(res[0]), 'block0')
-    t.is(b4a.toString(res[1]), 'block1')
-    t.is(res[2], null)
-  }
-
-  {
-    const rx = core.read()
-    const p = rx.getBlock(2)
-    rx.tryFlush()
-    t.is(b4a.toString(await p), 'block2', 'sanity check: does exist in non-snapshot core')
-  }
-})
-
 test('delete hypercore block', async (t) => {
   const core = await createCore(t)
   await writeBlocks(core, 2)

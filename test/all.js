@@ -10,6 +10,7 @@ async function runTests () {
   await import('./atomic.js')
   await import('./basic.js')
   await import('./core.js')
+  await import('./snapshot.js')
   await import('./streams.js')
 
   test.resume()

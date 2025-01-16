@@ -212,13 +212,12 @@ class HypercoreStorage {
       version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: this.core.dataPointer,
-      dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
+      dependencies: this._addDependency()
     }
 
     const coreTx = new CoreTX(core, this.db, atom.view, [])
 
     if (length > 0) coreTx.setHead(head)
-    coreTx.setDependency(core.dependencies[core.dependencies.length - 1])
 
     await coreTx.flush()
 
@@ -231,7 +230,7 @@ class HypercoreStorage {
     for (let i = 0; i < this.core.dependencies.length; i++) {
       const d = this.core.dependencies[i]
 
-      if (d.length > dep.length) {
+      if (dep && d.length > dep.length) {
         deps.push({ dataPointer: d.dataPointer, length: dep.length })
         return deps
       }
@@ -239,7 +238,7 @@ class HypercoreStorage {
       deps.push(d)
     }
 
-    deps.push(dep)
+    if (dep) deps.push(dep)
     return deps
   }
 

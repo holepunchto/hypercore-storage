@@ -91,8 +91,18 @@ class HypercoreStorage {
 
     for (let i = deps.length - 1; i >= 0; i--) {
       if (deps[i].length >= length) continue
-      deps[i].length = length
-      this.core.dependencies = deps.slice(0, i + 1)
+
+      this.core = {
+        corePointer: this.core.corePointer,
+        dataPointer: this.core.dataPointer,
+        dependencies: deps.slice(0, i + 1)
+      }
+
+      this.core.dependencies[i] = {
+        dataPointer: deps[i].dataPointer,
+        length
+      }
+
       return
     }
 
@@ -104,7 +114,7 @@ class HypercoreStorage {
   }
 
   snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), cloneCore(this.core), this.view.snapshot(), this.atom)
+    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atom)
   }
 
   atomize (atom) {
@@ -145,7 +155,6 @@ class HypercoreStorage {
     if (session === null) return null
 
     const core = {
-      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
       dependencies: []
@@ -190,7 +199,6 @@ class HypercoreStorage {
 
     const length = head === null ? 0 : head.length
     const core = {
-      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
       dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
@@ -209,7 +217,6 @@ class HypercoreStorage {
   async createAtomicSession (atom, head) {
     const length = head === null ? 0 : head.length
     const core = {
-      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: this.core.dataPointer,
       dependencies: this._addDependency(null)
@@ -582,10 +589,10 @@ class CorestoreStorage {
   }
 
   async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {
-    const core = { version, corePointer, dataPointer, dependencies: [] }
+    const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ version, dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -596,7 +603,7 @@ class CorestoreStorage {
 
     const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
 
-    if (result.core.version === 0) await this._migrateCore(result, discoveryKey, create)
+    if (version < VERSION) await this._migrateCore(result, discoveryKey, create)
     return result
   }
 
@@ -703,18 +710,4 @@ function createColumnFamily (db) {
   })
 
   return db.columnFamily(col)
-}
-
-function cloneCore (c) {
-  const copy = {
-    dataPointer: c.dataPointer,
-    corePointer: c.corePointer,
-    dependencies: []
-  }
-
-  for (const { dataPointer, length } of c.dependencies) {
-    copy.dependencies.push({ dataPointer, length })
-  }
-
-  return copy
 }

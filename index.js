@@ -104,7 +104,7 @@ class HypercoreStorage {
   }
 
   snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atom)
+    return new HypercoreStorage(this.store, this.db.snapshot(), cloneCore(this.core), this.view.snapshot(), this.atom)
   }
 
   atomize (atom) {
@@ -703,4 +703,18 @@ function createColumnFamily (db) {
   })
 
   return db.columnFamily(col)
+}
+
+function cloneCore (c) {
+  const copy = {
+    dataPointer: c.dataPointer,
+    corePointer: c.corePointer,
+    dependencies: []
+  }
+
+  for (const { dataPointer, length } of c.dependencies) {
+    copy.dependencies.push({ dataPointer, length })
+  }
+
+  return copy
 }

@@ -90,7 +90,7 @@ class HypercoreStorage {
     const deps = this.core.dependencies
 
     for (let i = deps.length - 1; i >= 0; i--) {
-      if (deps[i].length >= length) continue
+      if (deps[i].length > length) continue
 
       this.core = {
         corePointer: this.core.corePointer,
@@ -98,9 +98,11 @@ class HypercoreStorage {
         dependencies: deps.slice(0, i + 1)
       }
 
-      this.core.dependencies[i] = {
-        dataPointer: deps[i].dataPointer,
-        length
+      if (this.core.dependencies[i].length !== length) {
+        this.core.dependencies[i] = {
+          dataPointer: deps[i].dataPointer,
+          length
+        }
       }
 
       return

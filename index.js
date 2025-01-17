@@ -91,8 +91,18 @@ class HypercoreStorage {
 
     for (let i = deps.length - 1; i >= 0; i--) {
       if (deps[i].length >= length) continue
-      deps[i].length = length
-      this.core.dependencies = deps.slice(0, i + 1)
+
+      this.core = {
+        corePointer: this.core.corePointer,
+        dataPointer: this.core.dataPointer,
+        dependencies: deps.slice(0, i + 1)
+      }
+
+      this.core.dependencies[i] = {
+        dataPointer: deps[i].dataPointer,
+        length
+      }
+
       return
     }
 
@@ -104,7 +114,7 @@ class HypercoreStorage {
   }
 
   snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), cloneCore(this.core), this.view.snapshot(), this.atom)
+    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atom)
   }
 
   atomize (atom) {
@@ -703,18 +713,4 @@ function createColumnFamily (db) {
   })
 
   return db.columnFamily(col)
-}
-
-function cloneCore (c) {
-  const copy = {
-    dataPointer: c.dataPointer,
-    corePointer: c.corePointer,
-    dependencies: []
-  }
-
-  for (const { dataPointer, length } of c.dependencies) {
-    copy.dependencies.push({ dataPointer, length })
-  }
-
-  return copy
 }

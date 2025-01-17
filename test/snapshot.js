@@ -155,3 +155,30 @@ test('snapshots immutable (all operations)', async (t) => {
   t.not(await getBitfieldPages(core, 2), [null, null], 'sanity check (core itself got updated)')
   t.alike(await getBitfieldPages(snap, 2), [null, null], 'bitfield pages unchanged')
 })
+
+test('snapshot deps are immut', async function (t) {
+  const core = await createCore(t)
+
+  const tx = core.write()
+
+  tx.setHead({
+    fork: 0,
+    length: 5,
+    rootHash: b4a.from('a'.repeat(64), 'hex'),
+    signature: b4a.from('b'.repeat(64), 'hex')
+  })
+
+  await tx.flush()
+
+  const session = await core.createSession('test', null)
+  const snap = session.snapshot()
+
+  session.updateDependencyLength(6)
+
+  t.alike(snap.core.dependencies, [{ dataPointer: core.core.dataPointer, length: 5 }])
+  t.alike(session.core.dependencies, [{ dataPointer: core.core.dataPointer, length: 6 }])
+
+  await session.close()
+  await snap.close()
+  await core.close()
+})

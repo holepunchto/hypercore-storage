@@ -155,7 +155,6 @@ class HypercoreStorage {
     if (session === null) return null
 
     const core = {
-      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
       dependencies: []
@@ -200,7 +199,6 @@ class HypercoreStorage {
 
     const length = head === null ? 0 : head.length
     const core = {
-      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
       dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
@@ -219,7 +217,6 @@ class HypercoreStorage {
   async createAtomicSession (atom, head) {
     const length = head === null ? 0 : head.length
     const core = {
-      version: this.core.version,
       corePointer: this.core.corePointer,
       dataPointer: this.core.dataPointer,
       dependencies: this._addDependency(null)
@@ -592,10 +589,10 @@ class CorestoreStorage {
   }
 
   async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {
-    const core = { version, corePointer, dataPointer, dependencies: [] }
+    const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ version, dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -606,7 +603,7 @@ class CorestoreStorage {
 
     const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
 
-    if (result.core.version === 0) await this._migrateCore(result, discoveryKey, create)
+    if (version < VERSION) await this._migrateCore(result, discoveryKey, create)
     return result
   }
 

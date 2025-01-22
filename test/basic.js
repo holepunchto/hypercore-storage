@@ -64,3 +64,21 @@ test('first core created is the default core', async function (t) {
   await c1.close()
   await s.close()
 })
+
+test('read after close', async function (t) {
+  const s = await create(t)
+
+  const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  const sess = await core.createSession('batch', { fork: 0, length: 0, rootHash: b4a.alloc(32), signature: b4a.alloc(64) })
+
+  await sess.close()
+
+  try {
+    const read = sess.read()
+  } catch {
+    t.pass('should error')
+  }
+
+  await core.close()
+  await t.execution(s.close()) // should not hang
+})

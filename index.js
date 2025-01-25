@@ -346,11 +346,8 @@ class CorestoreStorage {
   }
 
   // runs pre the core is returned to the user
-  async _migrateCore (core, discoveryKey, locked) {
+  async _migrateCore (core, discoveryKey, version, locked) {
     const view = locked ? this.view : await this._enter()
-
-    const version = core.core.version
-
     try {
       if (version === VERSION) return
 
@@ -365,8 +362,6 @@ class CorestoreStorage {
           throw new Error('Unsupported version: ' + version + ' - you should probably upgrade your dependencies')
         }
       }
-
-      core.core.version = VERSION
 
       if (locked === false) return
 
@@ -605,7 +600,7 @@ class CorestoreStorage {
 
     const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
 
-    if (version < VERSION) await this._migrateCore(result, discoveryKey, create)
+    if (version < VERSION) await this._migrateCore(result, discoveryKey, version, create)
     return result
   }
 

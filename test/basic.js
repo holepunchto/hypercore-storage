@@ -72,6 +72,7 @@ test('first core created is the default core', async function (t) {
   const c = await s.create({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 2) })
 
   t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32, 2))
+  t.alike(await s.getAuth(b4a.alloc(32, 3)), null)
 
   const auth = await s.getAuth(b4a.alloc(32, 2))
 

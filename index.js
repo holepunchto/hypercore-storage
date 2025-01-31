@@ -567,6 +567,25 @@ class CorestoreStorage {
     return (await promise) !== null
   }
 
+  async getAuth (discoveryKey) {
+    if (this.version === 0) await this._migrateStore()
+
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const corePromise = rx.getCore(discoveryKey)
+
+    rx.tryFlush()
+
+    const core = await corePromise
+    if (core === null) return null
+
+    const coreRx = new CoreRX(core, this.db, EMPTY)
+    const authPromise = coreRx.getAuth()
+
+    coreRx.tryFlush()
+
+    return authPromise
+  }
+
   async resume (discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 

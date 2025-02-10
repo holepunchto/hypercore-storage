@@ -656,3 +656,30 @@ test('can resume a snapshot session, and that session is a snapshot too', async 
   t.alike(await readBlocks(resumedSession, 3), [null, null, b4a.from('sess-block2')], 'resumed session changed like original session')
   t.alike(await readBlocks(resumedSnapSession, 3), [null, null, null], 'resumed snap session did not change')
 })
+
+test('create named sessions', async (t) => {
+  const core = await createCore(t)
+
+  const tx = core.write()
+
+  tx.setHead({
+    length: 10,
+    fork: 0,
+    rootHash: b4a.alloc(32),
+    signature: null
+  })
+
+  await tx.flush()
+
+  const a = await core.createSession('a', null)
+  const b = await core.resumeSession('a')
+  const c = await b.resumeSession('a')
+
+  t.is(a.core.dependencies.length, 1)
+  t.is(b.core.dependencies.length, 1)
+  t.is(c.core.dependencies.length, 1)
+
+  t.is(a.core.dependencies[0].length, 10)
+  t.is(b.core.dependencies[0].length, 10)
+  t.is(c.core.dependencies[0].length, 10)
+})

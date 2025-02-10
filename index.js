@@ -240,14 +240,18 @@ class HypercoreStorage {
       const d = this.core.dependencies[i]
 
       if (dep !== null && d.length > dep.length) {
-        deps.push({ dataPointer: d.dataPointer, length: dep.length })
+        if (d.dataPointer !== dep.dataPointer) {
+          deps.push({ dataPointer: d.dataPointer, length: dep.length })
+        }
         return deps
       }
 
       deps.push(d)
     }
 
-    if (dep !== null) deps.push(dep)
+    if (dep !== null && (deps.length === 0 || deps[deps.length - 1].dataPointer !== dep.dataPointer)) {
+      deps.push(dep)
+    }
     return deps
   }
 

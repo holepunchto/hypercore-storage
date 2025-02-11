@@ -86,29 +86,42 @@ class HypercoreStorage {
   }
 
   // TODO: this might have to be async if the dependents have changed, but prop ok for now
-  updateDependencyLength (length) {
+  updateDependencyLength (length, truncated) {
     const deps = this.core.dependencies
 
-    for (let i = deps.length - 1; i >= 0; i--) {
-      if (deps[i].length > length) continue
+    const i = this.findDependencyIndex(length, truncated)
+    if (i === -1) throw new Error('Dependency not found')
 
-      this.core = {
-        corePointer: this.core.corePointer,
-        dataPointer: this.core.dataPointer,
-        dependencies: deps.slice(0, i + 1)
-      }
-
-      if (this.core.dependencies[i].length !== length) {
-        this.core.dependencies[i] = {
-          dataPointer: deps[i].dataPointer,
-          length
-        }
-      }
-
-      return
+    this.core = {
+      corePointer: this.core.corePointer,
+      dataPointer: this.core.dataPointer,
+      dependencies: deps.slice(0, i + 1)
     }
 
-    throw new Error('Dependency not found')
+    if (this.core.dependencies[i].length !== length) {
+      this.core.dependencies[i] = {
+        dataPointer: deps[i].dataPointer,
+        length
+      }
+    }
+  }
+
+  findDependencyIndex (length, truncated) {
+    const deps = this.core.dependencies
+
+    if (truncated) {
+      for (let i = 0; i < deps.length; i++) {
+        if (deps[i].length >= length) return i
+      }
+
+      return -1
+    }
+
+    for (let i = deps.length - 1; i >= 0; i--) {
+      if (deps[i].length <= length) return i
+    }
+
+    return -1
   }
 
   get snapshotted () {

@@ -180,7 +180,7 @@ const manifest = exports.manifest = {
     c.uint.encode(state, m.version)
     if (m.version === 0) return manifestv0.encode(state, m)
 
-    c.uint.encode(state, (m.allowPatch ? 1 : 0) | (m.prologue ? 2 : 0))
+    c.uint.encode(state, (m.allowPatch ? 1 : 0) | (m.prologue ? 2 : 0) | (m.unencrypted ? 4 : 0))
     hashes.encode(state, m.hash)
 
     c.uint.encode(state, m.quorum)
@@ -196,6 +196,7 @@ const manifest = exports.manifest = {
     const hash = hashes.decode(state)
     const quorum = c.uint.decode(state)
     const signers = signerArray.decode(state)
+    const unencrypted = (flags & 4) !== 0
 
     return {
       version: 1,
@@ -203,7 +204,8 @@ const manifest = exports.manifest = {
       allowPatch: (flags & 1) !== 0,
       quorum,
       signers,
-      prologue: (flags & 2) === 0 ? null : prologue.decode(state)
+      prologue: (flags & 2) === 0 ? null : prologue.decode(state),
+      unencrypted
     }
   }
 }

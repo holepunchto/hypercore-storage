@@ -167,6 +167,9 @@ core.register({
   }, {
     name: 'prologue',
     type: '@core/prologue'
+  }, {
+    name: 'unencrypted',
+    type: 'bool'
   }]
 })
 

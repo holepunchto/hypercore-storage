@@ -250,7 +250,7 @@ const encoding9_4 = c.array(encoding7)
 const encoding9 = {
   preencode (state, m) {
     c.uint.preencode(state, m.version)
-    state.end++ // max flag is 2 so always one byte
+    state.end++ // max flag is 4 so always one byte
     encoding4.preencode(state, m.hash)
     c.uint.preencode(state, m.quorum)
     encoding9_4.preencode(state, m.signers)
@@ -260,7 +260,8 @@ const encoding9 = {
   encode (state, m) {
     const flags =
       (m.allowPatch ? 1 : 0) |
-      (m.prologue ? 2 : 0)
+      (m.prologue ? 2 : 0) |
+      (m.unencrypted ? 4 : 0)
 
     c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
@@ -280,7 +281,8 @@ const encoding9 = {
       quorum: c.uint.decode(state),
       allowPatch: (flags & 1) !== 0,
       signers: encoding9_4.decode(state),
-      prologue: (flags & 2) !== 0 ? encoding8.decode(state) : null
+      prologue: (flags & 2) !== 0 ? encoding8.decode(state) : null,
+      unencrypted: (flags & 4) !== 0
     }
   }
 }

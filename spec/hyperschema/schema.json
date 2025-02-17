@@ -235,6 +235,11 @@
           "name": "prologue",
           "type": "@core/prologue",
           "version": 1
+        },
+        {
+          "name": "unencrypted",
+          "type": "bool",
+          "version": 1
         }
       ]
     },

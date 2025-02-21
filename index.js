@@ -287,9 +287,9 @@ class HypercoreStorage {
 }
 
 class CorestoreStorage {
-  constructor (db) {
+  constructor (db, opts) {
     this.path = typeof db === 'string' ? db : db.path
-    this.rocks = typeof db === 'string' ? new RocksDB(db) : db
+    this.rocks = typeof db === 'string' ? new RocksDB(db, opts) : db
     this.db = createColumnFamily(this.rocks)
     this.view = null
     this.enters = 0

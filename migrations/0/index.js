@@ -605,24 +605,35 @@ function readOplog (oplog) {
       result.header = header ? h2.message : h1.message
 
       if (result.header.external) {
-        throw new Error('External headers not migrate-able atm')
+        fs.readFile(path.join(oplog, '../header'), function (err, buffer) {
+          if (err) return resolve(null)
+          const start = result.header.external.start
+          const end = start + result.header.external.length
+          result.header = m.oplog.header.decode({ buffer, start, end })
+          finish()
+        })
+        return
       }
 
-      while (true) {
-        const entry = decodeOplogEntry(state)
-        if (!entry) break
-        if (entry.header !== header) break
+      finish()
 
-        decoded.push(entry)
+      function finish () {
+        while (true) {
+          const entry = decodeOplogEntry(state)
+          if (!entry) break
+          if (entry.header !== header) break
+
+          decoded.push(entry)
+        }
+
+        while (decoded.length > 0 && decoded[decoded.length - 1].partial) decoded.pop()
+
+        for (const e of decoded) {
+          result.entries.push(e.message)
+        }
+
+        resolve(result)
       }
-
-      while (decoded.length > 0 && decoded[decoded.length - 1].partial) decoded.pop()
-
-      for (const e of decoded) {
-        result.entries.push(e.message)
-      }
-
-      resolve(result)
     })
   })
 }

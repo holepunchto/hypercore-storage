@@ -39,7 +39,7 @@ class Atom {
 
   flushed () {
     if (!this.flushing) return Promise.resolve()
-    if (this.flushedPromise === null) return this.flushedPromise.promise
+    if (this.flushedPromise !== null) return this.flushedPromise.promise
     this.flushedPromise = rrp()
     return this.flushedPromise.promise
   }

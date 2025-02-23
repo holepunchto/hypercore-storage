@@ -29,7 +29,12 @@ class Atom {
     this.db = db
     this.view = new View()
     this.flushing = false
+    this.preflushes = []
     this.flushes = []
+  }
+
+  onpreflush (fn) {
+    this.preflushes.push(fn)
   }
 
   onflush (fn) {
@@ -41,11 +46,14 @@ class Atom {
     this.flushing = true
 
     try {
+      let len = this.preflushes.length
+      for (let i = 0; i < len; i++) this.preflushes[i]()
+
       await View.flush(this.view.changes, this.db)
       this.view.reset()
 
       const promises = []
-      const len = this.flushes.length // in case of reentry
+      len = this.flushes.length // in case of reentry
       for (let i = 0; i < len; i++) promises.push(this.flushes[i]())
 
       await Promise.all(promises)

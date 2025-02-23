@@ -28,17 +28,25 @@ class Atom {
   constructor (db) {
     this.db = db
     this.view = new View()
+    this.flushedPromise = null
     this.flushing = false
-    this.preflushes = []
     this.flushes = []
-  }
-
-  onpreflush (fn) {
-    this.preflushes.push(fn)
   }
 
   onflush (fn) {
     this.flushes.push(fn)
+  }
+
+  flushed () {
+    if (!this.flushing) return Promise.resolve()
+    this.flushedPromise = rrp()
+    return this.flushedPromise.promise
+  }
+
+  _resolve () {
+    const f = this.flushedPromise
+    this.flushedPromise = null
+    f.resolve()
   }
 
   async flush () {
@@ -46,19 +54,17 @@ class Atom {
     this.flushing = true
 
     try {
-      let len = this.preflushes.length
-      for (let i = 0; i < len; i++) this.preflushes[i]()
-
       await View.flush(this.view.changes, this.db)
       this.view.reset()
 
       const promises = []
-      len = this.flushes.length // in case of reentry
+      const len = this.flushes.length // in case of reentry
       for (let i = 0; i < len; i++) promises.push(this.flushes[i]())
 
       await Promise.all(promises)
     } finally {
       this.flushing = false
+      if (this.flushedPromise !== null) this._resolve()
     }
   }
 }

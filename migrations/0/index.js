@@ -270,7 +270,7 @@ async function core (core, { version, dryRun = true, gc = true }) {
   }
 
   const oplog = await readOplog(files.oplog)
-  if (!oplog) throw new Error('No oplog available')
+  if (!oplog) throw new Error('No oplog available for ' + files.oplog)
 
   const treeData = new Slicer()
 

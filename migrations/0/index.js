@@ -265,6 +265,7 @@ async function core (core, { version, dryRun = true, gc = true }) {
   const files = getFiles(path.join(core.store.path, 'cores', dk.slice(0, 2), dk.slice(2, 4), dk))
 
   if (head === null || head.length === 0) {
+    await commitCoreMigration(auth, core, version)
     if (gc) await runGC()
     return // no data
   }

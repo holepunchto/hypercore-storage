@@ -12,6 +12,10 @@ const { CorestoreTX, CoreTX, CorestoreRX } = require('../../lib/tx.js')
 const EMPTY_NODE = b4a.alloc(40)
 const EMPTY_PAGE = b4a.alloc(4096)
 
+let TREE_01_SKIP = null
+let TREE_04_SKIP = null
+let TREE_16_SKIP = null
+
 class CoreListStream extends Readable {
   constructor (storage) {
     super()
@@ -222,7 +226,7 @@ async function store (storage, { version, dryRun = true, gc = true }) {
   if (gc) await rm(primaryKeyFile)
 }
 
-class Slicer {
+class TreeSlicer {
   constructor () {
     this.buffer = null
     this.offset = 0
@@ -238,7 +242,48 @@ class Slicer {
     this.offset += data.byteLength
   }
 
-  take (len) {
+  skip () {
+    let skipped = 0
+
+    if (TREE_01_SKIP === null) {
+      TREE_16_SKIP = b4a.alloc(16 * 40 * 100)
+      TREE_04_SKIP = TREE_16_SKIP.subarray(0, 4 * 40 * 100)
+      TREE_01_SKIP = TREE_16_SKIP.subarray(0, 1 * 40 * 100)
+    }
+
+    while (true) {
+      if (this.buffer.byteLength >= TREE_16_SKIP.byteLength) {
+        if (b4a.equals(this.buffer.subarray(0, TREE_16_SKIP.byteLength), TREE_16_SKIP)) {
+          this.buffer = this.buffer.subarray(TREE_16_SKIP.byteLength)
+          skipped += 1600
+          continue
+        }
+      }
+
+      if (this.buffer.byteLength >= TREE_04_SKIP.byteLength) {
+        if (b4a.equals(this.buffer.subarray(0, TREE_04_SKIP.byteLength), TREE_04_SKIP)) {
+          this.buffer = this.buffer.subarray(TREE_04_SKIP.byteLength)
+          skipped += 400
+          continue
+        }
+      }
+
+      if (this.buffer.byteLength >= TREE_01_SKIP.byteLength) {
+        if (b4a.equals(this.buffer.subarray(0, TREE_01_SKIP.byteLength), TREE_01_SKIP)) {
+          this.buffer = this.buffer.subarray(TREE_01_SKIP.byteLength)
+          skipped += 100
+          continue
+        }
+      }
+      break
+    }
+
+    return skipped
+  }
+
+  take () {
+    const len = 40
+
     if (len <= this.size) {
       const chunk = this.buffer.subarray(0, len)
       this.buffer = this.buffer.subarray(len)
@@ -273,7 +318,7 @@ async function core (core, { version, dryRun = true, gc = true }) {
   const oplog = await readOplog(files.oplog)
   if (!oplog) throw new Error('No oplog available for ' + files.oplog)
 
-  const treeData = new Slicer()
+  const treeData = new TreeSlicer()
 
   let treeIndex = 0
 
@@ -281,19 +326,23 @@ async function core (core, { version, dryRun = true, gc = true }) {
     for await (const data of fs.createReadStream(files.tree)) {
       treeData.push(data)
 
-      const write = core.write()
+      let write = null
 
       while (true) {
-        const buf = treeData.take(40)
+        const skip = treeData.skip()
+        treeIndex += skip
+
+        const buf = treeData.take()
         if (buf === null) break
 
         const index = treeIndex++
         if (b4a.equals(buf, EMPTY_NODE)) continue
 
+        if (write === null) write = core.write()
         write.putTreeNode(decodeTreeNode(index, buf))
       }
 
-      await write.flush()
+      if (write !== null) await write.flush()
     }
   }
 

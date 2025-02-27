@@ -747,12 +747,11 @@ function isCorestoreStorage (s) {
 
 function createColumnFamily (db) {
   const col = new RocksDB.ColumnFamily(COLUMN_FAMILY, {
-    // tuning! atm just the default tuning from rocks, TODO: tweak
     enableBlobFiles: true,
     minBlobSize: 4096,
     blobFileSize: 256 * 1024 * 1024,
     enableBlobGarbageCollection: true,
-    tableBlockSize: 16384,
+    tableBlockSize: 8192,
     tableCacheIndexAndFilterBlocks: true,
     tableFormatVersion: 4
   })

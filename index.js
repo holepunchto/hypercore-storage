@@ -753,7 +753,7 @@ function createColumnFamily (db) {
     enableBlobGarbageCollection: true,
     tableBlockSize: 8192,
     tableCacheIndexAndFilterBlocks: true,
-    tableFormatVersion: 5
+    tableFormatVersion: 6
   })
 
   return db.columnFamily(col)

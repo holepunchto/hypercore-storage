@@ -19,7 +19,8 @@ const {
   createBlockStream,
   createBitfieldStream,
   createUserDataStream,
-  createTreeNodeStream
+  createTreeNodeStream,
+  createLocalStream
 } = require('./lib/streams.js')
 
 const EMPTY = new View()
@@ -170,6 +171,10 @@ class HypercoreStorage {
 
   createUserDataStream (opts) {
     return createUserDataStream(this.core, this.db, this.view, opts)
+  }
+
+  createLocalStream (opts) {
+    return createLocalStream(opts)
   }
 
   async resumeSession (name) {

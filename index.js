@@ -174,7 +174,7 @@ class HypercoreStorage {
   }
 
   createLocalStream (opts) {
-    return createLocalStream(opts)
+    return createLocalStream(this.core, this.db, this.view, opts)
   }
 
   async resumeSession (name) {

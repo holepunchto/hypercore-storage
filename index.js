@@ -101,6 +101,30 @@ class HypercoreStorage {
     return null
   }
 
+  updateSnapshotHead (dep) {
+    const deps = this.core.dependencies
+
+    for (let i = deps.length - 1; i >= 0; i--) {
+      const d = deps[i]
+
+      if (d.dataPointer !== dep.dataPointer) continue
+
+      // check if nothing changed
+      if (d.length === dep.length && i === deps.length - 1) return
+
+      this.core = {
+        corePointer: this.core.corePointer,
+        dataPointer: this.core.dataPointer,
+        dependencies: deps.slice(0, i + 1)
+      }
+
+      this.core.dependencies[i] = {
+        dataPointer: dep.dataPointer,
+        length: dep.length
+      }
+    }
+  }
+
   // TODO: this might have to be async if the dependents have changed, but prop ok for now
   updateDependencyLength (length, truncated) {
     const deps = this.core.dependencies

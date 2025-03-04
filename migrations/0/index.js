@@ -236,6 +236,9 @@ class BlockSlicer {
 
   async take (offset, size) {
     let buffer = null
+    if (offset < this.offset) throw new Error('overread')
+
+    const end = offset + size
 
     while (true) {
       let data = null
@@ -254,7 +257,7 @@ class BlockSlicer {
 
       let chunk = null
 
-      if (this.offset === offset) {
+      if (this.offset === offset || buffer) {
         chunk = data
       } else if (this.offset + data.byteLength > offset) {
         chunk = data.subarray(offset - this.offset)
@@ -266,11 +269,11 @@ class BlockSlicer {
       if (buffer) buffer = b4a.concat([buffer, chunk])
       else buffer = chunk
 
-      if (chunk < size) continue
+      if (buffer.byteLength < size) continue
 
-      const result = chunk.subarray(0, size)
-      this.overflow = size === chunk.byteLength ? null : chunk.subarray(size)
-      this.offset -= this.overflow ? this.overflow.byteLength : 0
+      const result = buffer.subarray(0, size)
+      this.overflow = size === buffer.byteLength ? null : buffer.subarray(result.byteLength)
+      this.offset -= (this.overflow ? this.overflow.byteLength : 0)
       return result
     }
   }
@@ -517,9 +520,8 @@ async function core (core, { version, dryRun = true, gc = true }) {
       const index = batch[i]
       const [offset, size] = r[i]
 
-      const block = await blocks.take(offset, size)
-
-      tx.putBlock(index, block)
+      const blk = await blocks.take(offset, size)
+      tx.putBlock(index, blk)
     }
 
     batch = []
@@ -550,7 +552,7 @@ async function commitCoreMigration (auth, core, version) {
 
 async function getBlockFromFile (file, core, index, roots, cache) {
   const rx = core.read()
-  const promise = getByteRangeFromStorage(rx, index, roots, cache)
+  const promise = getByteRangeFromStorage(rx, 2 * index, roots, cache)
   rx.tryFlush()
   const [offset, size] = await promise
 

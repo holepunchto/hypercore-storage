@@ -310,7 +310,7 @@ class CorestoreStorage {
   constructor (db, opts) {
     this.path = typeof db === 'string' ? db : db.path
     this.rocks = typeof db === 'string' ? new RocksDB(db, opts) : db
-    this.db = createColumnFamily(this.rocks)
+    this.db = createColumnFamily(this.rocks, opts)
     this.view = null
     this.enters = 0
     this.lock = new ScopeLock()
@@ -750,15 +750,23 @@ function isCorestoreStorage (s) {
   return typeof s === 'object' && !!s && typeof s.setDefaultDiscoveryKey === 'function'
 }
 
-function createColumnFamily (db) {
+function createColumnFamily (db, opts = {}) {
+  const {
+    tableCacheIndexAndFilterBlocks = true,
+    blockCache = true,
+    optimizeFiltersForMemory = false
+  } = opts
+
   const col = new RocksDB.ColumnFamily(COLUMN_FAMILY, {
     enableBlobFiles: true,
     minBlobSize: 4096,
     blobFileSize: 256 * 1024 * 1024,
     enableBlobGarbageCollection: true,
     tableBlockSize: 8192,
-    tableCacheIndexAndFilterBlocks: true,
-    tableFormatVersion: 6
+    tableCacheIndexAndFilterBlocks,
+    tableFormatVersion: 6,
+    optimizeFiltersForMemory,
+    blockCache
   })
 
   return db.columnFamily(col)

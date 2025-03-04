@@ -101,7 +101,7 @@ class HypercoreStorage {
     return null
   }
 
-  updateSnapshotHead (dep) {
+  setDependencyHead (dep) {
     const deps = this.core.dependencies
 
     for (let i = deps.length - 1; i >= 0; i--) {
@@ -123,6 +123,11 @@ class HypercoreStorage {
         length: dep.length
       }
     }
+
+    this.core.dependencies = [{
+      dataPointer: dep.dataPointer,
+      length: dep.length
+    }]
   }
 
   // TODO: this might have to be async if the dependents have changed, but prop ok for now

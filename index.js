@@ -252,8 +252,9 @@ class HypercoreStorage {
 
     const sessions = existingSessions || []
     const session = getBatch(sessions, name, true)
+    const fresh = session.dataPointer === -1
 
-    if (session.dataPointer === -1) {
+    if (fresh) {
       session.dataPointer = await this.store._allocData()
     }
 
@@ -272,6 +273,13 @@ class HypercoreStorage {
 
     if (length > 0) coreTx.setHead(head)
     coreTx.setDependency(core.dependencies[core.dependencies.length - 1])
+
+    if (!fresh) {
+      // nuke all existing state...
+      coreTx.deleteBlockRange(0, -1)
+      coreTx.deleteTreeNodeRange(0, -1)
+      coreTx.deleteBitfieldPageRange(0, -1)
+    }
 
     await tx.flush()
 

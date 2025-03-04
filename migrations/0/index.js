@@ -226,6 +226,62 @@ async function store (storage, { version, dryRun = true, gc = true }) {
   if (gc) await rm(primaryKeyFile)
 }
 
+class BlockSlicer {
+  constructor (filename) {
+    this.stream = fs.createReadStream(filename)
+    this.closed = new Promise(resolve => this.stream.once('close', resolve))
+    this.offset = 0
+    this.overflow = null
+  }
+
+  async take (offset, size) {
+    let buffer = null
+
+    while (true) {
+      let data = null
+
+      if (this.overflow) {
+        data = this.overflow
+        this.overflow = null
+      } else {
+        data = this.stream.read()
+
+        if (!data) {
+          await new Promise(resolve => this.stream.once('readable', resolve))
+          continue
+        }
+      }
+
+      let chunk = null
+
+      if (this.offset === offset) {
+        chunk = data
+      } else if (this.offset + data.byteLength > offset) {
+        chunk = data.subarray(offset - this.offset)
+      }
+
+      this.offset += data.byteLength
+      if (!chunk) continue
+
+      if (buffer) buffer = b4a.concat([buffer, chunk])
+      else buffer = chunk
+
+      if (chunk < size) continue
+
+      const result = chunk.subarray(0, size)
+      this.overflow = size === chunk.byteLength ? null : chunk.subarray(size)
+      this.offset -= this.overflow ? this.overflow.byteLength : 0
+      return result
+    }
+  }
+
+  close () {
+    this.stream.on('error', noop)
+    this.stream.destroy()
+    return this.closed
+  }
+}
+
 class TreeSlicer {
   constructor () {
     this.buffer = null
@@ -359,7 +415,7 @@ async function core (core, { version, dryRun = true, gc = true }) {
   const pages = new Map()
   const headerBits = new Map()
 
-  const roots = await getRoots(head.length, getTreeNode)
+  const roots = await getRootsFromStorage(core, head.length)
 
   for (const e of oplog.entries) {
     if (!e.bitfield) continue
@@ -369,28 +425,35 @@ async function core (core, { version, dryRun = true, gc = true }) {
     }
   }
 
-  let w = core.write()
+  let batch = []
+
+  const cache = new Map()
+  const blocks = new BlockSlicer(files.data)
+
   for (const index of allBits(bitfield)) {
     if (headerBits.get(index) === false) continue
 
     setBitInPage(index)
 
-    const blk = await getBlockFromFile(files.data, index, roots, getTreeNode)
+    batch.push(index)
+    if (batch.length < 1024) continue
 
-    if (w.changes.length > 1024) {
-      await w.flush()
-      w = core.write()
-    }
-
-    w.putBlock(index, blk)
+    await writeBlocksBatch()
+    continue
   }
+
+  if (batch.length) await writeBlocksBatch()
+
+  await blocks.close()
+
+  const w = core.write()
 
   for (const [index, bit] of headerBits) {
     if (!bit) continue
 
     setBitInPage(index)
 
-    const blk = await getBlockFromFile(files.data, index, roots, getTreeNode)
+    const blk = await getBlockFromFile(files.data, core, index, roots, cache)
     w.putBlock(index, blk)
   }
 
@@ -441,11 +504,28 @@ async function core (core, { version, dryRun = true, gc = true }) {
     page[b] |= v
   }
 
-  function getTreeNode (index) {
+  async function writeBlocksBatch () {
     const read = core.read()
-    const promise = read.getTreeNode(index)
+    const promises = []
+    for (const index of batch) promises.push(getByteRangeFromStorage(read, 2 * index, roots, cache))
     read.tryFlush()
-    return promise
+
+    const r = await Promise.all(promises)
+    const tx = core.write()
+
+    for (let i = 0; i < r.length; i++) {
+      const index = batch[i]
+      const [offset, size] = r[i]
+
+      const block = await blocks.take(offset, size)
+
+      tx.putBlock(index, block)
+    }
+
+    batch = []
+    if (cache.size > 16384) cache.clear()
+
+    await tx.flush()
   }
 }
 
@@ -468,6 +548,20 @@ async function commitCoreMigration (auth, core, version) {
   await View.flush(view.changes, core.db)
 }
 
+async function getBlockFromFile (file, core, index, roots, cache) {
+  const rx = core.read()
+  const promise = getByteRangeFromStorage(rx, index, roots, cache)
+  rx.tryFlush()
+  const [offset, size] = await promise
+
+  return new Promise(function (resolve) {
+    readAll(file, size, offset, function (err, buf) {
+      if (err) return resolve(null)
+      resolve(buf)
+    })
+  })
+}
+
 function getFiles (dir) {
   return {
     path: dir,
@@ -478,6 +572,16 @@ function getFiles (dir) {
   }
 }
 
+async function getRootsFromStorage (core, length) {
+  const all = []
+  const rx = core.read()
+  for (const index of flat.fullRoots(2 * length)) {
+    all.push(rx.getTreeNode(index))
+  }
+  rx.tryFlush()
+  return Promise.all(all)
+}
+
 async function getRoots (length, getTreeNode) {
   const all = []
   for (const index of flat.fullRoots(2 * length)) {
@@ -486,19 +590,20 @@ async function getRoots (length, getTreeNode) {
   return all
 }
 
-async function getBlockFromFile (file, index, roots, getTreeNode) {
-  const size = (await getTreeNode(2 * index)).size
-  const offset = await getByteOffset(2 * index, roots, getTreeNode)
-
-  return new Promise(function (resolve) {
-    readAll(file, size, offset, function (err, buf) {
-      if (err) return resolve(null)
-      resolve(buf)
-    })
-  })
+function getCached (read, cache, index) {
+  if (cache.has(index)) return cache.get(index)
+  const p = read.getTreeNode(index)
+  cache.set(index, p)
+  return p
 }
 
-async function getByteOffset (index, roots, getTreeNode) {
+async function getByteRangeFromStorage (read, index, roots, cache) {
+  const promises = [getCached(read, cache, index), getByteOffsetFromStorage(read, index, roots, cache)]
+  const [node, offset] = await Promise.all(promises)
+  return [offset, node.size]
+}
+
+async function getByteOffsetFromStorage (rx, index, roots, cache) {
   if (index === 0) return 0
   if ((index & 1) === 1) index = flat.leftSpan(index)
 
@@ -514,15 +619,19 @@ async function getByteOffset (index, roots, getTreeNode) {
     }
 
     const ite = flat.iterator(node.index)
+    const promises = []
 
     while (ite.index !== index) {
       if (index < ite.index) {
         ite.leftChild()
       } else {
-        offset += (await getTreeNode(ite.leftChild())).size
+        promises.push(getCached(rx, cache, ite.leftChild()))
         ite.sibling()
       }
     }
+
+    const nodes = await Promise.all(promises)
+    for (const node of nodes) offset += node.size
 
     return offset
   }
@@ -687,3 +796,5 @@ function readOplog (oplog) {
     })
   })
 }
+
+function noop () {}

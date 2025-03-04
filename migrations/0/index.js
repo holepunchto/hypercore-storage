@@ -238,8 +238,6 @@ class BlockSlicer {
     let buffer = null
     if (offset < this.offset) throw new Error('overread')
 
-    const end = offset + size
-
     while (true) {
       let data = null
 

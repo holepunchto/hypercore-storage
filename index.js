@@ -399,7 +399,10 @@ class CorestoreStorage {
       const head = await headPromise
 
       const version = head === null ? 0 : head.version
-      if (version === VERSION) return
+      if (version === VERSION) {
+        this.version = VERSION
+        return
+      }
 
       const target = { version: VERSION, dryRun: false }
 

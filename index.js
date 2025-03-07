@@ -371,7 +371,7 @@ class CorestoreStorage {
     return this.db.ready()
   }
 
-  static async clear (ptr) {
+  async clear (ptr) {
     const rx = new CoreRX(ptr, this.db, EMPTY)
     const sessionsPromise = rx.getSessions()
     rx.tryFlush()

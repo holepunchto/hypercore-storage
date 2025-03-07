@@ -6,6 +6,8 @@ const View = require('./lib/view.js')
 const VERSION = 1
 const COLUMN_FAMILY = 'corestore'
 
+const { core } = require('./lib/keys.js')
+
 const {
   CorestoreRX,
   CorestoreTX,
@@ -367,6 +369,29 @@ class CorestoreStorage {
   async ready () {
     if (this.version === 0) await this._migrateStore()
     return this.db.ready()
+  }
+
+  static async clear (ptr) {
+    const rx = new CoreRX(ptr, this.db, EMPTY)
+    const sessionsPromise = rx.getSessions()
+    rx.tryFlush()
+
+    const sessions = await sessionsPromise
+
+    const tx = this.db.write({ autoDestroy: true })
+
+    // clear core
+    const start = core.core(ptr.corePointer)
+    const end = core.core(ptr.corePointer + 1)
+    tx.tryDeleteRange(start, end)
+
+    for (const { dataPointer } of sessions) {
+      const start = core.data(dataPointer)
+      const end = core.data(dataPointer + 1)
+      tx.tryDeleteRange(start, end)
+    }
+
+    return tx.flush()
   }
 
   static isCoreStorage (db) {

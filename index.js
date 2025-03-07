@@ -6,7 +6,7 @@ const View = require('./lib/view.js')
 const VERSION = 1
 const COLUMN_FAMILY = 'corestore'
 
-const { core } = require('./lib/keys.js')
+const { store, core } = require('./lib/keys.js')
 
 const {
   CorestoreRX,
@@ -371,14 +371,23 @@ class CorestoreStorage {
     return this.db.ready()
   }
 
-  async clear (ptr) {
+  async deleteCore (ptr) {
     const rx = new CoreRX(ptr, this.db, EMPTY)
+
+    const authPromise = rx.getAuth()
     const sessionsPromise = rx.getSessions()
+
     rx.tryFlush()
 
+    const auth = await authPromise
     const sessions = await sessionsPromise
 
+    // no core stored here
+    if (!auth) return
+
     const tx = this.db.write({ autoDestroy: true })
+
+    tx.tryDelete(store.core(auth.discoveryKey))
 
     // clear core
     const start = core.core(ptr.corePointer)

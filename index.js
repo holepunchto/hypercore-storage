@@ -667,7 +667,7 @@ class CorestoreStorage {
     }
   }
 
-  async has (discoveryKey) {
+  async has (discoveryKey, { ifMigrated = false } = {}) {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -675,7 +675,12 @@ class CorestoreStorage {
 
     rx.tryFlush()
 
-    return (await promise) !== null
+    const core = await promise
+
+    if (core === null) return false
+    if (core.version !== VERSION && !ifMigrated) return false
+
+    return true
   }
 
   async getAuth (discoveryKey) {

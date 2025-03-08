@@ -433,6 +433,7 @@ async function core (core, { version, dryRun = true, gc = true }) {
 
   for (const index of allBits(bitfield)) {
     if (headerBits.get(index) === false) continue
+    if (index >= head.length) continue
 
     setBitInPage(index)
 
@@ -451,6 +452,7 @@ async function core (core, { version, dryRun = true, gc = true }) {
 
   for (const [index, bit] of headerBits) {
     if (!bit) continue
+    if (index >= head.length) continue
 
     setBitInPage(index)
 

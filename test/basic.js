@@ -87,3 +87,21 @@ test('first core created is the default core', async function (t) {
   await c.close()
   await s.close()
 })
+
+test('write during close', async function (t) {
+  const s = await create(t)
+
+  t.is(await s.getDefaultDiscoveryKey(), null)
+  const c = await s.create({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 2) })
+
+  const w = c.write()
+  w.putUserData('test', b4a.alloc(1))
+  const closing = c.close()
+  try {
+    await w.flush()
+  } catch {
+    t.pass('should fail')
+  }
+  await closing
+  await s.close()
+})

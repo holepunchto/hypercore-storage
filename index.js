@@ -394,10 +394,12 @@ class CorestoreStorage {
     const end = core.core(ptr.corePointer + 1)
     tx.tryDeleteRange(start, end)
 
-    for (const { dataPointer } of sessions) {
-      const start = core.data(dataPointer)
-      const end = core.data(dataPointer + 1)
-      tx.tryDeleteRange(start, end)
+    if (sessions) {
+      for (const { dataPointer } of sessions) {
+        const start = core.data(dataPointer)
+        const end = core.data(dataPointer + 1)
+        tx.tryDeleteRange(start, end)
+      }
     }
 
     return tx.flush()

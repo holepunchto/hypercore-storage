@@ -316,7 +316,7 @@ const encoding11 = {
   preencode (state, m) {
     c.fixed32.preencode(state, m.key)
     c.fixed32.preencode(state, m.discoveryKey)
-    state.end++ // max flag is 4 so always one byte
+    state.end++ // max flag is 8 so always one byte
 
     if (m.manifest) encoding11_2.preencode(state, m.manifest)
     if (m.keyPair) encoding10.preencode(state, m.keyPair)
@@ -326,7 +326,8 @@ const encoding11 = {
     const flags =
       (m.manifest ? 1 : 0) |
       (m.keyPair ? 2 : 0) |
-      (m.encryptionKey ? 4 : 0)
+      (m.encryptionKey ? 4 : 0) |
+      (m.frozen ? 8 : 0)
 
     c.fixed32.encode(state, m.key)
     c.fixed32.encode(state, m.discoveryKey)
@@ -346,7 +347,8 @@ const encoding11 = {
       discoveryKey: r1,
       manifest: (flags & 1) !== 0 ? encoding11_2.decode(state) : null,
       keyPair: (flags & 2) !== 0 ? encoding10.decode(state) : null,
-      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null
+      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
+      frozen: (flags & 8) !== 0
     }
   }
 }

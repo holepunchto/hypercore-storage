@@ -206,6 +206,9 @@ core.register({
   }, {
     name: 'encryptionKey',
     type: 'buffer'
+  }, {
+    name: 'frozen',
+    type: 'bool'
   }]
 })
 

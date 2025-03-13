@@ -295,6 +295,11 @@
           "name": "encryptionKey",
           "type": "buffer",
           "version": 1
+        },
+        {
+          "name": "frozen",
+          "type": "bool",
+          "version": 1
         }
       ]
     },

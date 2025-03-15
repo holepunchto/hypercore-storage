@@ -31,6 +31,7 @@
     "bare-fs": "^4.0.1",
     "bare-path": "^3.0.0",
     "compact-encoding": "^2.16.0",
+    "device-file": "^1.2.2",
     "flat-tree": "^1.12.1",
     "hypercore-crypto": "^3.4.2",
     "hyperschema": "^1.7.0",

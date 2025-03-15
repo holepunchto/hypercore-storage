@@ -1,6 +1,9 @@
 const RocksDB = require('rocksdb-native')
 const rrp = require('resolve-reject-promise')
 const ScopeLock = require('scope-lock')
+const DeviceFile = require('device-file')
+const path = require('path')
+const fs = require('fs')
 const View = require('./lib/view.js')
 
 const VERSION = 1
@@ -346,10 +349,15 @@ class HypercoreStorage {
 }
 
 class CorestoreStorage {
-  constructor (db, opts) {
-    this.path = typeof db === 'string' ? db : db.path
-    this.rocks = typeof db === 'string' ? new RocksDB(db, opts) : db
+  constructor (db, opts = {}) {
+    this.path = typeof db === 'string' ? db : path.join(db.path, '..')
+
+    // tmp sync fix for simplicty since not super deployed yet
+    tmpFixStorage(this.path)
+
+    this.rocks = typeof db === 'string' ? new RocksDB(path.join(db, 'db'), opts) : db
     this.db = createColumnFamily(this.rocks, opts)
+    this.id = opts.id || null
     this.view = null
     this.enters = 0
     this.lock = new ScopeLock()
@@ -425,6 +433,12 @@ class CorestoreStorage {
 
     try {
       if (this.version === VERSION) return
+
+      const corestoreFile = path.join(this.path, 'CORESTORE')
+
+      if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {
+        await DeviceFile.create(corestoreFile, { id: this.id })
+      }
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
@@ -849,4 +863,29 @@ function createColumnFamily (db, opts = {}) {
   })
 
   return db.columnFamily(col)
+}
+
+// TODO: remove in like 3-6 mo
+function tmpFixStorage (p) {
+  const tmp = path.join(p, '../tmp-corestore-restructure')
+  const tmpDb = path.join(tmp, 'db')
+
+  if (fs.existsSync(path.join(p, 'IDENTITY'))) {
+    try {
+      fs.mkdirSync(tmp)
+    } catch {}
+
+    fs.renameSync(p, tmpDb)
+    fs.mkdirSync(p)
+
+    fs.renameSync(tmpDb, path.join(p, 'db'))
+  } else if (fs.existsSync(path.join(tmpDb))) {
+    fs.renameSync(tmpDb, path.join(p, 'db'))
+  } else {
+    return
+  }
+
+  try {
+    fs.rmdirSync(tmp)
+  } catch {}
 }

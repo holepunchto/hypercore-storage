@@ -350,12 +350,15 @@ class HypercoreStorage {
 
 class CorestoreStorage {
   constructor (db, opts = {}) {
-    this.path = typeof db === 'string' ? db : path.join(db.path, '..')
+    const storage = typeof db === 'string' ? db : null
+
+    this.bootstrap = storage !== null
+    this.path = storage !== null ? storage : path.join(db.path, '..')
 
     // tmp sync fix for simplicty since not super deployed yet
     tmpFixStorage(this.path)
 
-    this.rocks = typeof db === 'string' ? new RocksDB(path.join(db, 'db'), opts) : db
+    this.rocks = storage === null ? db : new RocksDB(path.join(this.path, 'db'), opts)
     this.db = createColumnFamily(this.rocks, opts)
     this.id = opts.id || null
     this.view = null
@@ -434,10 +437,12 @@ class CorestoreStorage {
     try {
       if (this.version === VERSION) return
 
-      const corestoreFile = path.join(this.path, 'CORESTORE')
+      if (this.bootstrap) {
+        const corestoreFile = path.join(this.path, 'CORESTORE')
 
-      if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {
-        await DeviceFile.create(corestoreFile, { id: this.id })
+        if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {
+          await DeviceFile.create(corestoreFile, { id: this.id })
+        }
       }
 
       const rx = new CorestoreRX(this.db, view)

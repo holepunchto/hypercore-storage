@@ -354,9 +354,10 @@ class CorestoreStorage {
 
     this.bootstrap = storage !== null
     this.path = storage !== null ? storage : path.join(db.path, '..')
+    this.readOnly = !!opts.readOnly
 
     // tmp sync fix for simplicty since not super deployed yet
-    tmpFixStorage(this.path)
+    if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
 
     this.rocks = storage === null ? db : new RocksDB(path.join(this.path, 'db'), opts)
     this.db = createColumnFamily(this.rocks, opts)
@@ -437,7 +438,7 @@ class CorestoreStorage {
     try {
       if (this.version === VERSION) return
 
-      if (this.bootstrap) {
+      if (this.bootstrap && this.readOnly) {
         const corestoreFile = path.join(this.path, 'CORESTORE')
 
         if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {
@@ -872,25 +873,21 @@ function createColumnFamily (db, opts = {}) {
 
 // TODO: remove in like 3-6 mo
 function tmpFixStorage (p) {
-  const tmp = path.join(p, '../tmp-corestore-restructure')
-  const tmpDb = path.join(tmp, 'db')
-
-  if (fs.existsSync(path.join(p, 'IDENTITY'))) {
-    try {
-      fs.mkdirSync(tmp)
-    } catch {}
-
-    fs.renameSync(p, tmpDb)
-    fs.mkdirSync(p)
-
-    fs.renameSync(tmpDb, path.join(p, 'db'))
-  } else if (fs.existsSync(path.join(tmpDb))) {
-    fs.renameSync(tmpDb, path.join(p, 'db'))
-  } else {
-    return
-  }
+  let files = []
 
   try {
-    fs.rmdirSync(tmp)
+    files = fs.readdirSync(p)
   } catch {}
+
+  const notRocks = new Set(['CORESTORE', 'primary-key', 'cores', 'app-preferences', 'cache', 'preferences.json', 'db'])
+
+  for (const f of files) {
+    if (notRocks.has(f)) continue
+
+    try {
+      fs.mkdirSync(path.join(p, 'db'))
+    } catch {}
+
+    fs.renameSync(path.join(p, f), path.join(p, 'db', f))
+  }
 }

@@ -883,7 +883,7 @@ function tmpFixStorage (p) {
     files = fs.readdirSync(p)
   } catch {}
 
-  const notRocks = new Set(['CORESTORE', 'primary-key', 'cores', 'app-preferences', 'cache', 'preferences.json', 'db'])
+  const notRocks = new Set(['CORESTORE', 'primary-key', 'cores', 'app-preferences', 'cache', 'preferences.json', 'db', 'notifications'])
 
   for (const f of files) {
     if (notRocks.has(f)) continue

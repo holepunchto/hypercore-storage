@@ -577,6 +577,10 @@ class CorestoreStorage {
     return new Atom(this.db)
   }
 
+  async flush () {
+    await this.rocks.flush()
+  }
+
   async close () {
     if (this.db.closed) return
     await this._flush()

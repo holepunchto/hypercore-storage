@@ -438,7 +438,7 @@ class CorestoreStorage {
     try {
       if (this.version === VERSION) return
 
-      if (this.bootstrap && this.readOnly) {
+      if (this.bootstrap && !this.readOnly) {
         const corestoreFile = path.join(this.path, 'CORESTORE')
 
         if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {

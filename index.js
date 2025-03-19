@@ -438,6 +438,8 @@ class CorestoreStorage {
     try {
       if (this.version === VERSION) return
 
+      await this.db.ready()
+
       if (this.bootstrap && !this.readOnly) {
         const corestoreFile = path.join(this.path, 'CORESTORE')
 

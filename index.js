@@ -879,6 +879,9 @@ function createColumnFamily (db, opts = {}) {
 
 // TODO: remove in like 3-6 mo
 function tmpFixStorage (p) {
+  // if CORESTORE file is written, new format
+  if (fs.existsSync(path.join(p, 'CORESTORE'))) return
+
   let files = []
 
   try {

@@ -168,8 +168,9 @@ core.register({
     name: 'prologue',
     type: '@core/prologue'
   }, {
-    name: 'unencrypted',
-    type: 'bool'
+    name: 'linked',
+    array: true,
+    type: 'fixed32'
   }]
 })
 

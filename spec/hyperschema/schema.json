@@ -237,8 +237,9 @@
           "version": 1
         },
         {
-          "name": "unencrypted",
-          "type": "bool",
+          "name": "linked",
+          "array": true,
+          "type": "fixed32",
           "version": 1
         }
       ]

@@ -21,6 +21,7 @@ const {
 const {
   createCoreStream,
   createAliasStream,
+  createDiscoveryKeyStream,
   createBlockStream,
   createBitfieldStream,
   createUserDataStream,
@@ -610,6 +611,10 @@ class CorestoreStorage {
   createAliasStream (namespace) {
     // TODO: be nice to run the mgiration here also, but too much plumbing atm
     return createAliasStream(this.db, EMPTY, namespace)
+  }
+
+  createDiscoveryKeyStream (namespace) {
+    return createDiscoveryKeyStream(this.db, EMPTY, namespace)
   }
 
   async getAlias (alias) {

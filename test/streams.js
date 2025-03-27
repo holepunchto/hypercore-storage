@@ -276,6 +276,10 @@ test('discoveryKey stream', async function (t) {
   const s = await create(t)
   const expected = []
 
+  t.teardown(async function () {
+    await s.close()
+  })
+
   for (let i = 0; i < 5; i++) {
     const discoveryKey = crypto.randomBytes(32)
     await s.create({ key: crypto.randomBytes(32), discoveryKey })

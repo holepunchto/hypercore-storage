@@ -1,6 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { createCore, toArray } = require('./helpers')
+const crypto = require('hypercore-crypto')
+const { createCore, toArray, create } = require('./helpers')
 
 test('block stream', async function (t) {
   const core = await createCore(t)
@@ -269,6 +270,23 @@ test('block stream (atom)', async function (t) {
     const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
+})
+
+test('discoveryKey stream', async function (t) {
+  const s = await create(t)
+  const expected = []
+
+  for (let i = 0; i < 5; i++) {
+    const discoveryKey = crypto.randomBytes(32)
+    await s.create({ key: crypto.randomBytes(32), discoveryKey })
+
+    expected.push({ discoveryKey })
+  }
+
+  const discoveryKeys = await toArray(s.createDiscoveryKeyStream())
+
+  t.alike(discoveryKeys.slice().sort((a, b) => Buffer.compare(a.discoveryKey, b.discoveryKey)),
+    expected.slice().sort((a, b) => Buffer.compare(a.discoveryKey, b.discoveryKey)))
 })
 
 function cmpBlock (a, b) {

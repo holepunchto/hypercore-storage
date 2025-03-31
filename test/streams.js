@@ -280,17 +280,18 @@ test('discoveryKey stream', async function (t) {
     await s.close()
   })
 
+  t.comment('All cores')
   for (let i = 0; i < 5; i++) {
     const discoveryKey = crypto.randomBytes(32)
     await s.create({ key: crypto.randomBytes(32), discoveryKey })
 
-    expected.push({ discoveryKey })
+    expected.push(discoveryKey)
   }
 
   const discoveryKeys = await toArray(s.createDiscoveryKeyStream())
 
-  t.alike(discoveryKeys.slice().sort((a, b) => Buffer.compare(a.discoveryKey, b.discoveryKey)),
-    expected.slice().sort((a, b) => Buffer.compare(a.discoveryKey, b.discoveryKey)))
+  t.alike(discoveryKeys.slice().sort((a, b) => Buffer.compare(a, b)),
+    expected.slice().sort((a, b) => Buffer.compare(a, b)))
 })
 
 function cmpBlock (a, b) {

@@ -274,24 +274,33 @@ test('block stream (atom)', async function (t) {
 
 test('discoveryKey stream', async function (t) {
   const s = await create(t)
-  const expected = []
+  const expectedAll = []
+  const expectedNamespace = []
+  const namespace = Buffer.alloc(32)
 
   t.teardown(async function () {
     await s.close()
   })
 
   t.comment('All cores')
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     const discoveryKey = crypto.randomBytes(32)
-    await s.create({ key: crypto.randomBytes(32), discoveryKey })
-
-    expected.push(discoveryKey)
+    if (i < 5) {
+      await s.create({ key: crypto.randomBytes(32), discoveryKey })
+    } else {
+      await s.create({ key: crypto.randomBytes(32), discoveryKey, alias: { name: `core-${i}`, namespace } })
+      expectedNamespace.push(discoveryKey)
+    }
+    expectedAll.push(discoveryKey)
   }
 
-  const discoveryKeys = await toArray(s.createDiscoveryKeyStream())
+  const discoveryKeysAll = await toArray(s.createDiscoveryKeyStream())
+  const discoveryKeysNamespace = await toArray(s.createDiscoveryKeyStream(namespace))
 
-  t.alike(discoveryKeys.slice().sort((a, b) => Buffer.compare(a, b)),
-    expected.slice().sort((a, b) => Buffer.compare(a, b)))
+  t.alike(discoveryKeysAll.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedAll.slice().sort((a, b) => Buffer.compare(a, b)))
+  t.alike(discoveryKeysNamespace.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedNamespace.slice().sort((a, b) => Buffer.compare(a, b)))
 })
 
 function cmpBlock (a, b) {

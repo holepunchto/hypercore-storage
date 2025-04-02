@@ -1,6 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { createCore, toArray } = require('./helpers')
+const crypto = require('hypercore-crypto')
+const { createCore, toArray, create } = require('./helpers')
 
 test('block stream', async function (t) {
   const core = await createCore(t)
@@ -269,6 +270,37 @@ test('block stream (atom)', async function (t) {
     const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
+})
+
+test('discoveryKey stream', async function (t) {
+  const s = await create(t)
+  const expectedAll = []
+  const expectedNamespace = []
+  const namespace = Buffer.alloc(32)
+
+  t.teardown(async function () {
+    await s.close()
+  })
+
+  t.comment('All cores')
+  for (let i = 0; i < 10; i++) {
+    const discoveryKey = crypto.randomBytes(32)
+    if (i < 5) {
+      await s.create({ key: crypto.randomBytes(32), discoveryKey })
+    } else {
+      await s.create({ key: crypto.randomBytes(32), discoveryKey, alias: { name: `core-${i}`, namespace } })
+      expectedNamespace.push(discoveryKey)
+    }
+    expectedAll.push(discoveryKey)
+  }
+
+  const discoveryKeysAll = await toArray(s.createDiscoveryKeyStream())
+  const discoveryKeysNamespace = await toArray(s.createDiscoveryKeyStream(namespace))
+
+  t.alike(discoveryKeysAll.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedAll.slice().sort((a, b) => Buffer.compare(a, b)))
+  t.alike(discoveryKeysNamespace.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedNamespace.slice().sort((a, b) => Buffer.compare(a, b)))
 })
 
 function cmpBlock (a, b) {

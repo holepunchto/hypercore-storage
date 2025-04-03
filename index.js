@@ -384,6 +384,25 @@ class CorestoreStorage {
     return this.db.ready()
   }
 
+  async auditV0Manifests () {
+    for await (const { discoveryKey, core } of this.createCoreStream()) {
+      const coreRx = new CoreRX(core, this.db, EMPTY)
+      const authPromise = coreRx.getAuth()
+
+      coreRx.tryFlush()
+
+      const auth = await authPromise
+
+      if (!auth.manifest || auth.manifest.version > 0) continue
+      if (auth.manifest.linked === null) continue
+
+      auth.manifest.linked = null
+      const coreTx = new CoreTX(core, this.db, null, [])
+      coreTx.setAuth(auth)
+      await coreTx.flush()
+    }
+  }
+
   async deleteCore (ptr) {
     const rx = new CoreRX(ptr, this.db, EMPTY)
 

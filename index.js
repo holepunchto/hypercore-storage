@@ -381,7 +381,8 @@ class CorestoreStorage {
 
   async ready () {
     if (this.version === 0) await this._migrateStore()
-    return this.db.ready()
+    await this.db.ready()
+    await this.auditV0Manifests()
   }
 
   async auditV0Manifests () {

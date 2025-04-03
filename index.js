@@ -385,7 +385,7 @@ class CorestoreStorage {
   }
 
   async auditV0Manifests () {
-    for await (const { discoveryKey, core } of this.createCoreStream()) {
+    for await (const { core } of this.createCoreStream()) {
       const coreRx = new CoreRX(core, this.db, EMPTY)
       const authPromise = coreRx.getAuth()
 

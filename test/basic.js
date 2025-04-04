@@ -105,3 +105,67 @@ test('write during close', async function (t) {
   await closing
   await s.close()
 })
+
+test('audit v0 cores', async function (t) {
+  const s = await create(t)
+
+  const all = []
+  for (let i = 0; i < 35; i++) {
+    const c = s.create({ key: b4a.alloc(32, i), discoveryKey: b4a.alloc(32, i) })
+    all.push(c)
+  }
+
+  const cores = await Promise.all(all)
+  const ptrs = new Set()
+
+  for (const c of cores) {
+    ptrs.add(c.core.corePointer)
+  }
+
+  // all unique allocations
+  t.is(ptrs.size, cores.length)
+
+  const manifest = {
+    version: 0,
+    hash: 'blake2b',
+    allowPatch: false,
+    prologue: null,
+    quorum: 1,
+    signers: [{
+      signature: 'ed25519',
+      namespace: b4a.alloc(32, 0),
+      publicKey: b4a.alloc(32, 0)
+    }],
+    linked: []
+  }
+
+  let i = 0
+  for (const c of cores) {
+    const tx = c.write()
+    tx.setAuth({
+      key: b4a.alloc(32, 0),
+      discoveryKey: b4a.alloc(32, i++),
+      manifest,
+      keyPair: null,
+      encryptionKey: null
+    })
+    await tx.flush()
+  }
+
+  await s.audit()
+
+  for (const c of cores) {
+    const rx = c.read()
+    const authPromise = rx.getAuth()
+    rx.tryFlush()
+    const { manifest } = await authPromise
+    if (manifest.linked !== null) {
+      t.fail('manifest.linked should be null')
+      break
+    }
+  }
+
+  for (const c of cores) await c.close()
+
+  await s.close()
+})

@@ -152,7 +152,7 @@ test('audit v0 cores', async function (t) {
     await tx.flush()
   }
 
-  await s.auditV0Manifests()
+  await s.audit()
 
   for (const c of cores) {
     const rx = c.read()

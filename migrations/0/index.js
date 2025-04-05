@@ -373,7 +373,27 @@ async function core (core, { version, dryRun = true, gc = true }) {
   }
 
   const oplog = await readOplog(files.oplog)
-  if (!oplog) throw new Error('No oplog available for ' + files.oplog + ', length = ' + (head ? head.length : 0) + ', writable = ' + (!!auth.keyPair))
+  if (!oplog) {
+    const writable = !!auth.keyPair
+
+    if (writable) {
+      throw new Error('No oplog available writable core for ' + files.oplog + ', length = ' + (head ? head.length : 0))
+    }
+
+    // if not writable, just nuke it to recover, some bad state happened here, prop corruption from earlier versions
+    const w = core.write()
+
+    w.deleteBlockRange(0, -1)
+    w.deleteTreeNodeRange(0, -1)
+    w.deleteBitfieldPageRange(0, -1)
+    w.deleteHead()
+
+    await w.flush()
+
+    await commitCoreMigration(auth, core, version)
+    if (gc) await runGC()
+    return // no data
+  }
 
   const treeData = new TreeSlicer()
 

@@ -252,19 +252,21 @@ const encoding9_6 = c.array(c.fixed32)
 const encoding9 = {
   preencode (state, m) {
     c.uint.preencode(state, m.version)
-    state.end++ // max flag is 4 so always one byte
+    state.end++ // max flag is 8 so always one byte
     encoding4.preencode(state, m.hash)
     c.uint.preencode(state, m.quorum)
     encoding9_4.preencode(state, m.signers)
 
     if (m.prologue) encoding8.preencode(state, m.prologue)
     if (m.linked) encoding9_6.preencode(state, m.linked)
+    if (m.userData) c.buffer.preencode(state, m.userData)
   },
   encode (state, m) {
     const flags =
       (m.allowPatch ? 1 : 0) |
       (m.prologue ? 2 : 0) |
-      (m.linked ? 4 : 0)
+      (m.linked ? 4 : 0) |
+      (m.userData ? 8 : 0)
 
     c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
@@ -274,6 +276,7 @@ const encoding9 = {
 
     if (m.prologue) encoding8.encode(state, m.prologue)
     if (m.linked) encoding9_6.encode(state, m.linked)
+    if (m.userData) c.buffer.encode(state, m.userData)
   },
   decode (state) {
     const r0 = c.uint.decode(state)
@@ -286,7 +289,8 @@ const encoding9 = {
       allowPatch: (flags & 1) !== 0,
       signers: encoding9_4.decode(state),
       prologue: (flags & 2) !== 0 ? encoding8.decode(state) : null,
-      linked: (flags & 4) !== 0 ? encoding9_6.decode(state) : null
+      linked: (flags & 4) !== 0 ? encoding9_6.decode(state) : null,
+      userData: (flags & 8) !== 0 ? c.buffer.decode(state) : null
     }
   }
 }

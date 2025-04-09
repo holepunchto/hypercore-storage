@@ -241,6 +241,11 @@
           "array": true,
           "type": "fixed32",
           "version": 1
+        },
+        {
+          "name": "userData",
+          "type": "buffer",
+          "version": 1
         }
       ]
     },

@@ -171,6 +171,9 @@ core.register({
     name: 'linked',
     array: true,
     type: 'fixed32'
+  }, {
+    name: 'userData',
+    type: 'buffer'
   }]
 })
 

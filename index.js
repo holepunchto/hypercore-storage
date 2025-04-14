@@ -356,6 +356,7 @@ class CorestoreStorage {
     this.bootstrap = storage !== null
     this.path = storage !== null ? storage : path.join(db.path, '..')
     this.readOnly = !!opts.readOnly
+    this.allowBackup = !!opts.allowBackup
 
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
@@ -462,7 +463,7 @@ class CorestoreStorage {
 
       await this.db.ready()
 
-      if (this.bootstrap && !this.readOnly) {
+      if (this.bootstrap && !this.readOnly && !this.allowBackup) {
         const corestoreFile = path.join(this.path, 'CORESTORE')
 
         if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {

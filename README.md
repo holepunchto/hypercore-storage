@@ -85,7 +85,7 @@ Return a bitfield page.
 
 #### `await rx.getUserData(key)`
 
-Return a user stored buffer.
+Return a user stored buffer. `key` is a string.
 
 #### `rx.tryFlush()`
 
@@ -155,11 +155,11 @@ Delete bitfield pages between two indexes.
 
 #### `tx.putUserData(key, value)`
 
-Put a user provided buffer at a user provided key.
+Put a user provided buffer at a user provided `key`. `key` is a string.
 
 #### `tx.deleteUserData(key)`
 
-Delete a user provided key.
+Delete a user provided `key`. `key` is a string.
 
 #### `await tx.flush()`
 
@@ -179,7 +179,17 @@ Create a stream of all bitfield pages.
 
 #### `stream = core.createUserDataStream(opts)`
 
-Create a stream of all user data.
+Create a stream of all user data. `opts` is a query object with the following possible properties:
+
+```
+{
+  gt: 'only return keys > than this', // Not currently supported
+  gte: 'only return keys >= than this',
+  lt: 'only return keys < than this',
+  lte: 'only return keys <= than this', // Not currently supported
+  reverse: false // reverse results. Not currently supported
+}
+```
 
 #### `await core.close()`
 

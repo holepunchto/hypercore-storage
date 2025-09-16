@@ -347,6 +347,37 @@ class HypercoreStorage {
 
     return this.db.close()
   }
+
+  static async export (ptr, db) {
+    const rx = new CoreRX(ptr, db, EMPTY)
+
+    const core = {
+      head: null,
+      auth: null,
+      sessions: null,
+      data: []
+    }
+
+    const sessionsPromise = rx.getSessions()
+    const headPromise = rx.getHead()
+    const authPromise = rx.getAuth()
+
+    rx.tryFlush()
+
+    const [sessions, head, auth] = await Promise.all([
+      sessionsPromise,
+      headPromise,
+      authPromise
+    ])
+
+    core.head = head
+    core.auth = { ...auth, keyPair: null }
+    core.sessions = sessions ? sessions.map(s => s.name) : null
+
+    core.data.push(await exportData(ptr, db))
+
+    return core
+  }
 }
 
 class CorestoreStorage {
@@ -773,6 +804,31 @@ class CorestoreStorage {
     return this._resumeFromPointers(EMPTY, discoveryKey, false, core)
   }
 
+  async export (discoveryKey, opts) {
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const corePromise = rx.getCore(discoveryKey)
+
+    rx.tryFlush()
+    const core = await corePromise
+    if (core === null) return null
+
+    let { dataPointer, corePointer } = core
+
+    const ptr = { corePointer, dataPointer, dependencies: [] }
+
+    while (true) {
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY)
+      const dependencyPromise = rx.getDependency()
+      rx.tryFlush()
+      const dependency = await dependencyPromise
+      if (!dependency) break
+      ptr.dependencies.push(dependency)
+      dataPointer = dependency.dataPointer
+    }
+
+    return HypercoreStorage.export(ptr, this.db.session(), opts)
+  }
+
   async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {
     const core = { corePointer, dataPointer, dependencies: [] }
 
@@ -926,4 +982,23 @@ function tmpFixStorage (p) {
 
     fs.renameSync(path.join(p, f), path.join(p, 'db', f))
   }
+}
+
+async function exportData (ptr, db, opts) {
+  // just need dataPointer
+  const blocks = toArray(createBlockStream(ptr, db, EMPTY, opts))
+  const tree = toArray(createTreeNodeStream(ptr, db, EMPTY, opts))
+  const bitfield = toArray(createBitfieldStream(ptr, db, EMPTY, opts))
+
+  return {
+    blocks: await blocks,
+    tree: await tree,
+    bitfield: await bitfield
+  }
+}
+
+async function toArray (stream) {
+  const all = []
+  for await (const e of stream) all.push(e)
+  return all
 }

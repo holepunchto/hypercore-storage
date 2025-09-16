@@ -348,14 +348,14 @@ class HypercoreStorage {
     return this.db.close()
   }
 
-  static async export (ptr, db) {
+  static async export (ptr, db, { batches = false } = {}) {
     const rx = new CoreRX(ptr, db, EMPTY)
 
     const core = {
       head: null,
       auth: null,
       sessions: null,
-      data: []
+      data: null
     }
 
     const sessionsPromise = rx.getSessions()
@@ -374,7 +374,17 @@ class HypercoreStorage {
     core.auth = { ...auth, keyPair: null }
     core.sessions = sessions ? sessions.map(s => s.name) : null
 
-    core.data.push(await exportData(ptr, db))
+    const data = []
+
+    data.push(exportData(ptr, db))
+
+    if (batches) {
+      for (const { dataPointer } of sessions) {
+        data.push(exportData({ dataPointer, dependencies: [] }, db))
+      }
+    }
+
+    core.data = await Promise.all(data)
 
     return core
   }

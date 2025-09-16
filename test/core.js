@@ -697,8 +697,8 @@ test('export hypercore', async (t) => {
     signature: b4a.from('b'.repeat(64), 'hex')
   }
 
-  const node1 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }
-  const node2 = { index: 1, size: 10, hash: b4a.from('b'.repeat(64), 'hex') }
+  const node0 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }
+  const node1 = { index: 1, size: 10, hash: b4a.from('b'.repeat(64), 'hex') }
 
   const tx = core.write()
 
@@ -714,14 +714,14 @@ test('export hypercore', async (t) => {
     encryptionKey: b4a.from('a'.repeat(64), 'hex')
   })
 
-  tx.putBitfieldPage(0, 'bitfield-data-1')
-  tx.putBitfieldPage(1, 'bitfield-data-2')
+  tx.putBitfieldPage(0, 'bitfield-data-0')
+  tx.putBitfieldPage(1, 'bitfield-data-1')
 
   tx.putBlock(0, 'content0')
   tx.putBlock(1, 'content1')
 
+  tx.putTreeNode(node0)
   tx.putTreeNode(node1)
-  tx.putTreeNode(node2)
 
   await tx.flush()
 
@@ -747,12 +747,67 @@ test('export hypercore', async (t) => {
   ])
 
   t.alike(session.tree, [
-    node1,
-    node2
+    node0,
+    node1
   ])
 
   t.alike(session.bitfield, [
-    { index: 0, page: b4a.from('bitfield-data-1') },
-    { index: 1, page: b4a.from('bitfield-data-2') }
+    { index: 0, page: b4a.from('bitfield-data-0') },
+    { index: 1, page: b4a.from('bitfield-data-1') }
   ])
+})
+
+test('export named sessions', async (t) => {
+  const s = await create(t)
+  const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+
+  const head = {
+    length: 10,
+    fork: 0,
+    rootHash: b4a.alloc(32),
+    signature: null
+  }
+
+  const node0 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }
+  const node1 = { index: 1, size: 10, hash: b4a.from('b'.repeat(64), 'hex') }
+  const node2 = { index: 2, size: 1, hash: b4a.from('c'.repeat(64), 'hex') }
+
+  {
+    const tx = core.write()
+
+    tx.setHead(head)
+
+    tx.putBitfieldPage(0, 'bitfield-data-0')
+    tx.putBitfieldPage(1, 'bitfield-data-1')
+
+    tx.putBlock(0, 'content0')
+    tx.putBlock(1, 'content1')
+
+    tx.putTreeNode(node0)
+    tx.putTreeNode(node1)
+
+    await tx.flush()
+  }
+
+  const a = await core.createSession('a', null)
+
+  {
+    const tx = a.write()
+
+    tx.putBlock(2, 'content2')
+    tx.putTreeNode(node2)
+    tx.putBitfieldPage(1, 'bitfield-data-2')
+
+    await tx.flush()
+  }
+
+  const exported = await s.export(b4a.alloc(32), { batches: true })
+
+  t.alike(exported.sessions, ['a'])
+
+  const batch = exported.data[1]
+
+  t.alike(batch.blocks, [{ index: 2, value: b4a.from('content2') }])
+  t.alike(batch.tree, [node2])
+  t.alike(batch.bitfield, [{ index: 1, page: b4a.from('bitfield-data-2') }])
 })

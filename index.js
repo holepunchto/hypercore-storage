@@ -826,7 +826,12 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    return HypercoreStorage.export(ptr, this.db.session(), opts)
+    const session = this.db.session()
+    try {
+      return await HypercoreStorage.export(ptr, session, opts)
+    } finally {
+      await session.close()
+    }
   }
 
   async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {

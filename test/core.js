@@ -755,6 +755,9 @@ test('export hypercore', async (t) => {
     { index: 0, page: b4a.from('bitfield-data-0') },
     { index: 1, page: b4a.from('bitfield-data-1') }
   ])
+
+  await core.close()
+  await s.close()
 })
 
 test('export named sessions', async (t) => {
@@ -789,10 +792,10 @@ test('export named sessions', async (t) => {
     await tx.flush()
   }
 
-  const a = await core.createSession('a', null)
+  const session = await core.createSession('a', null)
 
   {
-    const tx = a.write()
+    const tx = session.write()
 
     tx.putBlock(2, 'content2')
     tx.putTreeNode(node2)
@@ -810,4 +813,8 @@ test('export named sessions', async (t) => {
   t.alike(batch.blocks, [{ index: 2, value: b4a.from('content2') }])
   t.alike(batch.tree, [node2])
   t.alike(batch.bitfield, [{ index: 1, page: b4a.from('bitfield-data-2') }])
+
+  await core.close()
+  await session.close()
+  await s.close()
 })

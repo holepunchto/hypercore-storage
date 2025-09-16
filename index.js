@@ -354,7 +354,7 @@ class HypercoreStorage {
     const core = {
       head: null,
       auth: null,
-      sessions: null,
+      sessions: [],
       data: null
     }
 
@@ -372,7 +372,7 @@ class HypercoreStorage {
 
     core.head = head
     core.auth = { ...auth, keyPair: null }
-    core.sessions = sessions ? sessions.map(s => s.name) : null
+    if (sessions) core.sessions = sessions.map(s => s.name)
 
     const data = []
 

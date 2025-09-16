@@ -736,7 +736,7 @@ test('export hypercore', async (t) => {
     encryptionKey: b4a.from('a'.repeat(64), 'hex')
   })
 
-  t.is(exported.sessions, null)
+  t.alike(exported.sessions, [])
   t.is(exported.data.length, 1)
 
   const session = exported.data[0]

@@ -1001,14 +1001,18 @@ function tmpFixStorage (p) {
 
 async function exportData (ptr, db, opts) {
   // just need dataPointer
-  const blocks = toArray(createBlockStream(ptr, db, EMPTY, opts))
-  const tree = toArray(createTreeNodeStream(ptr, db, EMPTY, opts))
-  const bitfield = toArray(createBitfieldStream(ptr, db, EMPTY, opts))
+  const reads = [
+    toArray(createBlockStream(ptr, db, EMPTY, opts)),
+    toArray(createTreeNodeStream(ptr, db, EMPTY, opts)),
+    toArray(createBitfieldStream(ptr, db, EMPTY, opts))
+  ]
+
+  const [blocks, tree, bitfield] = await Promise.all(reads)
 
   return {
-    blocks: await blocks,
-    tree: await tree,
-    bitfield: await bitfield
+    blocks,
+    tree,
+    bitfield
   }
 }
 

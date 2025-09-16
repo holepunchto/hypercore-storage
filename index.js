@@ -347,6 +347,47 @@ class HypercoreStorage {
 
     return this.db.close()
   }
+
+  static async export (ptr, db, { batches = false } = {}) {
+    const rx = new CoreRX(ptr, db, EMPTY)
+
+    const core = {
+      head: null,
+      auth: null,
+      sessions: [],
+      data: null
+    }
+
+    const sessionsPromise = rx.getSessions()
+    const headPromise = rx.getHead()
+    const authPromise = rx.getAuth()
+
+    rx.tryFlush()
+
+    const [sessions, head, auth] = await Promise.all([
+      sessionsPromise,
+      headPromise,
+      authPromise
+    ])
+
+    core.head = head
+    core.auth = { ...auth, keyPair: null }
+    if (sessions) core.sessions = sessions.map(s => s.name)
+
+    const data = []
+
+    data.push(exportData(ptr, db))
+
+    if (batches) {
+      for (const { dataPointer } of sessions) {
+        data.push(exportData({ dataPointer, dependencies: [] }, db))
+      }
+    }
+
+    core.data = await Promise.all(data)
+
+    return core
+  }
 }
 
 class CorestoreStorage {
@@ -773,6 +814,36 @@ class CorestoreStorage {
     return this._resumeFromPointers(EMPTY, discoveryKey, false, core)
   }
 
+  async export (discoveryKey, opts) {
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const corePromise = rx.getCore(discoveryKey)
+
+    rx.tryFlush()
+    const core = await corePromise
+    if (core === null) return null
+
+    let { dataPointer, corePointer } = core
+
+    const ptr = { corePointer, dataPointer, dependencies: [] }
+
+    while (true) {
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY)
+      const dependencyPromise = rx.getDependency()
+      rx.tryFlush()
+      const dependency = await dependencyPromise
+      if (!dependency) break
+      ptr.dependencies.push(dependency)
+      dataPointer = dependency.dataPointer
+    }
+
+    const session = this.db.session()
+    try {
+      return await HypercoreStorage.export(ptr, session, opts)
+    } finally {
+      await session.close()
+    }
+  }
+
   async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {
     const core = { corePointer, dataPointer, dependencies: [] }
 
@@ -926,4 +997,27 @@ function tmpFixStorage (p) {
 
     fs.renameSync(path.join(p, f), path.join(p, 'db', f))
   }
+}
+
+async function exportData (ptr, db, opts) {
+  // just need dataPointer
+  const reads = [
+    toArray(createBlockStream(ptr, db, EMPTY, opts)),
+    toArray(createTreeNodeStream(ptr, db, EMPTY, opts)),
+    toArray(createBitfieldStream(ptr, db, EMPTY, opts))
+  ]
+
+  const [blocks, tree, bitfield] = await Promise.all(reads)
+
+  return {
+    blocks,
+    tree,
+    bitfield
+  }
+}
+
+async function toArray (stream) {
+  const all = []
+  for await (const e of stream) all.push(e)
+  return all
 }

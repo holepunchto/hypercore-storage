@@ -818,3 +818,55 @@ test('export named sessions', async (t) => {
   await session.close()
   await s.close()
 })
+
+test('compact core', async (t) => {
+  const s = await create(t)
+  const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+
+  const head = {
+    length: 10,
+    fork: 0,
+    rootHash: b4a.alloc(32),
+    signature: null
+  }
+
+  const node0 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }
+  const node1 = { index: 1, size: 10, hash: b4a.from('b'.repeat(64), 'hex') }
+  const node2 = { index: 2, size: 1, hash: b4a.from('c'.repeat(64), 'hex') }
+
+  {
+    const tx = core.write()
+
+    tx.setHead(head)
+
+    tx.putBitfieldPage(0, 'bitfield-data-0')
+    tx.putBitfieldPage(1, 'bitfield-data-1')
+
+    tx.putBlock(0, 'content0')
+    tx.putBlock(1, 'content1')
+
+    tx.putTreeNode(node0)
+    tx.putTreeNode(node1)
+
+    await tx.flush()
+  }
+
+  const session = await core.createSession('a', null)
+
+  {
+    const tx = session.write()
+
+    tx.putBlock(2, 'content2')
+    tx.putTreeNode(node2)
+    tx.putBitfieldPage(1, 'bitfield-data-2')
+
+    await tx.flush()
+  }
+
+  await t.execution(session.compact())
+  await t.execution(core.compact())
+
+  await core.close()
+  await session.close()
+  await s.close()
+})

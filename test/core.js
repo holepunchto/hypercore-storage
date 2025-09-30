@@ -819,7 +819,7 @@ test('export named sessions', async (t) => {
   await s.close()
 })
 
-test.solo('compact core', async (t) => {
+test('compact core', async (t) => {
   const s = await create(t)
   const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
 

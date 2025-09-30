@@ -1,6 +1,6 @@
 {
   "name": "hypercore-storage",
-  "version": "1.14.1",
+  "version": "1.15.0",
   "main": "index.js",
   "files": [
     "index.js",

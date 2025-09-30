@@ -426,6 +426,10 @@ class CorestoreStorage {
     return this.db.ready()
   }
 
+  compact () {
+    return this.db.compactRange()
+  }
+
   async audit () {
     for await (const { core } of this.createCoreStream()) {
       const coreRx = new CoreRX(core, this.db, EMPTY)

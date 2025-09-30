@@ -183,6 +183,13 @@ class HypercoreStorage {
     return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atom)
   }
 
+  compact () {
+    return Promise.all([
+      this.db.compactRange(core.core(this.core.corePointer), core.core(this.core.corePointer)),
+      this.db.compactRange(core.data(this.core.dataPointer), core.data(this.core.dataPointer))
+    ])
+  }
+
   atomize (atom) {
     if (this.atom && this.atom !== atom) throw new Error('Cannot atomize and atomized session with a new atom')
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)

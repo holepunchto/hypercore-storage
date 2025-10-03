@@ -90,7 +90,9 @@ test('reverse block stream', async function (t) {
 
   await tx.flush()
 
-  const blocks = await toArray(core.createBlockStream({ gte: 0, lt: 10, reverse: true }))
+  const blocks = await toArray(
+    core.createBlockStream({ gte: 0, lt: 10, reverse: true })
+  )
 
   t.alike(blocks, expected.reverse())
 })
@@ -99,7 +101,8 @@ test('reverse dependency stream', async function (t) {
   const core = await createCore(t)
 
   const expected = []
-  for (let i = 29; i >= 0; i--) expected.push({ index: i, value: b4a.from([i]) })
+  for (let i = 29; i >= 0; i--)
+    expected.push({ index: i, value: b4a.from([i]) })
 
   const head = {
     fork: 0,
@@ -118,7 +121,9 @@ test('reverse dependency stream', async function (t) {
 
   await writeBlocks(sess2, head, 10)
 
-  const blocks = await toArray(sess2.createBlockStream({ gte: 0, lt: 30, reverse: true }))
+  const blocks = await toArray(
+    sess2.createBlockStream({ gte: 0, lt: 30, reverse: true })
+  )
 
   t.alike(blocks, expected)
 })
@@ -127,7 +132,8 @@ test('reverse dependency stream with limits', async function (t) {
   const core = await createCore(t)
 
   const expected = []
-  for (let i = 24; i >= 5; i--) expected.push({ index: i, value: b4a.from([i]) })
+  for (let i = 24; i >= 5; i--)
+    expected.push({ index: i, value: b4a.from([i]) })
 
   const head = {
     fork: 0,
@@ -146,7 +152,9 @@ test('reverse dependency stream with limits', async function (t) {
 
   await writeBlocks(sess2, head, 10)
 
-  const blocks = await toArray(sess2.createBlockStream({ gte: 5, lt: 25, reverse: true }))
+  const blocks = await toArray(
+    sess2.createBlockStream({ gte: 5, lt: 25, reverse: true })
+  )
 
   t.alike(blocks, expected)
 })
@@ -191,7 +199,9 @@ test('block stream (atom)', async function (t) {
   }
 
   {
-    const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
+    const blocks = await toArray(
+      a.createBlockStream({ gte: 0, lt: 10, reverse: true })
+    )
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
 
@@ -209,7 +219,9 @@ test('block stream (atom)', async function (t) {
   }
 
   {
-    const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
+    const blocks = await toArray(
+      a.createBlockStream({ gte: 0, lt: 10, reverse: true })
+    )
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
 
@@ -234,7 +246,9 @@ test('block stream (atom)', async function (t) {
   }
 
   {
-    const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
+    const blocks = await toArray(
+      a.createBlockStream({ gte: 0, lt: 10, reverse: true })
+    )
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
 
@@ -253,7 +267,9 @@ test('block stream (atom)', async function (t) {
   }
 
   {
-    const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
+    const blocks = await toArray(
+      a.createBlockStream({ gte: 0, lt: 10, reverse: true })
+    )
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
 
@@ -267,7 +283,9 @@ test('block stream (atom)', async function (t) {
   }
 
   {
-    const blocks = await toArray(a.createBlockStream({ gte: 0, lt: 10, reverse: true }))
+    const blocks = await toArray(
+      a.createBlockStream({ gte: 0, lt: 10, reverse: true })
+    )
     t.alike(blocks, expected.sort(cmpBlock).reverse())
   }
 })
@@ -288,26 +306,36 @@ test('discoveryKey stream', async function (t) {
     if (i < 5) {
       await s.create({ key: crypto.randomBytes(32), discoveryKey })
     } else {
-      await s.create({ key: crypto.randomBytes(32), discoveryKey, alias: { name: `core-${i}`, namespace } })
+      await s.create({
+        key: crypto.randomBytes(32),
+        discoveryKey,
+        alias: { name: `core-${i}`, namespace }
+      })
       expectedNamespace.push(discoveryKey)
     }
     expectedAll.push(discoveryKey)
   }
 
   const discoveryKeysAll = await toArray(s.createDiscoveryKeyStream())
-  const discoveryKeysNamespace = await toArray(s.createDiscoveryKeyStream(namespace))
+  const discoveryKeysNamespace = await toArray(
+    s.createDiscoveryKeyStream(namespace)
+  )
 
-  t.alike(discoveryKeysAll.slice().sort((a, b) => Buffer.compare(a, b)),
-    expectedAll.slice().sort((a, b) => Buffer.compare(a, b)))
-  t.alike(discoveryKeysNamespace.slice().sort((a, b) => Buffer.compare(a, b)),
-    expectedNamespace.slice().sort((a, b) => Buffer.compare(a, b)))
+  t.alike(
+    discoveryKeysAll.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedAll.slice().sort((a, b) => Buffer.compare(a, b))
+  )
+  t.alike(
+    discoveryKeysNamespace.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedNamespace.slice().sort((a, b) => Buffer.compare(a, b))
+  )
 })
 
-function cmpBlock (a, b) {
+function cmpBlock(a, b) {
   return a.index - b.index
 }
 
-async function writeBlocks (sess, head, n) {
+async function writeBlocks(sess, head, n) {
   const start = head.length
 
   const tx = sess.write()

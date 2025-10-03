@@ -132,7 +132,11 @@ test('put and get tree node', async (t) => {
   await tx.flush()
 
   const rx = core.read()
-  const p = Promise.all([rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2)])
+  const p = Promise.all([
+    rx.getTreeNode(0),
+    rx.getTreeNode(1),
+    rx.getTreeNode(2)
+  ])
   rx.tryFlush()
   const [res0, res1, res2] = await p
 
@@ -170,7 +174,11 @@ test('delete tree node', async (t) => {
   }
 
   const rx = core.read()
-  const p = Promise.all([rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2)])
+  const p = Promise.all([
+    rx.getTreeNode(0),
+    rx.getTreeNode(1),
+    rx.getTreeNode(2)
+  ])
   rx.tryFlush()
   const [res0, res1] = await p
 
@@ -218,7 +226,12 @@ test('delete tree node range', async (t) => {
   }
 
   const rx = core.read()
-  const p = Promise.all([rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2), rx.getTreeNode(3)])
+  const p = Promise.all([
+    rx.getTreeNode(0),
+    rx.getTreeNode(1),
+    rx.getTreeNode(2),
+    rx.getTreeNode(3)
+  ])
   rx.tryFlush()
   const [res0, res1, res2, res3] = await p
 
@@ -301,13 +314,10 @@ test('set and get hypercore sessions', async (t) => {
     const rx = core.read()
     const p = rx.getSessions()
     rx.tryFlush()
-    t.alike(
-      await p,
-      [
-        { name: 'session0', dataPointer: 0 },
-        { name: 'session1', dataPointer: 1 }
-      ]
-    )
+    t.alike(await p, [
+      { name: 'session0', dataPointer: 0 },
+      { name: 'session1', dataPointer: 1 }
+    ])
   }
 })
 
@@ -343,7 +353,8 @@ test('set and get hypercore head', async (t) => {
         rootHash: b4a.from('a'.repeat(64), 'hex'),
         signature: b4a.from('b'.repeat(64), 'hex')
       },
-      'updated head')
+      'updated head'
+    )
   }
 })
 
@@ -375,7 +386,8 @@ test('set and get hypercore dependency', async (t) => {
         dataPointer: 1,
         length: 3
       },
-      'updated dependency')
+      'updated dependency'
+    )
   }
 })
 
@@ -400,10 +412,7 @@ test('set and get hypercore hints', async (t) => {
     const rx = core.read()
     const p = rx.getHints()
     rx.tryFlush()
-    t.alike(
-      await p,
-      { contiguousLength: 1 },
-      'updated hints')
+    t.alike(await p, { contiguousLength: 1 }, 'updated hints')
   }
 })
 
@@ -451,10 +460,7 @@ test('delete hypercore userdata', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getUserData('key'),
-      rx.getUserData('key2')
-    ])
+    const p = Promise.all([rx.getUserData('key'), rx.getUserData('key2')])
     rx.tryFlush()
     const [data1, data2] = await p
 
@@ -470,10 +476,7 @@ test('delete hypercore userdata', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getUserData('key'),
-      rx.getUserData('key2')
-    ])
+    const p = Promise.all([rx.getUserData('key'), rx.getUserData('key2')])
     rx.tryFlush()
     const [data1, data2] = await p
 
@@ -522,10 +525,7 @@ test('delete bitfield page', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getBitfieldPage(0),
-      rx.getBitfieldPage(1)
-    ])
+    const p = Promise.all([rx.getBitfieldPage(0), rx.getBitfieldPage(1)])
     rx.tryFlush()
     const [data1, data2] = await p
 
@@ -541,10 +541,7 @@ test('delete bitfield page', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getBitfieldPage(0),
-      rx.getBitfieldPage(1)
-    ])
+    const p = Promise.all([rx.getBitfieldPage(0), rx.getBitfieldPage(1)])
     rx.tryFlush()
     const [data1, data2] = await p
 
@@ -610,10 +607,7 @@ test('cannot open tx on snapshot', async (t) => {
   const core = await createCore(t)
 
   const snap = core.snapshot()
-  t.exception(
-    () => snap.write(),
-    /Cannot open core tx on snapshot/
-  )
+  t.exception(() => snap.write(), /Cannot open core tx on snapshot/)
 })
 
 test('cannot create sessions on snapshot', async (t) => {
@@ -638,23 +632,59 @@ test('can resume a snapshot session, and that session is a snapshot too', async 
 
   const initBlocks = [b4a.from('block0'), b4a.from('block1'), null]
   t.alike(await readBlocks(snap, 3), initBlocks, 'sanity check snap')
-  t.alike(await readBlocks(session, 3), [null, null, null], 'sanity check session')
-  t.alike(await readBlocks(sessionSnap, 3), [null, null, null], 'sanity check snap session')
+  t.alike(
+    await readBlocks(session, 3),
+    [null, null, null],
+    'sanity check session'
+  )
+  t.alike(
+    await readBlocks(sessionSnap, 3),
+    [null, null, null],
+    'sanity check snap session'
+  )
 
   await writeBlocks(core, 1, { pre: 'core-', start: 2 })
   await writeBlocks(session, 1, { pre: 'sess-', start: 2 })
-  t.alike(await readBlocks(session, 3), [null, null, b4a.from('sess-block2')], 'session updated (sanity check)')
-  t.alike(await readBlocks(core, 3), [b4a.from('block0'), b4a.from('block1'), b4a.from('core-block2')], 'core updated (sanity check)')
-  t.alike(await readBlocks(snap, 3), initBlocks, 'snap did not change (sanity check)')
-  t.alike(await readBlocks(sessionSnap, 3), [null, null, null], 'post-session snap did not change (sanity check)')
+  t.alike(
+    await readBlocks(session, 3),
+    [null, null, b4a.from('sess-block2')],
+    'session updated (sanity check)'
+  )
+  t.alike(
+    await readBlocks(core, 3),
+    [b4a.from('block0'), b4a.from('block1'), b4a.from('core-block2')],
+    'core updated (sanity check)'
+  )
+  t.alike(
+    await readBlocks(snap, 3),
+    initBlocks,
+    'snap did not change (sanity check)'
+  )
+  t.alike(
+    await readBlocks(sessionSnap, 3),
+    [null, null, null],
+    'post-session snap did not change (sanity check)'
+  )
 
   const resumedSnapSession = await sessionSnap.resumeSession('sess')
   const resumedSession = await core.resumeSession('sess')
 
-  t.is(resumedSnapSession.snapshotted, true, 'resumed snapshot session is snapshot')
+  t.is(
+    resumedSnapSession.snapshotted,
+    true,
+    'resumed snapshot session is snapshot'
+  )
   t.is(resumedSession.snapshotted, false, 'resumed session is not snapshot')
-  t.alike(await readBlocks(resumedSession, 3), [null, null, b4a.from('sess-block2')], 'resumed session changed like original session')
-  t.alike(await readBlocks(resumedSnapSession, 3), [null, null, null], 'resumed snap session did not change')
+  t.alike(
+    await readBlocks(resumedSession, 3),
+    [null, null, b4a.from('sess-block2')],
+    'resumed session changed like original session'
+  )
+  t.alike(
+    await readBlocks(resumedSnapSession, 3),
+    [null, null, null],
+    'resumed snap session did not change'
+  )
 })
 
 test('create named sessions', async (t) => {
@@ -686,7 +716,10 @@ test('create named sessions', async (t) => {
 
 test('export hypercore', async (t) => {
   const s = await create(t)
-  const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  const core = await s.create({
+    key: b4a.alloc(32),
+    discoveryKey: b4a.alloc(32)
+  })
 
   // Note: not sure these values are valid bitfield data
   // but the API seems to accept generic buffers
@@ -746,10 +779,7 @@ test('export hypercore', async (t) => {
     { index: 1, value: b4a.from('content1') }
   ])
 
-  t.alike(session.tree, [
-    node0,
-    node1
-  ])
+  t.alike(session.tree, [node0, node1])
 
   t.alike(session.bitfield, [
     { index: 0, page: b4a.from('bitfield-data-0') },
@@ -762,7 +792,10 @@ test('export hypercore', async (t) => {
 
 test('export named sessions', async (t) => {
   const s = await create(t)
-  const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  const core = await s.create({
+    key: b4a.alloc(32),
+    discoveryKey: b4a.alloc(32)
+  })
 
   const head = {
     length: 10,
@@ -821,7 +854,10 @@ test('export named sessions', async (t) => {
 
 test('compact core', async (t) => {
   const s = await create(t)
-  const core = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  const core = await s.create({
+    key: b4a.alloc(32),
+    discoveryKey: b4a.alloc(32)
+  })
 
   const head = {
     length: 10,

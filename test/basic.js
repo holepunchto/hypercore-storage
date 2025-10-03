@@ -29,7 +29,10 @@ test('make many in parallel', async function (t) {
 
   const all = []
   for (let i = 0; i < 50; i++) {
-    const c = s.create({ key: b4a.alloc(32, i), discoveryKey: b4a.alloc(32, i) })
+    const c = s.create({
+      key: b4a.alloc(32, i),
+      discoveryKey: b4a.alloc(32, i)
+    })
     all.push(c)
   }
 
@@ -56,7 +59,10 @@ test('first core created is the default core', async function (t) {
 
   t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32))
 
-  const c1 = await s.create({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 1) })
+  const c1 = await s.create({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 1)
+  })
 
   t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32))
 
@@ -69,7 +75,10 @@ test('first core created is the default core', async function (t) {
   const s = await create(t)
 
   t.is(await s.getDefaultDiscoveryKey(), null)
-  const c = await s.create({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 2) })
+  const c = await s.create({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 2)
+  })
 
   t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32, 2))
   t.alike(await s.getAuth(b4a.alloc(32, 3)), null)
@@ -92,7 +101,10 @@ test('write during close', async function (t) {
   const s = await create(t)
 
   t.is(await s.getDefaultDiscoveryKey(), null)
-  const c = await s.create({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 2) })
+  const c = await s.create({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 2)
+  })
 
   const w = c.write()
   w.putUserData('test', b4a.alloc(1))
@@ -111,7 +123,10 @@ test('audit v0 cores', async function (t) {
 
   const all = []
   for (let i = 0; i < 35; i++) {
-    const c = s.create({ key: b4a.alloc(32, i), discoveryKey: b4a.alloc(32, i) })
+    const c = s.create({
+      key: b4a.alloc(32, i),
+      discoveryKey: b4a.alloc(32, i)
+    })
     all.push(c)
   }
 
@@ -131,11 +146,13 @@ test('audit v0 cores', async function (t) {
     allowPatch: false,
     prologue: null,
     quorum: 1,
-    signers: [{
-      signature: 'ed25519',
-      namespace: b4a.alloc(32, 0),
-      publicKey: b4a.alloc(32, 0)
-    }],
+    signers: [
+      {
+        signature: 'ed25519',
+        namespace: b4a.alloc(32, 0),
+        publicKey: b4a.alloc(32, 0)
+      }
+    ],
     linked: []
   }
 

@@ -1107,9 +1107,9 @@ async function getInfoFromBatch(db, c, getAuth, getHead, getHints) {
   const hintsPromise = getHints ? CoreRX.getHints(db, c) : null
 
   // ensure no uncaughts
-  authPromise.catch(noop)
-  headPromise.catch(noop)
-  hintsPromise.catch(noop)
+  if (authPromise) authPromise.catch(noop)
+  if (headPromise) headPromise.catch(noop)
+  if (hintsPromise) hintsPromise.catch(noop)
 
   return {
     auth: await authPromise,

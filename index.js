@@ -824,12 +824,76 @@ class CorestoreStorage {
     const core = await corePromise
     if (core === null) return null
 
-    const coreRx = new CoreRX(core, this.db, EMPTY)
-    const authPromise = coreRx.getAuth()
+    const read = this.db.read({ autoDestroy: true })
+    const authPromise = CoreRX.getAuth(read, core)
 
-    coreRx.tryFlush()
+    read.tryFlush()
 
     return authPromise
+  }
+
+  async getInfo(discoveryKey, opts) {
+    return (await this.getInfos([discoveryKey], opts))[0]
+  }
+
+  async getInfos(discoveryKeys, { auth = true, head = true, hints = true } = {}) {
+    if (this.version === 0) await this._migrateStore()
+
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const corePromises = new Array(discoveryKeys.length)
+
+    for (let i = 0; i < discoveryKeys.length; i++) {
+      corePromises[i] = rx.getCore(discoveryKeys[i])
+    }
+
+    rx.tryFlush()
+
+    const cores = await Promise.all(corePromises)
+    const read = this.db.read({ autoDestroy: true })
+
+    const authPromises = new Array(cores.length)
+    const headPromises = new Array(cores.length)
+    const hintsPromises = new Array(cores.length)
+
+    if (auth) {
+      for (let i = 0; i < cores.length; i++) {
+        authPromises[i] = cores[i] ? CoreRX.getAuth(read, cores[i]) : null
+      }
+    } else {
+      authPromises.fill(null)
+    }
+
+    if (head) {
+      for (let i = 0; i < cores.length; i++) {
+        headPromises[i] = cores[i] ? CoreRX.getHead(read, cores[i]) : null
+      }
+    } else {
+      headPromises.fill(null)
+    }
+
+    if (hints) {
+      for (let i = 0; i < cores.length; i++) {
+        hintsPromises[i] = cores[i] ? CoreRX.getHints(read, cores[i]) : null
+      }
+    } else {
+      hintsPromises.fill(null)
+    }
+
+    read.tryFlush()
+
+    const [auths, heads, hintss] = await Promise.all([
+      Promise.all(authPromises),
+      Promise.all(headPromises),
+      Promise.all(hintsPromises)
+    ])
+
+    const result = new Array(cores.length)
+
+    for (let i = 0; i < cores.length; i++) {
+      result[i] = cores[i] ? { auth: auths[i], head: heads[i], hints: hintss[i] } : null
+    }
+
+    return result
   }
 
   async resume(discoveryKey) {

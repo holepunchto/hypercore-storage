@@ -186,3 +186,62 @@ test('audit v0 cores', async function (t) {
 
   await s.close()
 })
+
+test('can get heads from store efficiently', async function (t) {
+  const s = await create(t)
+  const dkeys = []
+
+  for (let i = 0; i < 5; i++) {
+    const discoveryKey = b4a.alloc(32, i)
+    const c = await s.create({
+      key: b4a.alloc(32, i),
+      discoveryKey
+    })
+
+    dkeys.push(discoveryKey)
+
+    const w = c.write()
+
+    w.setHead({
+      fork: 0,
+      length: i,
+      rootHash: b4a.alloc(32),
+      signature: null
+    })
+
+    await w.flush()
+  }
+
+  {
+    const heads = await s.getInfos(dkeys)
+    t.alike(
+      heads.map((x) => x.head.length),
+      [0, 1, 2, 3, 4]
+    )
+  }
+
+  {
+    const heads = await s.getInfos(dkeys.concat(b4a.alloc(32, 'nope')))
+    t.alike(
+      heads.map((x) => x === null),
+      [false, false, false, false, false, true]
+    )
+  }
+
+  {
+    const head = await s.getInfo(dkeys[2])
+    t.alike(head, {
+      auth: {
+        key: b4a.alloc(32, 2),
+        discoveryKey: b4a.alloc(32, 2),
+        manifest: null,
+        keyPair: null,
+        encryptionKey: null
+      },
+      head: { fork: 0, length: 2, rootHash: b4a.alloc(32, 0), signature: null },
+      hints: {
+        contiguousLength: 0
+      }
+    })
+  }
+})

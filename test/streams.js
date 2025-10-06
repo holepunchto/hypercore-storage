@@ -286,9 +286,9 @@ test('discoveryKey stream', async function (t) {
   for (let i = 0; i < 10; i++) {
     const discoveryKey = crypto.randomBytes(32)
     if (i < 5) {
-      await s.create({ key: crypto.randomBytes(32), discoveryKey })
+      await s.createCore({ key: crypto.randomBytes(32), discoveryKey })
     } else {
-      await s.create({
+      await s.createCore({
         key: crypto.randomBytes(32),
         discoveryKey,
         alias: { name: `core-${i}`, namespace }

@@ -857,7 +857,7 @@ class CorestoreStorage {
     return authPromise
   }
 
-  async continue(discoveryKey) {
+  async resumeCore(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
     if (!discoveryKey) {
@@ -971,7 +971,7 @@ class CorestoreStorage {
     return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
   }
 
-  async create(data) {
+  async createCore(data) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()

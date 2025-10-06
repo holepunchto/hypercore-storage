@@ -18,13 +18,13 @@ const Storage = require('hypercore-storage')
 
 Make a new storage engine.
 
-#### `core = await store.create({ key, discoveyKey, manifest?, keyPair?, encryptionKey?, userData? })`
+#### `core = await store.createCore({ key, discoveyKey, manifest?, keyPair?, encryptionKey?, userData? })`
 
 Create a new core, returns a storage instance for that core.
 
-#### `core = await store.continue(discoveryKey)`
+#### `core = await store.resumeCore(discoveryKey)`
 
-Continue a previously made core. If it doesn't exist it returns `null`.
+Resume a previously made core. If it doesn't exist it returns `null`.
 
 #### `atom = store.createAtom()`
 

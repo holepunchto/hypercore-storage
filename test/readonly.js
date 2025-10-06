@@ -1,6 +1,5 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { create } = require('./helpers')
 const tmp = require('test-tmp')
 const Storage = require('../')
 
@@ -9,7 +8,7 @@ test('make storage and core', async function (t) {
   const w = new Storage(dir)
 
   t.is(await w.has(b4a.alloc(32)), false)
-  t.is(await w.continue(b4a.alloc(32)), null)
+  t.is(await w.resumeCore(b4a.alloc(32)), null)
 
   await w.db.suspend()
   await w.db.resume()

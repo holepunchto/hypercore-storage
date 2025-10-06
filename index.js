@@ -851,49 +851,15 @@ class CorestoreStorage {
     const cores = await Promise.all(corePromises)
     const read = this.db.read({ autoDestroy: true })
 
-    const authPromises = new Array(cores.length)
-    const headPromises = new Array(cores.length)
-    const hintsPromises = new Array(cores.length)
+    const resultPromises = new Array(cores.length)
 
-    if (auth) {
-      for (let i = 0; i < cores.length; i++) {
-        authPromises[i] = cores[i] ? CoreRX.getAuth(read, cores[i]) : null
-      }
-    } else {
-      authPromises.fill(null)
-    }
-
-    if (head) {
-      for (let i = 0; i < cores.length; i++) {
-        headPromises[i] = cores[i] ? CoreRX.getHead(read, cores[i]) : null
-      }
-    } else {
-      headPromises.fill(null)
-    }
-
-    if (hints) {
-      for (let i = 0; i < cores.length; i++) {
-        hintsPromises[i] = cores[i] ? CoreRX.getHints(read, cores[i]) : null
-      }
-    } else {
-      hintsPromises.fill(null)
+    for (let i = 0; i < cores.length; i++) {
+      resultPromises[i] = cores[i] ? getInfo(read, cores[i], auth, head, hints) : null
     }
 
     read.tryFlush()
 
-    const [auths, heads, hintss] = await Promise.all([
-      Promise.all(authPromises),
-      Promise.all(headPromises),
-      Promise.all(hintsPromises)
-    ])
-
-    const result = new Array(cores.length)
-
-    for (let i = 0; i < cores.length; i++) {
-      result[i] = cores[i] ? { auth: auths[i], head: heads[i], hints: hintss[i] } : null
-    }
-
-    return result
+    return Promise.all(resultPromises)
   }
 
   async resume(discoveryKey) {
@@ -1131,4 +1097,23 @@ async function toArray(stream) {
   const all = []
   for await (const e of stream) all.push(e)
   return all
+}
+
+function noop() {}
+
+async function getInfo(db, c, getAuth, getHead, getHints) {
+  const authPromise = getAuth ? CoreRX.getAuth(db, c) : null
+  const headPromise = getHead ? CoreRX.getHead(db, c) : null
+  const hintsPromise = getHints ? CoreRX.getHints(db, c) : null
+
+  // ensure no uncaughts
+  authPromise.catch(noop)
+  headPromise.catch(noop)
+  hintsPromise.catch(noop)
+
+  return {
+    auth: await authPromise,
+    head: await headPromise,
+    hints: await hintsPromise
+  }
 }

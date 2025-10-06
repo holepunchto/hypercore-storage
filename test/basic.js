@@ -231,6 +231,8 @@ test('can get info from store efficiently', async function (t) {
   {
     const head = await s.getInfo(dkeys[2])
     t.alike(head, {
+      discoveryKey: dkeys[2],
+      core: head.core, // dont wanna over assert this one
       auth: {
         key: b4a.alloc(32, 2),
         discoveryKey: b4a.alloc(32, 2),

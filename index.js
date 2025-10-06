@@ -439,6 +439,7 @@ class CorestoreStorage {
     this.flushing = null
     this.version = 0
     this.migrating = null
+    this._suspended = false
   }
 
   get opened() {
@@ -447,6 +448,10 @@ class CorestoreStorage {
 
   get closed() {
     return this.db.closed
+  }
+
+  get suspended() {
+    return this._suspended
   }
 
   async ready() {
@@ -680,7 +685,26 @@ class CorestoreStorage {
   }
 
   async flush() {
+    if (this.readOnly) return
     await this.rocks.flush()
+  }
+
+  async suspend() {
+    if (!this.opened) await this.ready()
+    if (this._suspended) return
+
+    await this.db.suspend()
+
+    this._suspended = true
+  }
+
+  async resume() {
+    if (!this.opened) await this.ready()
+    if (!this._suspended) return
+
+    await this.db.resume()
+
+    this._suspended = false
   }
 
   async close() {
@@ -832,7 +856,7 @@ class CorestoreStorage {
     return authPromise
   }
 
-  async resume(discoveryKey) {
+  async resumeCore(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
     if (!discoveryKey) {
@@ -946,7 +970,7 @@ class CorestoreStorage {
     return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
   }
 
-  async create(data) {
+  async createCore(data) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()

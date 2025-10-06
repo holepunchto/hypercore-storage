@@ -19,7 +19,7 @@ module.exports = {
 
 async function createCore(t) {
   const s = await create(t)
-  const core = await s.create({
+  const core = await s.createCore({
     key: b4a.alloc(32),
     discoveryKey: b4a.alloc(32)
   })

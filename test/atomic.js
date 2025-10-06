@@ -250,9 +250,9 @@ test('basic atomized flow with multiple cores', async (t) => {
   const key2 = b4a.from('2'.repeat(64), 'hex')
 
   const cores = await Promise.all([
-    storage.create({ key: key0, discoveryKey: key0 }),
-    storage.create({ key: key1, discoveryKey: key1 }),
-    storage.create({ key: key2, discoveryKey: key2 })
+    storage.createCore({ key: key0, discoveryKey: key0 }),
+    storage.createCore({ key: key1, discoveryKey: key1 }),
+    storage.createCore({ key: key2, discoveryKey: key2 })
   ])
   const [core0, core1, core2] = cores
   t.teardown(async () => {

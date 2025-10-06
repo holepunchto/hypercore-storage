@@ -31,9 +31,9 @@ test('read and write hypercore blocks across multiple cores', async (t) => {
   }
 
   const [core0, core1, core2] = await Promise.all([
-    storage.create(keys0),
-    storage.create(keys1),
-    storage.create(keys2)
+    storage.createCore(keys0),
+    storage.createCore(keys1),
+    storage.createCore(keys2)
   ])
 
   await Promise.all([
@@ -676,7 +676,7 @@ test('create named sessions', async (t) => {
 
 test('export hypercore', async (t) => {
   const s = await create(t)
-  const core = await s.create({
+  const core = await s.createCore({
     key: b4a.alloc(32),
     discoveryKey: b4a.alloc(32)
   })
@@ -752,7 +752,7 @@ test('export hypercore', async (t) => {
 
 test('export named sessions', async (t) => {
   const s = await create(t)
-  const core = await s.create({
+  const core = await s.createCore({
     key: b4a.alloc(32),
     discoveryKey: b4a.alloc(32)
   })
@@ -814,7 +814,7 @@ test('export named sessions', async (t) => {
 
 test('compact core', async (t) => {
   const s = await create(t)
-  const core = await s.create({
+  const core = await s.createCore({
     key: b4a.alloc(32),
     discoveryKey: b4a.alloc(32)
   })

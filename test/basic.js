@@ -244,4 +244,6 @@ test('can get info from store efficiently', async function (t) {
       }
     })
   }
+
+  await s.close()
 })

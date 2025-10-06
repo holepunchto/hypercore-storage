@@ -98,12 +98,7 @@ test('delete hypercore block range', async (t) => {
   await tx.flush()
 
   const rx = core.read()
-  const p = Promise.all([
-    rx.getBlock(0),
-    rx.getBlock(1),
-    rx.getBlock(2),
-    rx.getBlock(3)
-  ])
+  const p = Promise.all([rx.getBlock(0), rx.getBlock(1), rx.getBlock(2), rx.getBlock(3)])
   rx.tryFlush()
   const [res0, res1, res2, res3] = await p
   t.is(b4a.toString(res0), 'block0')
@@ -132,11 +127,7 @@ test('put and get tree node', async (t) => {
   await tx.flush()
 
   const rx = core.read()
-  const p = Promise.all([
-    rx.getTreeNode(0),
-    rx.getTreeNode(1),
-    rx.getTreeNode(2)
-  ])
+  const p = Promise.all([rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2)])
   rx.tryFlush()
   const [res0, res1, res2] = await p
 
@@ -174,11 +165,7 @@ test('delete tree node', async (t) => {
   }
 
   const rx = core.read()
-  const p = Promise.all([
-    rx.getTreeNode(0),
-    rx.getTreeNode(1),
-    rx.getTreeNode(2)
-  ])
+  const p = Promise.all([rx.getTreeNode(0), rx.getTreeNode(1), rx.getTreeNode(2)])
   rx.tryFlush()
   const [res0, res1] = await p
 
@@ -434,11 +421,7 @@ test('set and get hypercore userdata', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getUserData('key'),
-      rx.getUserData('key2'),
-      rx.getUserData('no-key')
-    ])
+    const p = Promise.all([rx.getUserData('key'), rx.getUserData('key2'), rx.getUserData('no-key')])
     rx.tryFlush()
     const [data1, data2, data3] = await p
 
@@ -499,11 +482,7 @@ test('set and get bitfield page', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getBitfieldPage(0),
-      rx.getBitfieldPage(1),
-      rx.getBitfieldPage(2)
-    ])
+    const p = Promise.all([rx.getBitfieldPage(0), rx.getBitfieldPage(1), rx.getBitfieldPage(2)])
     rx.tryFlush()
     const [data1, data2, data3] = await p
 
@@ -614,10 +593,7 @@ test('cannot create sessions on snapshot', async (t) => {
   const core = await createCore(t)
   const snap = core.snapshot()
 
-  await t.exception(
-    async () => await snap.createSession(),
-    /Cannot open core tx on snapshot/
-  )
+  await t.exception(async () => await snap.createSession(), /Cannot open core tx on snapshot/)
 })
 
 test('can resume a snapshot session, and that session is a snapshot too', async (t) => {
@@ -632,16 +608,8 @@ test('can resume a snapshot session, and that session is a snapshot too', async 
 
   const initBlocks = [b4a.from('block0'), b4a.from('block1'), null]
   t.alike(await readBlocks(snap, 3), initBlocks, 'sanity check snap')
-  t.alike(
-    await readBlocks(session, 3),
-    [null, null, null],
-    'sanity check session'
-  )
-  t.alike(
-    await readBlocks(sessionSnap, 3),
-    [null, null, null],
-    'sanity check snap session'
-  )
+  t.alike(await readBlocks(session, 3), [null, null, null], 'sanity check session')
+  t.alike(await readBlocks(sessionSnap, 3), [null, null, null], 'sanity check snap session')
 
   await writeBlocks(core, 1, { pre: 'core-', start: 2 })
   await writeBlocks(session, 1, { pre: 'sess-', start: 2 })
@@ -655,11 +623,7 @@ test('can resume a snapshot session, and that session is a snapshot too', async 
     [b4a.from('block0'), b4a.from('block1'), b4a.from('core-block2')],
     'core updated (sanity check)'
   )
-  t.alike(
-    await readBlocks(snap, 3),
-    initBlocks,
-    'snap did not change (sanity check)'
-  )
+  t.alike(await readBlocks(snap, 3), initBlocks, 'snap did not change (sanity check)')
   t.alike(
     await readBlocks(sessionSnap, 3),
     [null, null, null],
@@ -669,11 +633,7 @@ test('can resume a snapshot session, and that session is a snapshot too', async 
   const resumedSnapSession = await sessionSnap.resumeSession('sess')
   const resumedSession = await core.resumeSession('sess')
 
-  t.is(
-    resumedSnapSession.snapshotted,
-    true,
-    'resumed snapshot session is snapshot'
-  )
+  t.is(resumedSnapSession.snapshotted, true, 'resumed snapshot session is snapshot')
   t.is(resumedSession.snapshotted, false, 'resumed session is not snapshot')
   t.alike(
     await readBlocks(resumedSession, 3),

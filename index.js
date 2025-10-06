@@ -188,27 +188,15 @@ class HypercoreStorage {
 
   compact() {
     return Promise.all([
-      this.db.compactRange(
-        core.core(this.core.corePointer),
-        core.core(this.core.corePointer)
-      ),
-      this.db.compactRange(
-        core.data(this.core.dataPointer),
-        core.data(this.core.dataPointer)
-      )
+      this.db.compactRange(core.core(this.core.corePointer), core.core(this.core.corePointer)),
+      this.db.compactRange(core.data(this.core.dataPointer), core.data(this.core.dataPointer))
     ])
   }
 
   atomize(atom) {
     if (this.atom && this.atom !== atom)
       throw new Error('Cannot atomize and atomized session with a new atom')
-    return new HypercoreStorage(
-      this.store,
-      this.db.session(),
-      this.core,
-      atom.view,
-      atom
-    )
+    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 
   createAtom() {
@@ -368,8 +356,7 @@ class HypercoreStorage {
 
     if (
       dep !== null &&
-      (deps.length === 0 ||
-        deps[deps.length - 1].dataPointer !== dep.dataPointer)
+      (deps.length === 0 || deps[deps.length - 1].dataPointer !== dep.dataPointer)
     ) {
       deps.push(dep)
     }
@@ -409,11 +396,7 @@ class HypercoreStorage {
 
     rx.tryFlush()
 
-    const [sessions, head, auth] = await Promise.all([
-      sessionsPromise,
-      headPromise,
-      authPromise
-    ])
+    const [sessions, head, auth] = await Promise.all([sessionsPromise, headPromise, authPromise])
 
     core.head = head
     core.auth = { ...auth, keyPair: null }
@@ -447,8 +430,7 @@ class CorestoreStorage {
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
 
-    this.rocks =
-      storage === null ? db : new RocksDB(path.join(this.path, 'db'), opts)
+    this.rocks = storage === null ? db : new RocksDB(path.join(this.path, 'db'), opts)
     this.db = createColumnFamily(this.rocks, opts)
     this.id = opts.id || null
     this.view = null
@@ -583,9 +565,7 @@ class CorestoreStorage {
         }
         default: {
           throw new Error(
-            'Unsupported version: ' +
-              version +
-              ' - you should probably upgrade your dependencies'
+            'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'
           )
         }
       }
@@ -611,9 +591,7 @@ class CorestoreStorage {
         }
         default: {
           throw new Error(
-            'Unsupported version: ' +
-              version +
-              ' - you should probably upgrade your dependencies'
+            'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'
           )
         }
       }
@@ -809,8 +787,7 @@ class CorestoreStorage {
 
       const head = (await headPromise) || initStoreHead()
 
-      if (head.defaultDiscoveryKey === null || overwrite)
-        head.defaultDiscoveryKey = discoveryKey
+      if (head.defaultDiscoveryKey === null || overwrite) head.defaultDiscoveryKey = discoveryKey
       tx.setHead(head)
       tx.apply()
 
@@ -886,11 +863,7 @@ class CorestoreStorage {
     const ptr = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX(
-        { dataPointer, corePointer: 0, dependencies: [] },
-        this.db,
-        EMPTY
-      )
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -907,20 +880,11 @@ class CorestoreStorage {
     }
   }
 
-  async _resumeFromPointers(
-    view,
-    discoveryKey,
-    create,
-    { version, corePointer, dataPointer }
-  ) {
+  async _resumeFromPointers(view, discoveryKey, create, { version, corePointer, dataPointer }) {
     const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX(
-        { dataPointer, corePointer: 0, dependencies: [] },
-        this.db,
-        view
-      )
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -929,24 +893,14 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    const result = new HypercoreStorage(
-      this,
-      this.db.session(),
-      core,
-      EMPTY,
-      null
-    )
+    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
 
-    if (version < VERSION)
-      await this._migrateCore(result, discoveryKey, version, create)
+    if (version < VERSION) await this._migrateCore(result, discoveryKey, version, create)
     return result
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _create(
-    view,
-    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }
-  ) {
+  async _create(view, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 
@@ -959,8 +913,7 @@ class CorestoreStorage {
     if (core) return this._resumeFromPointers(view, discoveryKey, true, core)
 
     if (head === null) head = initStoreHead()
-    if (head.defaultDiscoveryKey === null)
-      head.defaultDiscoveryKey = discoveryKey
+    if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
     const corePointer = head.allocated.cores++
     const dataPointer = head.allocated.datas++
@@ -1033,11 +986,7 @@ function getBatch(sessions, name, alloc) {
 }
 
 function isCorestoreStorage(s) {
-  return (
-    typeof s === 'object' &&
-    !!s &&
-    typeof s.setDefaultDiscoveryKey === 'function'
-  )
+  return typeof s === 'object' && !!s && typeof s.setDefaultDiscoveryKey === 'function'
 }
 
 function createColumnFamily(db, opts = {}) {

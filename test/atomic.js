@@ -27,20 +27,12 @@ test('basic atomized flow with a single core', async (t) => {
   await writeBlocks(atomCore, 1, { start: 2 })
   const expected = [...initBlocks, b4a.from('block2'), null]
 
-  t.alike(
-    await readBlocks(core, 4),
-    [...initBlocks, null, null],
-    'not added to original core'
-  )
+  t.alike(await readBlocks(core, 4), [...initBlocks, null, null], 'not added to original core')
   t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
 
   await atom.flush()
 
-  t.alike(
-    await readBlocks(core, 4),
-    expected,
-    'flushing adds to the original core'
-  )
+  t.alike(await readBlocks(core, 4), expected, 'flushing adds to the original core')
   t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
 })
 
@@ -206,11 +198,7 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   )
 
   t.alike(await readTreeNodes(atomCore, 2), expNodes, 'tree nodes atom')
-  t.alike(
-    await readTreeNodes(core, 2),
-    [null, null],
-    'tree nodes orig pre flush'
-  )
+  t.alike(await readTreeNodes(core, 2), [null, null], 'tree nodes orig pre flush')
 
   t.alike(await getAuth(atomCore), expAuth, 'auth atom')
   t.alike(
@@ -234,41 +222,21 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   t.alike(await getHints(atomCore), expHints, 'hints atom')
   t.alike(await getHints(core), null, 'hints orig pre flush')
 
-  t.alike(
-    await getUserData(atomCore, 'key'),
-    b4a.from('value'),
-    'userdata atom'
-  )
+  t.alike(await getUserData(atomCore, 'key'), b4a.from('value'), 'userdata atom')
   t.alike(await getUserData(core, 'key'), null, 'userdata orig pre flush')
 
   t.alike(await getBitfieldPages(atomCore, 2), expBitfields, 'bitfields atom')
-  t.alike(
-    await getBitfieldPages(core, 2),
-    [null, null],
-    'bitfields orig pre flush'
-  )
+  t.alike(await getBitfieldPages(core, 2), [null, null], 'bitfields orig pre flush')
 
   await atom.flush()
   t.alike(await readBlocks(core, 5), expBlocks, 'blocks orig post flush')
   t.alike(await readTreeNodes(core, 2), expNodes, 'tree nodes orig post flush')
   t.alike(await getAuth(core, 2), expAuth, 'auth orig post flush')
   t.alike(await getHead(core), expHead, 'head orig post flush')
-  t.alike(
-    await getDependency(core),
-    expDependency,
-    'dependency orig post flush'
-  )
+  t.alike(await getDependency(core), expDependency, 'dependency orig post flush')
   t.alike(await getHints(core), expHints, 'hints orig post flush')
-  t.alike(
-    await getUserData(core, 'key'),
-    b4a.from('value'),
-    'userdata orig post flush'
-  )
-  t.alike(
-    await getBitfieldPages(core, 2),
-    expBitfields,
-    'bitfields orig post flush'
-  )
+  t.alike(await getUserData(core, 'key'), b4a.from('value'), 'userdata orig post flush')
+  t.alike(await getBitfieldPages(core, 2), expBitfields, 'bitfields orig post flush')
 })
 
 test('basic atomized flow with multiple cores', async (t) => {
@@ -367,31 +335,18 @@ test('conflicting writes to original core before an atomized write--atomized win
   await writeBlocks(core, 2, { pre: 'orig-', start: 2 })
   await writeBlocks(atomCore, 1, { pre: 'atom-', start: 2 })
 
-  const expected = [
-    ...initBlocks,
-    b4a.from('atom-block2'),
-    b4a.from('orig-block3'),
-    null
-  ]
+  const expected = [...initBlocks, b4a.from('atom-block2'), b4a.from('orig-block3'), null]
 
   t.alike(
     await readBlocks(core, 5),
     [...initBlocks, b4a.from('orig-block2'), b4a.from('orig-block3'), null],
     'no atom blocks in original core pre flush'
   )
-  t.alike(
-    await readBlocks(atomCore, 5),
-    expected,
-    'atomized core overrode the orig core change'
-  )
+  t.alike(await readBlocks(atomCore, 5), expected, 'atomized core overrode the orig core change')
 
   await atom.flush()
 
-  t.alike(
-    await readBlocks(core, 5),
-    expected,
-    'core equal to atom one after flush'
-  )
+  t.alike(await readBlocks(core, 5), expected, 'core equal to atom one after flush')
 })
 
 test('conflicting writes to original core after an atomized write--atomized wins', async (t) => {
@@ -405,29 +360,16 @@ test('conflicting writes to original core after an atomized write--atomized wins
   await writeBlocks(atomCore, 1, { pre: 'atom-', start: 2 })
   await writeBlocks(core, 2, { pre: 'orig-', start: 2 })
 
-  const expected = [
-    ...initBlocks,
-    b4a.from('atom-block2'),
-    b4a.from('orig-block3'),
-    null
-  ]
+  const expected = [...initBlocks, b4a.from('atom-block2'), b4a.from('orig-block3'), null]
 
   t.alike(
     await readBlocks(core, 5),
     [...initBlocks, b4a.from('orig-block2'), b4a.from('orig-block3'), null],
     'no atom blocks in original core pre flush'
   )
-  t.alike(
-    await readBlocks(atomCore, 5),
-    expected,
-    'atomized core overrode the orig core change'
-  )
+  t.alike(await readBlocks(atomCore, 5), expected, 'atomized core overrode the orig core change')
 
   await atom.flush()
 
-  t.alike(
-    await readBlocks(core, 5),
-    expected,
-    'core equal to atom one after flush'
-  )
+  t.alike(await readBlocks(core, 5), expected, 'core equal to atom one after flush')
 })

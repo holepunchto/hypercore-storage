@@ -854,7 +854,7 @@ class CorestoreStorage {
     const resultPromises = new Array(cores.length)
 
     for (let i = 0; i < cores.length; i++) {
-      resultPromises[i] = cores[i] ? getInfo(read, cores[i], auth, head, hints) : null
+      resultPromises[i] = cores[i] ? getInfoFromBatch(read, cores[i], auth, head, hints) : null
     }
 
     read.tryFlush()
@@ -1101,7 +1101,7 @@ async function toArray(stream) {
 
 function noop() {}
 
-async function getInfo(db, c, getAuth, getHead, getHints) {
+async function getInfoFromBatch(db, c, getAuth, getHead, getHints) {
   const authPromise = getAuth ? CoreRX.getAuth(db, c) : null
   const headPromise = getHead ? CoreRX.getHead(db, c) : null
   const hintsPromise = getHints ? CoreRX.getHints(db, c) : null

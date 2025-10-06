@@ -419,8 +419,6 @@ class HypercoreStorage {
 }
 
 class CorestoreStorage {
-  _suspended = false
-
   constructor(db, opts = {}) {
     const storage = typeof db === 'string' ? db : null
 
@@ -441,6 +439,7 @@ class CorestoreStorage {
     this.flushing = null
     this.version = 0
     this.migrating = null
+    this._suspended = false
   }
 
   get opened() {

@@ -288,7 +288,11 @@ test('discoveryKey stream', async function (t) {
     if (i < 5) {
       await s.create({ key: crypto.randomBytes(32), discoveryKey })
     } else {
-      await s.create({ key: crypto.randomBytes(32), discoveryKey, alias: { name: `core-${i}`, namespace } })
+      await s.create({
+        key: crypto.randomBytes(32),
+        discoveryKey,
+        alias: { name: `core-${i}`, namespace }
+      })
       expectedNamespace.push(discoveryKey)
     }
     expectedAll.push(discoveryKey)
@@ -297,17 +301,21 @@ test('discoveryKey stream', async function (t) {
   const discoveryKeysAll = await toArray(s.createDiscoveryKeyStream())
   const discoveryKeysNamespace = await toArray(s.createDiscoveryKeyStream(namespace))
 
-  t.alike(discoveryKeysAll.slice().sort((a, b) => Buffer.compare(a, b)),
-    expectedAll.slice().sort((a, b) => Buffer.compare(a, b)))
-  t.alike(discoveryKeysNamespace.slice().sort((a, b) => Buffer.compare(a, b)),
-    expectedNamespace.slice().sort((a, b) => Buffer.compare(a, b)))
+  t.alike(
+    discoveryKeysAll.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedAll.slice().sort((a, b) => Buffer.compare(a, b))
+  )
+  t.alike(
+    discoveryKeysNamespace.slice().sort((a, b) => Buffer.compare(a, b)),
+    expectedNamespace.slice().sort((a, b) => Buffer.compare(a, b))
+  )
 })
 
-function cmpBlock (a, b) {
+function cmpBlock(a, b) {
   return a.index - b.index
 }
 
-async function writeBlocks (sess, head, n) {
+async function writeBlocks(sess, head, n) {
   const start = head.length
 
   const tx = sess.write()

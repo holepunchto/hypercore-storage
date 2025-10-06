@@ -11,12 +11,7 @@ const COLUMN_FAMILY = 'corestore'
 
 const { store, core } = require('./lib/keys.js')
 
-const {
-  CorestoreRX,
-  CorestoreTX,
-  CoreTX,
-  CoreRX
-} = require('./lib/tx.js')
+const { CorestoreRX, CorestoreTX, CoreTX, CoreRX } = require('./lib/tx.js')
 
 const {
   createCoreStream,
@@ -32,7 +27,7 @@ const {
 const EMPTY = new View()
 
 class Atom {
-  constructor (db) {
+  constructor(db) {
     this.db = db
     this.view = new View()
     this.flushedPromise = null
@@ -40,24 +35,24 @@ class Atom {
     this.flushes = []
   }
 
-  onflush (fn) {
+  onflush(fn) {
     this.flushes.push(fn)
   }
 
-  flushed () {
+  flushed() {
     if (!this.flushing) return Promise.resolve()
     if (this.flushedPromise !== null) return this.flushedPromise.promise
     this.flushedPromise = rrp()
     return this.flushedPromise.promise
   }
 
-  _resolve () {
+  _resolve() {
     const f = this.flushedPromise
     this.flushedPromise = null
     f.resolve()
   }
 
-  async flush () {
+  async flush() {
     if (this.flushing) throw new Error('Atom already flushing')
     this.flushing = true
 
@@ -78,7 +73,7 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor (store, db, core, view, atom) {
+  constructor(store, db, core, view, atom) {
     this.store = store
     this.db = db
     this.core = core
@@ -88,17 +83,17 @@ class HypercoreStorage {
     this.view.readStart()
   }
 
-  get dependencies () {
+  get dependencies() {
     return this.core.dependencies
   }
 
-  getDependencyLength () {
+  getDependencyLength() {
     return this.core.dependencies.length
       ? this.core.dependencies[this.core.dependencies.length - 1].length
       : -1
   }
 
-  getDependency (length) {
+  getDependency(length) {
     for (let i = this.core.dependencies.length - 1; i >= 0; i--) {
       const dep = this.core.dependencies[i]
       if (dep.length < length) return dep
@@ -107,7 +102,7 @@ class HypercoreStorage {
     return null
   }
 
-  setDependencyHead (dep) {
+  setDependencyHead(dep) {
     const deps = this.core.dependencies
 
     for (let i = deps.length - 1; i >= 0; i--) {
@@ -130,14 +125,16 @@ class HypercoreStorage {
       }
     }
 
-    this.core.dependencies = [{
-      dataPointer: dep.dataPointer,
-      length: dep.length
-    }]
+    this.core.dependencies = [
+      {
+        dataPointer: dep.dataPointer,
+        length: dep.length
+      }
+    ]
   }
 
   // TODO: this might have to be async if the dependents have changed, but prop ok for now
-  updateDependencyLength (length, truncated) {
+  updateDependencyLength(length, truncated) {
     const deps = this.core.dependencies
 
     const i = this.findDependencyIndex(length, truncated)
@@ -157,7 +154,7 @@ class HypercoreStorage {
     }
   }
 
-  findDependencyIndex (length, truncated) {
+  findDependencyIndex(length, truncated) {
     const deps = this.core.dependencies
 
     if (truncated) {
@@ -175,51 +172,58 @@ class HypercoreStorage {
     return -1
   }
 
-  get snapshotted () {
+  get snapshotted() {
     return this.db._snapshot !== null
   }
 
-  snapshot () {
-    return new HypercoreStorage(this.store, this.db.snapshot(), this.core, this.view.snapshot(), this.atom)
+  snapshot() {
+    return new HypercoreStorage(
+      this.store,
+      this.db.snapshot(),
+      this.core,
+      this.view.snapshot(),
+      this.atom
+    )
   }
 
-  compact () {
+  compact() {
     return Promise.all([
       this.db.compactRange(core.core(this.core.corePointer), core.core(this.core.corePointer)),
       this.db.compactRange(core.data(this.core.dataPointer), core.data(this.core.dataPointer))
     ])
   }
 
-  atomize (atom) {
-    if (this.atom && this.atom !== atom) throw new Error('Cannot atomize and atomized session with a new atom')
+  atomize(atom) {
+    if (this.atom && this.atom !== atom)
+      throw new Error('Cannot atomize and atomized session with a new atom')
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 
-  createAtom () {
+  createAtom() {
     return this.store.createAtom()
   }
 
-  createBlockStream (opts) {
+  createBlockStream(opts) {
     return createBlockStream(this.core, this.db, this.view, opts)
   }
 
-  createTreeNodeStream (opts) {
+  createTreeNodeStream(opts) {
     return createTreeNodeStream(this.core, this.db, this.view, opts)
   }
 
-  createBitfieldStream (opts) {
+  createBitfieldStream(opts) {
     return createBitfieldStream(this.core, this.db, this.view, opts)
   }
 
-  createUserDataStream (opts) {
+  createUserDataStream(opts) {
     return createUserDataStream(this.core, this.db, this.view, opts)
   }
 
-  createLocalStream (opts) {
+  createLocalStream(opts) {
     return createLocalStream(this.core, this.db, this.view, opts)
   }
 
-  async resumeSession (name) {
+  async resumeSession(name) {
     const rx = this.read()
     const existingSessionsPromise = rx.getSessions()
 
@@ -245,10 +249,16 @@ class HypercoreStorage {
     const dependency = await dependencyPromise
     if (dependency) core.dependencies = this._addDependency(dependency)
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
+    return new HypercoreStorage(
+      this.store,
+      this.db.session(),
+      core,
+      this.atom ? this.view : new View(),
+      this.atom
+    )
   }
 
-  async createSession (name, head) {
+  async createSession(name, head) {
     const rx = this.read()
 
     const existingSessionsPromise = rx.getSessions()
@@ -256,7 +266,10 @@ class HypercoreStorage {
 
     rx.tryFlush()
 
-    const [existingSessions, existingHead] = await Promise.all([existingSessionsPromise, existingHeadPromise])
+    const [existingSessions, existingHead] = await Promise.all([
+      existingSessionsPromise,
+      existingHeadPromise
+    ])
     if (head === null) head = existingHead
 
     if (existingHead !== null && head.length > existingHead.length) {
@@ -279,7 +292,10 @@ class HypercoreStorage {
     const core = {
       corePointer: this.core.corePointer,
       dataPointer: session.dataPointer,
-      dependencies: this._addDependency({ dataPointer: this.core.dataPointer, length })
+      dependencies: this._addDependency({
+        dataPointer: this.core.dataPointer,
+        length
+      })
     }
 
     const coreTx = new CoreTX(core, this.db, tx.view, tx.changes)
@@ -296,10 +312,16 @@ class HypercoreStorage {
 
     await tx.flush()
 
-    return new HypercoreStorage(this.store, this.db.session(), core, this.atom ? this.view : new View(), this.atom)
+    return new HypercoreStorage(
+      this.store,
+      this.db.session(),
+      core,
+      this.atom ? this.view : new View(),
+      this.atom
+    )
   }
 
-  async createAtomicSession (atom, head) {
+  async createAtomicSession(atom, head) {
     const length = head === null ? 0 : head.length
     const core = {
       corePointer: this.core.corePointer,
@@ -316,7 +338,7 @@ class HypercoreStorage {
     return this.atomize(atom)
   }
 
-  _addDependency (dep) {
+  _addDependency(dep) {
     const deps = []
 
     for (let i = 0; i < this.core.dependencies.length; i++) {
@@ -332,21 +354,24 @@ class HypercoreStorage {
       deps.push(d)
     }
 
-    if (dep !== null && (deps.length === 0 || deps[deps.length - 1].dataPointer !== dep.dataPointer)) {
+    if (
+      dep !== null &&
+      (deps.length === 0 || deps[deps.length - 1].dataPointer !== dep.dataPointer)
+    ) {
       deps.push(dep)
     }
     return deps
   }
 
-  read () {
+  read() {
     return new CoreRX(this.core, this.db, this.view)
   }
 
-  write () {
+  write() {
     return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
-  close () {
+  close() {
     if (this.view !== null) {
       this.view.readStop()
       this.view = null
@@ -355,7 +380,7 @@ class HypercoreStorage {
     return this.db.close()
   }
 
-  static async export (ptr, db, { batches = false } = {}) {
+  static async export(ptr, db, { batches = false } = {}) {
     const rx = new CoreRX(ptr, db, EMPTY)
 
     const core = {
@@ -371,15 +396,11 @@ class HypercoreStorage {
 
     rx.tryFlush()
 
-    const [sessions, head, auth] = await Promise.all([
-      sessionsPromise,
-      headPromise,
-      authPromise
-    ])
+    const [sessions, head, auth] = await Promise.all([sessionsPromise, headPromise, authPromise])
 
     core.head = head
     core.auth = { ...auth, keyPair: null }
-    if (sessions) core.sessions = sessions.map(s => s.name)
+    if (sessions) core.sessions = sessions.map((s) => s.name)
 
     const data = []
 
@@ -398,7 +419,7 @@ class HypercoreStorage {
 }
 
 class CorestoreStorage {
-  constructor (db, opts = {}) {
+  constructor(db, opts = {}) {
     const storage = typeof db === 'string' ? db : null
 
     this.bootstrap = storage !== null
@@ -420,24 +441,24 @@ class CorestoreStorage {
     this.migrating = null
   }
 
-  get opened () {
+  get opened() {
     return this.db.opened
   }
 
-  get closed () {
+  get closed() {
     return this.db.closed
   }
 
-  async ready () {
+  async ready() {
     if (this.version === 0) await this._migrateStore()
     return this.db.ready()
   }
 
-  compact () {
+  compact() {
     return this.db.compactRange()
   }
 
-  async audit () {
+  async audit() {
     for await (const { core } of this.createCoreStream()) {
       const coreRx = new CoreRX(core, this.db, EMPTY)
       const authPromise = coreRx.getAuth()
@@ -456,7 +477,7 @@ class CorestoreStorage {
     }
   }
 
-  async deleteCore (ptr) {
+  async deleteCore(ptr) {
     const rx = new CoreRX(ptr, this.db, EMPTY)
 
     const authPromise = rx.getAuth()
@@ -490,16 +511,16 @@ class CorestoreStorage {
     return tx.flush()
   }
 
-  static isCoreStorage (db) {
+  static isCoreStorage(db) {
     return isCorestoreStorage(db)
   }
 
-  static from (db) {
+  static from(db) {
     if (isCorestoreStorage(db)) return db
     return new this(db)
   }
 
-  async _flush () {
+  async _flush() {
     while (this.enters > 0) {
       await this.lock.lock()
       await this.lock.unlock()
@@ -507,7 +528,7 @@ class CorestoreStorage {
   }
 
   // runs pre any other mutation and read
-  async _migrateStore () {
+  async _migrateStore() {
     const view = await this._enter()
 
     try {
@@ -543,7 +564,9 @@ class CorestoreStorage {
           break
         }
         default: {
-          throw new Error('Unsupported version: ' + version + ' - you should probably upgrade your dependencies')
+          throw new Error(
+            'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'
+          )
         }
       }
 
@@ -554,7 +577,7 @@ class CorestoreStorage {
   }
 
   // runs pre the core is returned to the user
-  async _migrateCore (core, discoveryKey, version, locked) {
+  async _migrateCore(core, discoveryKey, version, locked) {
     const view = locked ? this.view : await this._enter()
     try {
       if (version === VERSION) return
@@ -567,7 +590,9 @@ class CorestoreStorage {
           break
         }
         default: {
-          throw new Error('Unsupported version: ' + version + ' - you should probably upgrade your dependencies')
+          throw new Error(
+            'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'
+          )
         }
       }
 
@@ -589,14 +614,14 @@ class CorestoreStorage {
     }
   }
 
-  async _enter () {
+  async _enter() {
     this.enters++
     await this.lock.lock()
     if (this.view === null) this.view = new View()
     return this.view
   }
 
-  async _exit () {
+  async _exit() {
     this.enters--
 
     if (this.flushing === null) this.flushing = rrp()
@@ -620,7 +645,7 @@ class CorestoreStorage {
 
   // when used with core catches this isnt transactional for simplicity, HOWEVER, its just a number
   // so worth the tradeoff
-  async _allocData () {
+  async _allocData() {
     let dataPointer = 0
 
     const view = await this._enter()
@@ -641,7 +666,7 @@ class CorestoreStorage {
   }
 
   // exposes here so migrations can easily access the head in an init state
-  async _getHead (view) {
+  async _getHead(view) {
     const rx = new CorestoreRX(this.db, view)
     const headPromise = rx.getHead()
     rx.tryFlush()
@@ -650,22 +675,22 @@ class CorestoreStorage {
     return head === null ? initStoreHead() : head
   }
 
-  createAtom () {
+  createAtom() {
     return new Atom(this.db)
   }
 
-  async flush () {
+  async flush() {
     await this.rocks.flush()
   }
 
-  async close () {
+  async close() {
     if (this.db.closed) return
     await this._flush()
     await this.db.close()
     await this.rocks.close()
   }
 
-  async clear () {
+  async clear() {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
@@ -677,21 +702,21 @@ class CorestoreStorage {
     await this._exit()
   }
 
-  createCoreStream () {
+  createCoreStream() {
     // TODO: be nice to run the mgiration here also, but too much plumbing atm
     return createCoreStream(this.db, EMPTY)
   }
 
-  createAliasStream (namespace) {
+  createAliasStream(namespace) {
     // TODO: be nice to run the mgiration here also, but too much plumbing atm
     return createAliasStream(this.db, EMPTY, namespace)
   }
 
-  createDiscoveryKeyStream (namespace) {
+  createDiscoveryKeyStream(namespace) {
     return createDiscoveryKeyStream(this.db, EMPTY, namespace)
   }
 
-  async getAlias (alias) {
+  async getAlias(alias) {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -700,7 +725,7 @@ class CorestoreStorage {
     return discoveryKeyPromise
   }
 
-  async getSeed () {
+  async getSeed() {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -712,7 +737,7 @@ class CorestoreStorage {
     return head === null ? null : head.seed
   }
 
-  async setSeed (seed, { overwrite = true } = {}) {
+  async setSeed(seed, { overwrite = true } = {}) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
@@ -736,7 +761,7 @@ class CorestoreStorage {
     }
   }
 
-  async getDefaultDiscoveryKey () {
+  async getDefaultDiscoveryKey() {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -748,7 +773,7 @@ class CorestoreStorage {
     return head === null ? null : head.defaultDiscoveryKey
   }
 
-  async setDefaultDiscoveryKey (discoveryKey, { overwrite = true } = {}) {
+  async setDefaultDiscoveryKey(discoveryKey, { overwrite = true } = {}) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
@@ -772,7 +797,7 @@ class CorestoreStorage {
     }
   }
 
-  async has (discoveryKey, { ifMigrated = false } = {}) {
+  async has(discoveryKey, { ifMigrated = false } = {}) {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -788,7 +813,7 @@ class CorestoreStorage {
     return true
   }
 
-  async getAuth (discoveryKey) {
+  async getAuth(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -807,7 +832,7 @@ class CorestoreStorage {
     return authPromise
   }
 
-  async resume (discoveryKey) {
+  async resume(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
     if (!discoveryKey) {
@@ -825,7 +850,7 @@ class CorestoreStorage {
     return this._resumeFromPointers(EMPTY, discoveryKey, false, core)
   }
 
-  async export (discoveryKey, opts) {
+  async export(discoveryKey, opts) {
     const rx = new CorestoreRX(this.db, EMPTY)
     const corePromise = rx.getCore(discoveryKey)
 
@@ -855,7 +880,7 @@ class CorestoreStorage {
     }
   }
 
-  async _resumeFromPointers (view, discoveryKey, create, { version, corePointer, dataPointer }) {
+  async _resumeFromPointers(view, discoveryKey, create, { version, corePointer, dataPointer }) {
     const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
@@ -875,7 +900,7 @@ class CorestoreStorage {
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _create (view, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
+  async _create(view, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 
@@ -921,7 +946,7 @@ class CorestoreStorage {
     return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
   }
 
-  async create (data) {
+  async create(data) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
@@ -936,7 +961,7 @@ class CorestoreStorage {
 
 module.exports = CorestoreStorage
 
-function initStoreHead () {
+function initStoreHead() {
   return {
     version: 0, // cause we wanna run the migration
     allocated: {
@@ -948,7 +973,7 @@ function initStoreHead () {
   }
 }
 
-function getBatch (sessions, name, alloc) {
+function getBatch(sessions, name, alloc) {
   for (let i = 0; i < sessions.length; i++) {
     if (sessions[i].name === name) return sessions[i]
   }
@@ -960,11 +985,11 @@ function getBatch (sessions, name, alloc) {
   return result
 }
 
-function isCorestoreStorage (s) {
+function isCorestoreStorage(s) {
   return typeof s === 'object' && !!s && typeof s.setDefaultDiscoveryKey === 'function'
 }
 
-function createColumnFamily (db, opts = {}) {
+function createColumnFamily(db, opts = {}) {
   const {
     tableCacheIndexAndFilterBlocks = true,
     blockCache = true,
@@ -987,7 +1012,7 @@ function createColumnFamily (db, opts = {}) {
 }
 
 // TODO: remove in like 3-6 mo
-function tmpFixStorage (p) {
+function tmpFixStorage(p) {
   // if CORESTORE file is written, new format
   if (fs.existsSync(path.join(p, 'CORESTORE'))) return
 
@@ -997,7 +1022,18 @@ function tmpFixStorage (p) {
     files = fs.readdirSync(p)
   } catch {}
 
-  const notRocks = new Set(['CORESTORE', 'primary-key', 'cores', 'app-preferences', 'cache', 'preferences.json', 'db', 'clone', 'core', 'notifications'])
+  const notRocks = new Set([
+    'CORESTORE',
+    'primary-key',
+    'cores',
+    'app-preferences',
+    'cache',
+    'preferences.json',
+    'db',
+    'clone',
+    'core',
+    'notifications'
+  ])
 
   for (const f of files) {
     if (notRocks.has(f)) continue
@@ -1010,7 +1046,7 @@ function tmpFixStorage (p) {
   }
 }
 
-async function exportData (ptr, db, opts) {
+async function exportData(ptr, db, opts) {
   // just need dataPointer
   const reads = [
     toArray(createBlockStream(ptr, db, EMPTY, opts)),
@@ -1027,7 +1063,7 @@ async function exportData (ptr, db, opts) {
   }
 }
 
-async function toArray (stream) {
+async function toArray(stream) {
   const all = []
   for await (const e of stream) all.push(e)
   return all

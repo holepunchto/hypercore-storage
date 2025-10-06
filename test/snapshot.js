@@ -67,7 +67,11 @@ test('snapshots from atomized core do not get updated', async (t) => {
 
   t.alike(await readBlocks(atomPostWriteSnap, 2), expected, 'prev atom snap did not change')
   t.alike(await readBlocks(atomInitSnap, 2), [null, null], 'init atom snap did not change')
-  t.alike(await readBlocks(corePostWriteSnap, 2), [null, null], 'core post-write snap did not change')
+  t.alike(
+    await readBlocks(corePostWriteSnap, 2),
+    [null, null],
+    'core post-write snap did not change'
+  )
   t.alike(await readBlocks(initSnap, 2), [null, null], 'init snap did not change')
 
   t.alike(await readBlocks(core, 2), expectedOverride, 'sanity check')

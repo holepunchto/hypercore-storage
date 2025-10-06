@@ -77,7 +77,7 @@ test('atomized flow with write/delete operations on a single core', async (t) =>
   const core = await createCore(t)
   await writeBlocks(core, 3)
 
-  const initBlocks = [0, 1, 2].map(i => b4a.from(`block${i}`))
+  const initBlocks = [0, 1, 2].map((i) => b4a.from(`block${i}`))
   t.alike(await readBlocks(core, 4), [...initBlocks, null], 'sanity check')
 
   const atom = core.createAtom()
@@ -101,7 +101,11 @@ test('atomized flow with write/delete operations on a single core', async (t) =>
     null
   ]
   t.alike(await readBlocks(atomCore, 7), expected)
-  t.alike(await readBlocks(core, 7), [...initBlocks, null, null, null, null], 'original not yet updated')
+  t.alike(
+    await readBlocks(core, 7),
+    [...initBlocks, null, null, null, null],
+    'original not yet updated'
+  )
 
   await atom.flush()
   t.alike(await readBlocks(core, 7), expected)
@@ -149,7 +153,13 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     await tx.flush()
   }
 
-  const expBlocks = [b4a.from('block0'), b4a.from('block1'), b4a.from('block2'), b4a.from('block3'), null]
+  const expBlocks = [
+    b4a.from('block0'),
+    b4a.from('block1'),
+    b4a.from('block2'),
+    b4a.from('block3'),
+    null
+  ]
   const expNodes = [
     {
       index: 0,
@@ -246,7 +256,7 @@ test('basic atomized flow with multiple cores', async (t) => {
   ])
   const [core0, core1, core2] = cores
   t.teardown(async () => {
-    await Promise.all(cores.map(c => c.close()))
+    await Promise.all(cores.map((c) => c.close()))
   }, 1)
 
   await Promise.all([
@@ -284,9 +294,27 @@ test('basic atomized flow with multiple cores', async (t) => {
   ])
 
   const expBlocks = [
-    [b4a.from('c0-block0'), b4a.from('c0-block1'), b4a.from('c0-block2'), b4a.from('c0-block3'), null],
-    [b4a.from('c1-block0'), b4a.from('c1-block1'), b4a.from('c1-block2'), b4a.from('c1-block3'), null],
-    [b4a.from('c2-block0'), b4a.from('c2-block1'), b4a.from('c2-block2'), b4a.from('c2-block3'), null]
+    [
+      b4a.from('c0-block0'),
+      b4a.from('c0-block1'),
+      b4a.from('c0-block2'),
+      b4a.from('c0-block3'),
+      null
+    ],
+    [
+      b4a.from('c1-block0'),
+      b4a.from('c1-block1'),
+      b4a.from('c1-block2'),
+      b4a.from('c1-block3'),
+      null
+    ],
+    [
+      b4a.from('c2-block0'),
+      b4a.from('c2-block1'),
+      b4a.from('c2-block2'),
+      b4a.from('c2-block3'),
+      null
+    ]
   ]
 
   t.alike(await readAllBlocks(atomCores, 5), expBlocks, 'atom pre flush')
@@ -314,19 +342,11 @@ test('conflicting writes to original core before an atomized write--atomized win
     [...initBlocks, b4a.from('orig-block2'), b4a.from('orig-block3'), null],
     'no atom blocks in original core pre flush'
   )
-  t.alike(
-    await readBlocks(atomCore, 5),
-    expected,
-    'atomized core overrode the orig core change'
-  )
+  t.alike(await readBlocks(atomCore, 5), expected, 'atomized core overrode the orig core change')
 
   await atom.flush()
 
-  t.alike(
-    await readBlocks(core, 5),
-    expected,
-    'core equal to atom one after flush'
-  )
+  t.alike(await readBlocks(core, 5), expected, 'core equal to atom one after flush')
 })
 
 test('conflicting writes to original core after an atomized write--atomized wins', async (t) => {
@@ -347,17 +367,9 @@ test('conflicting writes to original core after an atomized write--atomized wins
     [...initBlocks, b4a.from('orig-block2'), b4a.from('orig-block3'), null],
     'no atom blocks in original core pre flush'
   )
-  t.alike(
-    await readBlocks(atomCore, 5),
-    expected,
-    'atomized core overrode the orig core change'
-  )
+  t.alike(await readBlocks(atomCore, 5), expected, 'atomized core overrode the orig core change')
 
   await atom.flush()
 
-  t.alike(
-    await readBlocks(core, 5),
-    expected,
-    'core equal to atom one after flush'
-  )
+  t.alike(await readBlocks(core, 5), expected, 'core equal to atom one after flush')
 })

@@ -824,12 +824,44 @@ class CorestoreStorage {
     const core = await corePromise
     if (core === null) return null
 
-    const coreRx = new CoreRX(core, this.db, EMPTY)
-    const authPromise = coreRx.getAuth()
+    const read = this.db.read({ autoDestroy: true })
+    const authPromise = CoreRX.getAuth(read, core)
 
-    coreRx.tryFlush()
+    read.tryFlush()
 
     return authPromise
+  }
+
+  async getInfo(discoveryKey, opts) {
+    return (await this.getInfos([discoveryKey], opts))[0]
+  }
+
+  async getInfos(discoveryKeys, { auth = true, head = true, hints = true } = {}) {
+    if (this.version === 0) await this._migrateStore()
+
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const corePromises = new Array(discoveryKeys.length)
+
+    for (let i = 0; i < discoveryKeys.length; i++) {
+      corePromises[i] = rx.getCore(discoveryKeys[i])
+    }
+
+    rx.tryFlush()
+
+    const cores = await Promise.all(corePromises)
+    const read = this.db.read({ autoDestroy: true })
+
+    const resultPromises = new Array(cores.length)
+
+    for (let i = 0; i < cores.length; i++) {
+      resultPromises[i] = cores[i]
+        ? getInfoFromBatch(read, cores[i], discoveryKeys[i], auth, head, hints)
+        : null
+    }
+
+    read.tryFlush()
+
+    return Promise.all(resultPromises)
   }
 
   async resume(discoveryKey) {
@@ -1067,4 +1099,25 @@ async function toArray(stream) {
   const all = []
   for await (const e of stream) all.push(e)
   return all
+}
+
+function noop() {}
+
+async function getInfoFromBatch(db, c, discoveryKey, getAuth, getHead, getHints) {
+  const authPromise = getAuth ? CoreRX.getAuth(db, c) : null
+  const headPromise = getHead ? CoreRX.getHead(db, c) : null
+  const hintsPromise = getHints ? CoreRX.getHints(db, c) : null
+
+  // ensure no uncaughts
+  if (authPromise) authPromise.catch(noop)
+  if (headPromise) headPromise.catch(noop)
+  if (hintsPromise) hintsPromise.catch(noop)
+
+  return {
+    discoveryKey,
+    core: c,
+    auth: await authPromise,
+    head: await headPromise,
+    hints: await hintsPromise
+  }
 }

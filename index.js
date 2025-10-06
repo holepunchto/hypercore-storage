@@ -419,6 +419,8 @@ class HypercoreStorage {
 }
 
 class CorestoreStorage {
+  _suspended = false
+
   constructor(db, opts = {}) {
     const storage = typeof db === 'string' ? db : null
 
@@ -447,6 +449,10 @@ class CorestoreStorage {
 
   get closed() {
     return this.db.closed
+  }
+
+  get suspended() {
+    return this._suspended
   }
 
   async ready() {
@@ -680,7 +686,26 @@ class CorestoreStorage {
   }
 
   async flush() {
+    if (this.readOnly) return
     await this.rocks.flush()
+  }
+
+  async suspend() {
+    if (!this.opened) await this.ready()
+    if (this._suspended) return
+
+    await this.db.suspend()
+
+    this._suspended = true
+  }
+
+  async resume() {
+    if (!this.opened) await this.ready()
+    if (!this._suspended) return
+
+    await this.db.resume()
+
+    this._suspended = false
   }
 
   async close() {
@@ -832,7 +857,7 @@ class CorestoreStorage {
     return authPromise
   }
 
-  async resume(discoveryKey) {
+  async continue(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
     if (!discoveryKey) {

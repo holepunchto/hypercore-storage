@@ -6,7 +6,7 @@ test('make storage and core', async function (t) {
   const s = await create(t)
 
   t.is(await s.has(b4a.alloc(32)), false)
-  t.is(await s.resume(b4a.alloc(32)), null)
+  t.is(await s.continue(b4a.alloc(32)), null)
 
   const c = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
 
@@ -16,7 +16,7 @@ test('make storage and core', async function (t) {
 
   t.is(await s.has(b4a.alloc(32)), true)
 
-  const r = await s.resume(b4a.alloc(32))
+  const r = await s.continue(b4a.alloc(32))
 
   t.ok(!!r)
 

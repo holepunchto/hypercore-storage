@@ -187,7 +187,7 @@ test('audit v0 cores', async function (t) {
   await s.close()
 })
 
-test('can get heads from store efficiently', async function (t) {
+test('can get info from store efficiently', async function (t) {
   const s = await create(t)
   const dkeys = []
 

@@ -2,24 +2,26 @@
 // Schema Version: 1
 /* eslint-disable camelcase */
 /* eslint-disable quotes */
+/* eslint-disable space-before-function-paren */
+
+const { c } = require('hyperschema/runtime')
 
 const VERSION = 1
-const { c } = require('hyperschema/runtime')
 
 // eslint-disable-next-line no-unused-vars
 let version = VERSION
 
 // @corestore/allocated
 const encoding0 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.cores)
     c.uint.preencode(state, m.datas)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.uint.encode(state, m.cores)
     c.uint.encode(state, m.datas)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
 
@@ -32,7 +34,7 @@ const encoding0 = {
 
 // @corestore/head
 const encoding1 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.version)
     state.end++ // max flag is 4 so always one byte
 
@@ -40,7 +42,7 @@ const encoding1 = {
     if (m.seed) c.fixed32.preencode(state, m.seed)
     if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
   },
-  encode (state, m) {
+  encode(state, m) {
     const flags =
       (m.allocated ? 1 : 0) |
       (m.seed ? 2 : 0) |
@@ -53,7 +55,7 @@ const encoding1 = {
     if (m.seed) c.fixed32.encode(state, m.seed)
     if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const flags = c.uint.decode(state)
 
@@ -68,15 +70,15 @@ const encoding1 = {
 
 // @corestore/alias
 const encoding2 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.string.preencode(state, m.name)
     c.fixed32.preencode(state, m.namespace)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.string.encode(state, m.name)
     c.fixed32.encode(state, m.namespace)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.string.decode(state)
     const r1 = c.fixed32.decode(state)
 
@@ -89,7 +91,7 @@ const encoding2 = {
 
 // @corestore/core
 const encoding3 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.version)
     c.uint.preencode(state, m.corePointer)
     c.uint.preencode(state, m.dataPointer)
@@ -97,7 +99,7 @@ const encoding3 = {
 
     if (m.alias) encoding2.preencode(state, m.alias)
   },
-  encode (state, m) {
+  encode(state, m) {
     const flags = m.alias ? 1 : 0
 
     c.uint.encode(state, m.version)
@@ -107,7 +109,7 @@ const encoding3 = {
 
     if (m.alias) encoding2.encode(state, m.alias)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
     const r2 = c.uint.decode(state)
@@ -136,12 +138,14 @@ const encoding4 = {
       case 'blake2b':
         c.uint.encode(state, 0)
         break
-      default: throw new Error('Unknown enum')
+      default:
+        throw new Error('Unknown enum')
     }
   },
   decode (state) {
     switch (c.uint.decode(state)) {
-      case 0: return 'blake2b'
+      case 0:
+        return 'blake2b'
       default: return null
     }
   }
@@ -161,12 +165,14 @@ const encoding5 = {
       case 'ed25519':
         c.uint.encode(state, 0)
         break
-      default: throw new Error('Unknown enum')
+      default:
+        throw new Error('Unknown enum')
     }
   },
   decode (state) {
     switch (c.uint.decode(state)) {
-      case 0: return 'ed25519'
+      case 0:
+        return 'ed25519'
       default: return null
     }
   }
@@ -174,17 +180,17 @@ const encoding5 = {
 
 // @core/tree-node
 const encoding6 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.index)
     c.uint.preencode(state, m.size)
     c.fixed32.preencode(state, m.hash)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.uint.encode(state, m.index)
     c.uint.encode(state, m.size)
     c.fixed32.encode(state, m.hash)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
     const r2 = c.fixed32.decode(state)
@@ -199,17 +205,17 @@ const encoding6 = {
 
 // @core/signer
 const encoding7 = {
-  preencode (state, m) {
+  preencode(state, m) {
     encoding5.preencode(state, m.signature)
     c.fixed32.preencode(state, m.namespace)
     c.fixed32.preencode(state, m.publicKey)
   },
-  encode (state, m) {
+  encode(state, m) {
     encoding5.encode(state, m.signature)
     c.fixed32.encode(state, m.namespace)
     c.fixed32.encode(state, m.publicKey)
   },
-  decode (state) {
+  decode(state) {
     const r0 = encoding5.decode(state)
     const r1 = c.fixed32.decode(state)
     const r2 = c.fixed32.decode(state)
@@ -224,15 +230,15 @@ const encoding7 = {
 
 // @core/prologue
 const encoding8 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.fixed32.preencode(state, m.hash)
     c.uint.preencode(state, m.length)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.fixed32.encode(state, m.hash)
     c.uint.encode(state, m.length)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.fixed32.decode(state)
     const r1 = c.uint.decode(state)
 
@@ -250,7 +256,7 @@ const encoding9_6 = c.array(c.fixed32)
 
 // @core/manifest
 const encoding9 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.version)
     state.end++ // max flag is 8 so always one byte
     encoding4.preencode(state, m.hash)
@@ -261,7 +267,7 @@ const encoding9 = {
     if (m.linked) encoding9_6.preencode(state, m.linked)
     if (m.userData) c.buffer.preencode(state, m.userData)
   },
-  encode (state, m) {
+  encode(state, m) {
     const flags =
       (m.allowPatch ? 1 : 0) |
       (m.prologue ? 2 : 0) |
@@ -278,7 +284,7 @@ const encoding9 = {
     if (m.linked) encoding9_6.encode(state, m.linked)
     if (m.userData) c.buffer.encode(state, m.userData)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const flags = c.uint.decode(state)
 
@@ -297,15 +303,15 @@ const encoding9 = {
 
 // @core/keyPair
 const encoding10 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.buffer.preencode(state, m.publicKey)
     c.buffer.preencode(state, m.secretKey)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.buffer.encode(state, m.publicKey)
     c.buffer.encode(state, m.secretKey)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.buffer.decode(state)
     const r1 = c.buffer.decode(state)
 
@@ -321,7 +327,7 @@ const encoding11_2 = c.frame(encoding9)
 
 // @core/auth
 const encoding11 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.fixed32.preencode(state, m.key)
     c.fixed32.preencode(state, m.discoveryKey)
     state.end++ // max flag is 4 so always one byte
@@ -330,7 +336,7 @@ const encoding11 = {
     if (m.keyPair) encoding10.preencode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.preencode(state, m.encryptionKey)
   },
-  encode (state, m) {
+  encode(state, m) {
     const flags =
       (m.manifest ? 1 : 0) |
       (m.keyPair ? 2 : 0) |
@@ -344,7 +350,7 @@ const encoding11 = {
     if (m.keyPair) encoding10.encode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.encode(state, m.encryptionKey)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.fixed32.decode(state)
     const r1 = c.fixed32.decode(state)
     const flags = c.uint.decode(state)
@@ -361,19 +367,19 @@ const encoding11 = {
 
 // @core/head
 const encoding12 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.fork)
     c.uint.preencode(state, m.length)
     c.fixed32.preencode(state, m.rootHash)
     c.buffer.preencode(state, m.signature)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.uint.encode(state, m.fork)
     c.uint.encode(state, m.length)
     c.fixed32.encode(state, m.rootHash)
     c.buffer.encode(state, m.signature)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
     const r2 = c.fixed32.decode(state)
@@ -390,19 +396,19 @@ const encoding12 = {
 
 // @core/hints
 const encoding13 = {
-  preencode (state, m) {
+  preencode(state, m) {
     state.end++ // max flag is 1 so always one byte
 
     if (m.contiguousLength) c.uint.preencode(state, m.contiguousLength)
   },
-  encode (state, m) {
+  encode(state, m) {
     const flags = m.contiguousLength ? 1 : 0
 
     c.uint.encode(state, flags)
 
     if (m.contiguousLength) c.uint.encode(state, m.contiguousLength)
   },
-  decode (state) {
+  decode(state) {
     const flags = c.uint.decode(state)
 
     return {
@@ -413,15 +419,15 @@ const encoding13 = {
 
 // @core/session
 const encoding14 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.string.preencode(state, m.name)
     c.uint.preencode(state, m.dataPointer)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.string.encode(state, m.name)
     c.uint.encode(state, m.dataPointer)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.string.decode(state)
     const r1 = c.uint.decode(state)
 
@@ -437,15 +443,15 @@ const encoding15 = c.array(encoding14)
 
 // @core/dependency
 const encoding16 = {
-  preencode (state, m) {
+  preencode(state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
   },
-  encode (state, m) {
+  encode(state, m) {
     c.uint.encode(state, m.dataPointer)
     c.uint.encode(state, m.length)
   },
-  decode (state) {
+  decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
 
@@ -456,63 +462,84 @@ const encoding16 = {
   }
 }
 
-function setVersion (v) {
+function setVersion(v) {
   version = v
 }
 
-function encode (name, value, v = VERSION) {
+function encode(name, value, v = VERSION) {
   version = v
   return c.encode(getEncoding(name), value)
 }
 
-function decode (name, buffer, v = VERSION) {
+function decode(name, buffer, v = VERSION) {
   version = v
   return c.decode(getEncoding(name), buffer)
 }
 
-function getEnum (name) {
+function getEnum(name) {
   switch (name) {
-    case '@core/hashes': return encoding4_enum
-    case '@core/signatures': return encoding5_enum
-    default: throw new Error('Enum not found ' + name)
+    case '@core/hashes':
+      return encoding4_enum
+    case '@core/signatures':
+      return encoding5_enum
+    default:
+      throw new Error('Enum not found ' + name)
   }
 }
 
-function getEncoding (name) {
+function getEncoding(name) {
   switch (name) {
-    case '@corestore/allocated': return encoding0
-    case '@corestore/head': return encoding1
-    case '@corestore/alias': return encoding2
-    case '@corestore/core': return encoding3
-    case '@core/hashes': return encoding4
-    case '@core/signatures': return encoding5
-    case '@core/tree-node': return encoding6
-    case '@core/signer': return encoding7
-    case '@core/prologue': return encoding8
-    case '@core/manifest': return encoding9
-    case '@core/keyPair': return encoding10
-    case '@core/auth': return encoding11
-    case '@core/head': return encoding12
-    case '@core/hints': return encoding13
-    case '@core/session': return encoding14
-    case '@core/sessions': return encoding15
-    case '@core/dependency': return encoding16
-    default: throw new Error('Encoder not found ' + name)
+    case '@corestore/allocated':
+      return encoding0
+    case '@corestore/head':
+      return encoding1
+    case '@corestore/alias':
+      return encoding2
+    case '@corestore/core':
+      return encoding3
+    case '@core/hashes':
+      return encoding4
+    case '@core/signatures':
+      return encoding5
+    case '@core/tree-node':
+      return encoding6
+    case '@core/signer':
+      return encoding7
+    case '@core/prologue':
+      return encoding8
+    case '@core/manifest':
+      return encoding9
+    case '@core/keyPair':
+      return encoding10
+    case '@core/auth':
+      return encoding11
+    case '@core/head':
+      return encoding12
+    case '@core/hints':
+      return encoding13
+    case '@core/session':
+      return encoding14
+    case '@core/sessions':
+      return encoding15
+    case '@core/dependency':
+      return encoding16
+    default:
+      throw new Error('Encoder not found ' + name)
   }
 }
 
-function getStruct (name, v = VERSION) {
+function getStruct(name, v = VERSION) {
   const enc = getEncoding(name)
   return {
-    preencode (state, m) {
+    preencode(state, m) {
       version = v
       enc.preencode(state, m)
     },
-    encode (state, m) {
+    encode(state, m) {
       version = v
       enc.encode(state, m)
     },
-    decode (state) {
+    decode(state) {
       version = v
       return enc.decode(state)
     }
@@ -521,4 +548,13 @@ function getStruct (name, v = VERSION) {
 
 const resolveStruct = getStruct // compat
 
-module.exports = { resolveStruct, getStruct, getEnum, getEncoding, encode, decode, setVersion, version }
+module.exports = {
+  resolveStruct,
+  getStruct,
+  getEnum,
+  getEncoding,
+  encode,
+  decode,
+  setVersion,
+  version
+}

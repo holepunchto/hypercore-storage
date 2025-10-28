@@ -399,7 +399,7 @@ test('set and get hypercore hints', async (t) => {
     const rx = core.read()
     const p = rx.getHints()
     rx.tryFlush()
-    t.alike(await p, { contiguousLength: 1 }, 'updated hints')
+    t.alike(await p, { contiguousLength: 1, remoteContiguousLength: 0 }, 'updated hints')
   }
 })
 

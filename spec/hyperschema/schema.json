@@ -348,6 +348,11 @@
           "name": "contiguousLength",
           "type": "uint",
           "version": 1
+        },
+        {
+          "name": "remoteContiguousLength",
+          "type": "uint",
+          "version": 1
         }
       ]
     },

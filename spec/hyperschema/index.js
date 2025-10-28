@@ -397,22 +397,27 @@ const encoding12 = {
 // @core/hints
 const encoding13 = {
   preencode(state, m) {
-    state.end++ // max flag is 1 so always one byte
+    state.end++ // max flag is 2 so always one byte
 
     if (m.contiguousLength) c.uint.preencode(state, m.contiguousLength)
+    if (m.remoteContiguousLength) c.uint.preencode(state, m.remoteContiguousLength)
   },
   encode(state, m) {
-    const flags = m.contiguousLength ? 1 : 0
+    const flags =
+      (m.contiguousLength ? 1 : 0) |
+      (m.remoteContiguousLength ? 2 : 0)
 
     c.uint.encode(state, flags)
 
     if (m.contiguousLength) c.uint.encode(state, m.contiguousLength)
+    if (m.remoteContiguousLength) c.uint.encode(state, m.remoteContiguousLength)
   },
   decode(state) {
     const flags = c.uint.decode(state)
 
     return {
-      contiguousLength: (flags & 1) !== 0 ? c.uint.decode(state) : 0
+      contiguousLength: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
+      remoteContiguousLength: (flags & 2) !== 0 ? c.uint.decode(state) : 0
     }
   }
 }

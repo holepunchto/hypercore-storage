@@ -426,6 +426,9 @@ class CorestoreStorage {
     this.path = storage !== null ? storage : path.join(db.path, '..')
     this.readOnly = !!opts.readOnly
     this.allowBackup = !!opts.allowBackup
+    this.deviceFile = null
+    this.wait = !!opts.wait
+    this.lock = !!opts.lock || this.wait
 
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
@@ -539,9 +542,13 @@ class CorestoreStorage {
       if (this.bootstrap && !this.readOnly && !this.allowBackup) {
         const corestoreFile = path.join(this.path, 'CORESTORE')
 
-        if (!(await DeviceFile.resume(corestoreFile, { id: this.id }))) {
-          await DeviceFile.create(corestoreFile, { id: this.id })
-        }
+        this.deviceFile = new DeviceFile(corestoreFile, {
+          wait: this.wait,
+          lock: this.lock,
+          data: { id: this.id }
+        })
+
+        await this.deviceFile.ready()
       }
 
       const rx = new CorestoreRX(this.db, view)
@@ -688,6 +695,7 @@ class CorestoreStorage {
     await this._flush()
     await this.db.close()
     await this.rocks.close()
+    if (this.deviceFile) await this.deviceFile.close()
   }
 
   async clear() {

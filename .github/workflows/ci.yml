@@ -21,6 +21,7 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - run: npm run lint
       - run: npm test
       - run: npm install -g bare-runtime
       - run: npm run test:bare

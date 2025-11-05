@@ -622,6 +622,7 @@ function getCached (read, cache, index) {
 async function getByteRangeFromStorage (read, index, roots, cache) {
   const promises = [getCached(read, cache, index), getByteOffsetFromStorage(read, index, roots, cache)]
   const [node, offset] = await Promise.all(promises)
+  if (!node) throw new Error('Node not found during migration: ' + index)
   return [offset, node.size]
 }
 

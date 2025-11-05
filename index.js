@@ -872,6 +872,16 @@ class CorestoreStorage {
     return Promise.all(resultPromises)
   }
 
+  async suspend() {
+    await this.db.suspend()
+    if (this.deviceFile) await this.deviceFile.suspend()
+  }
+
+  async resume() {
+    if (this.deviceFile) await this.deviceFile.resume()
+    await this.db.resume()
+  }
+
   async resumeCore(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 

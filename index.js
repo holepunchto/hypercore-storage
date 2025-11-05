@@ -428,7 +428,6 @@ class CorestoreStorage {
     this.allowBackup = !!opts.allowBackup
     this.deviceFile = null
     this.wait = !!opts.wait
-    this.lock = !!opts.lock || this.wait
 
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
@@ -544,7 +543,6 @@ class CorestoreStorage {
 
         this.deviceFile = new DeviceFile(corestoreFile, {
           wait: this.wait,
-          lock: this.lock,
           data: { id: this.id }
         })
 

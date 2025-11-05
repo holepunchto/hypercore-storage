@@ -805,7 +805,7 @@ class CorestoreStorage {
     }
   }
 
-  async has(discoveryKey, { ifMigrated = false } = {}) {
+  async hasCore(discoveryKey, { ifMigrated = false } = {}) {
     if (this.version === 0) await this._migrateStore()
 
     const rx = new CorestoreRX(this.db, EMPTY)
@@ -872,7 +872,7 @@ class CorestoreStorage {
     return Promise.all(resultPromises)
   }
 
-  async resume(discoveryKey) {
+  async resumeCore(discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
     if (!discoveryKey) {
@@ -986,7 +986,7 @@ class CorestoreStorage {
     return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
   }
 
-  async create(data) {
+  async createCore(data) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()

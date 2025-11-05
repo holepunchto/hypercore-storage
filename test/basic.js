@@ -5,18 +5,18 @@ const { create } = require('./helpers')
 test('make storage and core', async function (t) {
   const s = await create(t)
 
-  t.is(await s.has(b4a.alloc(32)), false)
-  t.is(await s.resume(b4a.alloc(32)), null)
+  t.is(await s.hasCore(b4a.alloc(32)), false)
+  t.is(await s.resumeCore(b4a.alloc(32)), null)
 
-  const c = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  const c = await s.createCore({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
 
-  t.is(await s.has(b4a.alloc(32)), true)
+  t.is(await s.hasCore(b4a.alloc(32)), true)
 
   await c.close()
 
-  t.is(await s.has(b4a.alloc(32)), true)
+  t.is(await s.hasCore(b4a.alloc(32)), true)
 
-  const r = await s.resume(b4a.alloc(32))
+  const r = await s.resumeCore(b4a.alloc(32))
 
   t.ok(!!r)
 
@@ -29,7 +29,7 @@ test('make many in parallel', async function (t) {
 
   const all = []
   for (let i = 0; i < 50; i++) {
-    const c = s.create({
+    const c = s.createCore({
       key: b4a.alloc(32, i),
       discoveryKey: b4a.alloc(32, i)
     })
@@ -55,11 +55,11 @@ test('first core created is the default core', async function (t) {
   const s = await create(t)
 
   t.is(await s.getDefaultDiscoveryKey(), null)
-  const c = await s.create({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  const c = await s.createCore({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
 
   t.alike(await s.getDefaultDiscoveryKey(), b4a.alloc(32))
 
-  const c1 = await s.create({
+  const c1 = await s.createCore({
     key: b4a.alloc(32, 1),
     discoveryKey: b4a.alloc(32, 1)
   })
@@ -75,7 +75,7 @@ test('first core created is the default core', async function (t) {
   const s = await create(t)
 
   t.is(await s.getDefaultDiscoveryKey(), null)
-  const c = await s.create({
+  const c = await s.createCore({
     key: b4a.alloc(32, 1),
     discoveryKey: b4a.alloc(32, 2)
   })
@@ -101,7 +101,7 @@ test('write during close', async function (t) {
   const s = await create(t)
 
   t.is(await s.getDefaultDiscoveryKey(), null)
-  const c = await s.create({
+  const c = await s.createCore({
     key: b4a.alloc(32, 1),
     discoveryKey: b4a.alloc(32, 2)
   })
@@ -123,7 +123,7 @@ test('audit v0 cores', async function (t) {
 
   const all = []
   for (let i = 0; i < 35; i++) {
-    const c = s.create({
+    const c = s.createCore({
       key: b4a.alloc(32, i),
       discoveryKey: b4a.alloc(32, i)
     })
@@ -193,7 +193,7 @@ test('can get info from store efficiently', async function (t) {
 
   for (let i = 0; i < 5; i++) {
     const discoveryKey = b4a.alloc(32, i)
-    const c = await s.create({
+    const c = await s.createCore({
       key: b4a.alloc(32, i),
       discoveryKey
     })

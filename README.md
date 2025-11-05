@@ -18,11 +18,11 @@ const Storage = require('hypercore-storage')
 
 Make a new storage engine.
 
-#### `core = await store.create({ key, discoveyKey, manifest?, keyPair?, encryptionKey?, userData? })`
+#### `core = await store.createCore({ key, discoveyKey, manifest?, keyPair?, encryptionKey?, userData? })`
 
 Create a new core, returns a storage instance for that core.
 
-#### `core = await store.resume(discoveryKey)`
+#### `core = await store.resumeCore(discoveryKey)`
 
 Resume a previously make core. If it doesn't exist it returns `null`.
 
@@ -33,7 +33,7 @@ When you wanna flush your changes to the underlying storage, use `await atom.flu
 
 Internally to "listen" for when that happens you can add an sync hook with `atom.onflush(fn)`
 
-#### `bool = await store.has(discoveryKey)`
+#### `bool = await store.hasCore(discoveryKey)`
 
 Check if a core exists.
 

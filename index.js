@@ -194,8 +194,9 @@ class HypercoreStorage {
   }
 
   atomize(atom) {
-    if (this.atom && this.atom !== atom)
+    if (this.atom && this.atom !== atom) {
       throw new Error('Cannot atomize and atomized session with a new atom')
+    }
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 

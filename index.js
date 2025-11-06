@@ -429,11 +429,11 @@ class CorestoreStorage {
     this.deviceFile = null
     this.wait = !!opts.wait
 
+    const preopen = this._openDeviceFile()
+
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
 
-    this.rocks = storage === null ? db : new RocksDB(path.join(this.path, 'db'), opts)
-    this.db = createColumnFamily(this.rocks, opts)
     this.id = opts.id || null
     this.view = null
     this.enters = 0
@@ -441,6 +441,14 @@ class CorestoreStorage {
     this.flushing = null
     this.version = 0
     this.migrating = null
+    this.preopen = preopen
+
+    this.rocks =
+      storage === null ? db : new RocksDB(path.join(this.path, 'db'), { ...opts, preopen })
+
+    this.db = createColumnFamily(this.rocks, opts)
+
+    preopen.catch(noop) // awaited in rocks
   }
 
   get opened() {
@@ -449,6 +457,19 @@ class CorestoreStorage {
 
   get closed() {
     return this.db.closed
+  }
+
+  async _openDeviceFile() {
+    if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
+      const corestoreFile = path.join(this.path, 'CORESTORE')
+
+      this.deviceFile = new DeviceFile(corestoreFile, {
+        wait: this.wait,
+        data: { id: this.id }
+      })
+
+      await this.deviceFile.ready()
+    }
   }
 
   async ready() {
@@ -536,18 +557,8 @@ class CorestoreStorage {
     try {
       if (this.version === VERSION) return
 
+      await this._preopen
       await this.db.ready()
-
-      if (this.bootstrap && !this.readOnly && !this.allowBackup) {
-        const corestoreFile = path.join(this.path, 'CORESTORE')
-
-        this.deviceFile = new DeviceFile(corestoreFile, {
-          wait: this.wait,
-          data: { id: this.id }
-        })
-
-        await this.deviceFile.ready()
-      }
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()

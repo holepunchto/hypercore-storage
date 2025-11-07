@@ -430,8 +430,6 @@ class CorestoreStorage {
     this.deviceFile = null
     this.wait = !!opts.wait
 
-    const preopen = this._openDeviceFile()
-
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
 
@@ -442,11 +440,12 @@ class CorestoreStorage {
     this.flushing = null
     this.version = 0
     this.migrating = null
-    this.preopen = preopen
 
+    const preopen = this._openDeviceFile()
+
+    this.preopen = preopen
     this.rocks =
       storage === null ? db : new RocksDB(path.join(this.path, 'db'), { ...opts, preopen })
-
     this.db = createColumnFamily(this.rocks, opts)
 
     preopen.catch(noop) // awaited in rocks

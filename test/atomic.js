@@ -34,6 +34,8 @@ test('basic atomized flow with a single core', async (t) => {
 
   t.alike(await readBlocks(core, 4), expected, 'flushing adds to the original core')
   t.alike(await readBlocks(atomCore, 4), expected, 'added to atomized core')
+
+  await atomCore.close()
 })
 
 test('write to original core while there is an atomized one', async (t) => {
@@ -54,6 +56,8 @@ test('write to original core while there is an atomized one', async (t) => {
 
   t.alike(await readBlocks(core, 4), expected, 'flushed core')
   t.alike(await readBlocks(atomCore, 4), expected, 'flushed atom core')
+
+  await atomCore.close()
 })
 
 test('first writes to a core are from an atom', async (t) => {
@@ -71,6 +75,8 @@ test('first writes to a core are from an atom', async (t) => {
   await atom.flush()
 
   t.alike(await readBlocks(core, 2), expected, 'added to original after flush')
+
+  await atomCore.close()
 })
 
 test('atomized flow with write/delete operations on a single core', async (t) => {
@@ -109,6 +115,8 @@ test('atomized flow with write/delete operations on a single core', async (t) =>
 
   await atom.flush()
   t.alike(await readBlocks(core, 7), expected)
+
+  await atomCore.close()
 })
 
 test('atomized flow with all non-delete operations on a single core', async (t) => {
@@ -238,6 +246,8 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   t.alike(await getHints(core), expHints, 'hints orig post flush')
   t.alike(await getUserData(core, 'key'), b4a.from('value'), 'userdata orig post flush')
   t.alike(await getBitfieldPages(core, 2), expBitfields, 'bitfields orig post flush')
+
+  await atomCore.close()
 })
 
 test('basic atomized flow with multiple cores', async (t) => {
@@ -323,6 +333,8 @@ test('basic atomized flow with multiple cores', async (t) => {
 
   await atomStorage.flush()
   t.alike(await readAllBlocks(cores, 5), expBlocks, 'cores post flush')
+
+  for (const core of atomCores) await core.close()
 })
 
 test('conflicting writes to original core before an atomized write--atomized wins', async (t) => {
@@ -348,6 +360,8 @@ test('conflicting writes to original core before an atomized write--atomized win
   await atom.flush()
 
   t.alike(await readBlocks(core, 5), expected, 'core equal to atom one after flush')
+
+  await atomCore.close()
 })
 
 test('conflicting writes to original core after an atomized write--atomized wins', async (t) => {
@@ -373,4 +387,6 @@ test('conflicting writes to original core after an atomized write--atomized wins
   await atom.flush()
 
   t.alike(await readBlocks(core, 5), expected, 'core equal to atom one after flush')
+
+  await atomCore.close()
 })

@@ -2,6 +2,11 @@ const test = require('brittle')
 const b4a = require('b4a')
 const { create } = require('./helpers')
 
+test('super basic', async function (t) {
+  const s = await create(t)
+  await s.close()
+})
+
 test('make storage and core', async function (t) {
   const s = await create(t)
 

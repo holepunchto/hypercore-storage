@@ -460,16 +460,16 @@ class CorestoreStorage {
   }
 
   async _openDeviceFile() {
-    if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
-      const corestoreFile = path.join(this.path, 'CORESTORE')
+    // if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
+    //   const corestoreFile = path.join(this.path, 'CORESTORE')
 
-      this.deviceFile = new DeviceFile(corestoreFile, {
-        wait: this.wait,
-        data: { id: this.id }
-      })
+    //   this.deviceFile = new DeviceFile(corestoreFile, {
+    //     wait: this.wait,
+    //     data: { id: this.id }
+    //   })
 
-      await this.deviceFile.ready()
-    }
+    //   await this.deviceFile.ready()
+    // }
   }
 
   async ready() {

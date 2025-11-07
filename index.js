@@ -701,6 +701,7 @@ class CorestoreStorage {
 
   async close() {
     if (this.db.closed) return
+    if (!this.db.opened) await this.db.ready()
     await this._flush()
     await this.db.close()
     await this.rocks.close()

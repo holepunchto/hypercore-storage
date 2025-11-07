@@ -242,7 +242,8 @@ test('can get info from store efficiently', async function (t) {
       },
       head: { fork: 0, length: 2, rootHash: b4a.alloc(32, 0), signature: null },
       hints: {
-        contiguousLength: 0
+        contiguousLength: 0,
+        remoteContiguousLength: 0
       }
     })
   }

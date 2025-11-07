@@ -110,7 +110,8 @@
           "key": "blake2b",
           "version": 1
         }
-      ]
+      ],
+      "strings": true
     },
     {
       "name": "signatures",
@@ -121,7 +122,8 @@
           "key": "ed25519",
           "version": 1
         }
-      ]
+      ],
+      "strings": true
     },
     {
       "name": "tree-node",
@@ -344,6 +346,11 @@
       "fields": [
         {
           "name": "contiguousLength",
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "remoteContiguousLength",
           "type": "uint",
           "version": 1
         }

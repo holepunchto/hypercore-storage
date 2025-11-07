@@ -286,6 +286,10 @@ core.register({
     {
       name: 'contiguousLength',
       type: 'uint'
+    },
+    {
+      name: 'remoteContiguousLength',
+      type: 'uint'
     }
   ]
 })

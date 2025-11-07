@@ -1,7 +1,7 @@
 const RocksDB = require('rocksdb-native')
 const rrp = require('resolve-reject-promise')
 const ScopeLock = require('scope-lock')
-const DeviceFile = require('device-file')
+// const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
 const View = require('./lib/view.js')

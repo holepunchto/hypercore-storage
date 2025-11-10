@@ -441,14 +441,19 @@ class CorestoreStorage {
     this.version = 0
     this.migrating = null
 
-    const preopen = this._openDeviceFile()
+    if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
+      const corestoreFile = path.join(this.path, 'CORESTORE')
 
-    this.preopen = preopen
-    this.rocks =
-      storage === null ? db : new RocksDB(path.join(this.path, 'db'), { ...opts, preopen })
+      this.deviceFile = new DeviceFile(corestoreFile, {
+        wait: this.wait,
+        data: { id: this.id }
+      })
+    }
+
+    const dbPath = path.join(this.path, 'db')
+
+    this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
-
-    preopen.catch(noop) // awaited in rocks
   }
 
   get opened() {

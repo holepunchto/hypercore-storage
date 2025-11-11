@@ -464,19 +464,6 @@ class CorestoreStorage {
     return this.db.closed
   }
 
-  async _openDeviceFile() {
-    if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
-      const corestoreFile = path.join(this.path, 'CORESTORE')
-
-      this.deviceFile = new DeviceFile(corestoreFile, {
-        wait: this.wait,
-        data: { id: this.id }
-      })
-
-      await this.deviceFile.ready()
-    }
-  }
-
   async ready() {
     if (this.version === 0) await this._migrateStore()
     return this.db.ready()

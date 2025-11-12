@@ -83,6 +83,10 @@ class HypercoreStorage {
     this.view.readStart()
   }
 
+  get readOnly() {
+    return this.store.readOnly
+  }
+
   get dependencies() {
     return this.core.dependencies
   }

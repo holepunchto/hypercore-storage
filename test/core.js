@@ -412,6 +412,58 @@ test('set and get hypercore head', async (t) => {
   }
 })
 
+test('CoreRX - static getHead', async (t) => {
+  const s = await create(t)
+  const discoveryKey = b4a.alloc(32)
+  const core = await s.createCore({
+    key: b4a.alloc(32),
+    discoveryKey
+  })
+
+  {
+    const rx = core.read()
+    const p = rx.getHead()
+    rx.tryFlush()
+    t.alike(await p, null, 'No head on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setHead({
+      fork: 1,
+      length: 3,
+      rootHash: b4a.from('a'.repeat(64), 'hex'),
+      signature: b4a.from('b'.repeat(64), 'hex')
+    })
+    await tx.flush()
+  }
+
+  {
+    const EMPTY = new View()
+    const rx = new CorestoreRX(s.db, EMPTY)
+    const coreProm = rx.getCore(discoveryKey)
+    rx.tryFlush()
+    const c = await coreProm
+
+    const read = s.db.read({ autoDestroy: true })
+    const headProm = CoreRX.getHead(s.db, c)
+    read.tryFlush()
+    t.alike(
+      await headProm,
+      {
+        fork: 1,
+        length: 3,
+        rootHash: b4a.from('a'.repeat(64), 'hex'),
+        signature: b4a.from('b'.repeat(64), 'hex')
+      },
+      'got head'
+    )
+  }
+
+  await core.close()
+  await s.close()
+})
+
 test('set and get hypercore dependency', async (t) => {
   const core = await createCore(t)
   {

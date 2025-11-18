@@ -281,6 +281,71 @@ test('set and get auth', async (t) => {
   }
 })
 
+test('CoreRX - static getAuth', async (t) => {
+  const s = await create(t)
+  const discoveryKey = b4a.alloc(32)
+  const core = await s.createCore({
+    key: b4a.alloc(32),
+    discoveryKey
+  })
+
+  {
+    const rx = core.read()
+    const p = rx.getAuth()
+    rx.tryFlush()
+    const initAuth = await p
+    t.alike(
+      initAuth,
+      {
+        key: b4a.alloc(32),
+        discoveryKey: b4a.alloc(32),
+        manifest: null,
+        keyPair: null,
+        encryptionKey: null
+      },
+      'fresh core auth'
+    )
+  }
+
+  {
+    const tx = core.write()
+    tx.setAuth({
+      key: b4a.alloc(32),
+      discoveryKey: b4a.alloc(32),
+      manifest: null,
+      keyPair: null,
+      encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+    })
+    await tx.flush()
+  }
+
+  {
+    const EMPTY = new View()
+    const rx = new CorestoreRX(s.db, EMPTY)
+    const coreProm = rx.getCore(discoveryKey)
+    rx.tryFlush()
+    const c = await coreProm
+
+    const read = s.db.read({ autoDestroy: true })
+    const authPromise = CoreRX.getAuth(s.db, c)
+    read.tryFlush()
+    t.alike(
+      await authPromise,
+      {
+        key: b4a.alloc(32),
+        discoveryKey: b4a.alloc(32),
+        manifest: null,
+        keyPair: null,
+        encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+      },
+      'got auth'
+    )
+  }
+
+  await core.close()
+  await s.close()
+})
+
 test('set and get hypercore sessions', async (t) => {
   const core = await createCore(t)
   {

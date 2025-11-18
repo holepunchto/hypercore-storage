@@ -1,5 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
+const View = require('../lib/view.js')
+const { CoreRX, CorestoreRX } = require('../lib/tx.js')
 const { createCore, create, writeBlocks, readBlocks } = require('./helpers')
 
 test('read and write hypercore blocks', async (t) => {
@@ -402,6 +404,47 @@ test('set and get hypercore hints', async (t) => {
     rx.tryFlush()
     t.alike(await p, { contiguousLength: 2, remoteContiguousLength: 1 }, 'updated hints')
   }
+})
+
+test('CoreRX - static getHints', async (t) => {
+  const s = await create(t)
+  const discoveryKey = b4a.alloc(32)
+  const core = await s.createCore({
+    key: b4a.alloc(32),
+    discoveryKey
+  })
+
+  {
+    const rx = core.read()
+    const p = rx.getHints()
+    rx.tryFlush()
+    t.alike(await p, null, 'No hints on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setHints({
+      contiguousLength: 1337,
+      remoteContiguousLength: 123
+    })
+    await tx.flush()
+  }
+
+  {
+    const EMPTY = new View()
+    const rx = new CorestoreRX(s.db, EMPTY)
+    const coreProm = rx.getCore(discoveryKey)
+    rx.tryFlush()
+    const c = await coreProm
+
+    const read = s.db.read({ autoDestroy: true })
+    const hintsPromise = CoreRX.getHints(s.db, c)
+    read.tryFlush()
+    t.alike(await hintsPromise, { contiguousLength: 1337, remoteContiguousLength: 123 }, 'got hint')
+  }
+
+  await core.close()
+  await s.close()
 })
 
 test('set and get hypercore userdata', async (t) => {

@@ -449,6 +449,7 @@ class CorestoreStorage {
       const corestoreFile = path.join(this.path, 'CORESTORE')
 
       this.deviceFile = new DeviceFile(corestoreFile, {
+        lock: true,
         wait: this.wait,
         data: { id: this.id }
       })

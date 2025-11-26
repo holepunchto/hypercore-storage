@@ -343,6 +343,36 @@ class HypercoreStorage {
     return this.atomize(atom)
   }
 
+  async createStaticCore() {
+    const rx = this.read()
+
+    const headPromise = rx.getHead()
+    const authPromise = rx.getAuth()
+
+    rx.tryFlush()
+
+    const [head, auth] = await Promise.all([headPromise, authPromise])
+    if (!head || head.length === 0) throw new Error('Must have data')
+
+    const prologue = {
+      length: head.length,
+      hash: head.rootHash
+    }
+
+    const manifest = {
+      version: 1,
+      hash: auth.manifest.hash,
+      quorum: 0,
+      signers: [],
+      prologue
+    }
+
+    return {
+      manifest,
+      core: { ...this.core, dependencies: this.core.dependencies.slice() }
+    }
+  }
+
   _addDependency(dep) {
     const deps = []
 
@@ -956,7 +986,10 @@ class CorestoreStorage {
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _create(view, { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData }) {
+  async _create(
+    view,
+    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, core: ptrs }
+  ) {
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 
@@ -971,8 +1004,8 @@ class CorestoreStorage {
     if (head === null) head = initStoreHead()
     if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
-    const corePointer = head.allocated.cores++
-    const dataPointer = head.allocated.datas++
+    const corePointer = ptrs ? ptrs.corePointer : head.allocated.cores++
+    const dataPointer = ptrs ? ptrs.dataPointer : head.allocated.datas++
 
     core = { version: VERSION, corePointer, dataPointer, alias }
 

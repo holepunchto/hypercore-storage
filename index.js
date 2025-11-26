@@ -343,36 +343,6 @@ class HypercoreStorage {
     return this.atomize(atom)
   }
 
-  async createStaticCore() {
-    const rx = this.read()
-
-    const headPromise = rx.getHead()
-    const authPromise = rx.getAuth()
-
-    rx.tryFlush()
-
-    const [head, auth] = await Promise.all([headPromise, authPromise])
-    if (!head || head.length === 0) throw new Error('Must have data')
-
-    const prologue = {
-      length: head.length,
-      hash: head.rootHash
-    }
-
-    const manifest = {
-      version: 1,
-      hash: auth.manifest.hash,
-      quorum: 0,
-      signers: [],
-      prologue
-    }
-
-    return {
-      manifest,
-      core: { ...this.core, dependencies: this.core.dependencies.slice() }
-    }
-  }
-
   _addDependency(dep) {
     const deps = []
 

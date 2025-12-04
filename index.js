@@ -958,7 +958,7 @@ class CorestoreStorage {
   // not allowed to throw validation errors as its a shared tx!
   async _create(
     view,
-    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, core: ptrs }
+    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, dependencies = [] }
   ) {
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
@@ -974,8 +974,8 @@ class CorestoreStorage {
     if (head === null) head = initStoreHead()
     if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
-    const corePointer = ptrs ? ptrs.corePointer : head.allocated.cores++
-    const dataPointer = ptrs ? ptrs.dataPointer : head.allocated.datas++
+    const corePointer = head.allocated.cores++
+    const dataPointer = head.allocated.datas++
 
     core = { version: VERSION, corePointer, dataPointer, alias }
 
@@ -983,7 +983,7 @@ class CorestoreStorage {
     tx.putCore(discoveryKey, core)
     if (alias) tx.putCoreByAlias(alias, discoveryKey)
 
-    const ptr = { corePointer, dataPointer, dependencies: [] }
+    const ptr = { corePointer, dataPointer, dependencies }
     const ctx = new CoreTX(ptr, this.db, view, tx.changes)
 
     ctx.setAuth({
@@ -993,6 +993,7 @@ class CorestoreStorage {
       keyPair,
       encryptionKey
     })
+    if (dependencies.length) ctx.setDependency(dependencies[dependencies.length - 1])
 
     if (userData) {
       for (const { key, value } of userData) {

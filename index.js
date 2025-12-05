@@ -958,8 +958,9 @@ class CorestoreStorage {
   // not allowed to throw validation errors as its a shared tx!
   async _create(
     view,
-    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, dependencies = [] }
+    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, core: storageCorePointer = {} }
   ) {
+    const { corePointer = 0, dataPointer = 0, dependencies = [] } = storageCorePointer
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 
@@ -974,16 +975,16 @@ class CorestoreStorage {
     if (head === null) head = initStoreHead()
     if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
-    const corePointer = head.allocated.cores++
-    const dataPointer = head.allocated.datas++
+    const newCorePointer = head.allocated.cores++
+    const newDataPointer = head.allocated.datas++
 
-    core = { version: VERSION, corePointer, dataPointer, alias }
+    core = { version: VERSION, corePointer: newCorePointer, dataPointer: newDataPointer, alias }
 
     tx.setHead(head)
     tx.putCore(discoveryKey, core)
     if (alias) tx.putCoreByAlias(alias, discoveryKey)
 
-    const ptr = { corePointer, dataPointer, dependencies }
+    const ptr = { corePointer: newCorePointer, dataPointer: newDataPointer, dependencies }
     const ctx = new CoreTX(ptr, this.db, view, tx.changes)
 
     ctx.setAuth({
@@ -993,7 +994,23 @@ class CorestoreStorage {
       keyPair,
       encryptionKey
     })
-    if (dependencies.length) ctx.setDependency(dependencies[dependencies.length - 1])
+
+    if (dependencies.length) {
+      const rx = new CoreRX({ dataPointer, corePointer, dependencies }, this.db, view)
+      const headPromise = rx.getHead()
+      rx.tryFlush()
+      const originalHead = await headPromise
+      if (originalHead) {
+        ctx.setHead({
+          fork: 0,
+          length: originalHead.length,
+          rootHash: originalHead.rootHash,
+          signature: originalHead.rootHash,
+        })
+      }
+      // TODO not sure this should be persisted yet?
+      ctx.setDependency(ptr.dependencies[ptr.dependencies.length - 1])
+    }
 
     if (userData) {
       for (const { key, value } of userData) {

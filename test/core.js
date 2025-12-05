@@ -393,10 +393,13 @@ test('create core w/ dependencies', async (t) => {
   const coreStatic = await s.createCore({
     key: b4a.alloc(32).fill('b'),
     discoveryKey: b4a.alloc(32).fill('db'),
-    dependencies: [{
-      dataPointer: core.core.dataPointer,
-      length: 3
-    }]
+    core: {
+      ...core.core,
+      dependencies: [{
+        dataPointer: core.core.dataPointer,
+        length: 3
+      }]
+    }
   })
 
   t.teardown(async function () {

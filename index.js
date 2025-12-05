@@ -960,7 +960,7 @@ class CorestoreStorage {
     view,
     { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, core: storageCorePointer = {} }
   ) {
-    const { corePointer = 0, dataPointer = 0, dependencies = [] } = storageCorePointer
+    const { dataPointer = 0, dependencies = [] } = storageCorePointer
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 
@@ -996,7 +996,7 @@ class CorestoreStorage {
     })
 
     if (dependencies.length) {
-      const rx = new CoreRX({ dataPointer, corePointer, dependencies }, this.db, view)
+      const rx = new CoreRX({ dataPointer, dependencies }, this.db, view)
       const headPromise = rx.getHead()
       rx.tryFlush()
       const originalHead = await headPromise

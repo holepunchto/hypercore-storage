@@ -1014,7 +1014,7 @@ class CorestoreStorage {
           fork: 0,
           length: originalHead.length,
           rootHash: originalHead.rootHash,
-          signature: originalHead.rootHash
+          signature: null
         })
       }
       // TODO not sure this should be persisted yet?

@@ -345,6 +345,91 @@ test('set and get hypercore head', async (t) => {
   }
 })
 
+test('create core w/ dependencies', async (t) => {
+  const s = await create(t)
+  const core = await s.createCore({
+    key: b4a.alloc(32),
+    discoveryKey: b4a.alloc(32)
+  })
+
+  t.teardown(async function () {
+    await core.close()
+    await s.close()
+  })
+
+  {
+    const rx = core.read()
+    const p = rx.getDependency()
+    rx.tryFlush()
+    t.alike(await p, null, 'No dependency on init core')
+  }
+
+  {
+    const tx = core.write()
+    tx.setDependency({
+      dataPointer: 0,
+      length: 3
+    })
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = rx.getDependency()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      {
+        dataPointer: 0,
+        length: 3
+      },
+      'updated dependency'
+    )
+  }
+
+  // Write some blocks
+  await writeBlocks(core, 3)
+
+  const coreStatic = await s.createCore({
+    key: b4a.alloc(32).fill('b'),
+    discoveryKey: b4a.alloc(32).fill('db'),
+    core: {
+      ...core.core,
+      dependencies: [
+        {
+          dataPointer: core.core.dataPointer,
+          length: 3
+        }
+      ]
+    }
+  })
+
+  t.teardown(async function () {
+    await coreStatic.close()
+  })
+
+  {
+    const rx = coreStatic.read()
+    const p = rx.getDependency()
+    rx.tryFlush()
+    t.alike(
+      await p,
+      {
+        dataPointer: 0,
+        length: 3
+      },
+      'starts with dependency'
+    )
+  }
+
+  const initBlocks = [b4a.from('block0'), b4a.from('block1'), b4a.from('block2')]
+  t.alike(
+    await readBlocks(coreStatic, 3),
+    initBlocks,
+    'core w/ dependency has access to original block'
+  )
+})
+
 test('set and get hypercore dependency', async (t) => {
   const core = await createCore(t)
   {

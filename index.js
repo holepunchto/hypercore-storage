@@ -1005,7 +1005,7 @@ class CorestoreStorage {
     })
 
     if (dependencies.length) {
-      const rx = new CoreRX({ dataPointer, dependencies }, this.db, view)
+      const rx = new CoreRX({ corePointer: 0, dataPointer, dependencies }, this.db, view)
       const headPromise = rx.getHead()
       rx.tryFlush()
       const originalHead = await headPromise

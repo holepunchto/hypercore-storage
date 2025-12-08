@@ -958,7 +958,16 @@ class CorestoreStorage {
   // not allowed to throw validation errors as its a shared tx!
   async _create(
     view,
-    { key, manifest, keyPair, encryptionKey, discoveryKey, alias, userData, core: storageCorePointer = {} }
+    {
+      key,
+      manifest,
+      keyPair,
+      encryptionKey,
+      discoveryKey,
+      alias,
+      userData,
+      core: storageCorePointer = {}
+    }
   ) {
     const { dataPointer = 0, dependencies = [] } = storageCorePointer
     const rx = new CorestoreRX(this.db, view)
@@ -1005,7 +1014,7 @@ class CorestoreStorage {
           fork: 0,
           length: originalHead.length,
           rootHash: originalHead.rootHash,
-          signature: originalHead.rootHash,
+          signature: originalHead.rootHash
         })
       }
       // TODO not sure this should be persisted yet?

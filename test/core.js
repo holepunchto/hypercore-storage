@@ -395,10 +395,12 @@ test('create core w/ dependencies', async (t) => {
     discoveryKey: b4a.alloc(32).fill('db'),
     core: {
       ...core.core,
-      dependencies: [{
-        dataPointer: core.core.dataPointer,
-        length: 3
-      }]
+      dependencies: [
+        {
+          dataPointer: core.core.dataPointer,
+          length: 3
+        }
+      ]
     }
   })
 
@@ -421,7 +423,11 @@ test('create core w/ dependencies', async (t) => {
   }
 
   const initBlocks = [b4a.from('block0'), b4a.from('block1'), b4a.from('block2')]
-  t.alike(await readBlocks(coreStatic, 3), initBlocks, 'core w/ dependency has access to original block')
+  t.alike(
+    await readBlocks(coreStatic, 3),
+    initBlocks,
+    'core w/ dependency has access to original block'
+  )
 })
 
 test('set and get hypercore dependency', async (t) => {

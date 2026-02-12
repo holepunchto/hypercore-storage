@@ -583,6 +583,38 @@ test('delete bitfield page range', async (t) => {
   }
 })
 
+test('set and get mark', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putMark(0)
+    tx.putMark(1)
+    tx.putMark(2)
+    tx.putMark(3)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getMark(0),
+      rx.getMark(1),
+      rx.getMark(2),
+      rx.getMark(3),
+      rx.getMark(4)
+    ])
+    rx.tryFlush()
+    const [mark1, mark2, mark3, mark4, mark5] = await p
+
+    t.ok(mark1, 'sanity check')
+    t.ok(mark2, 'sanity check')
+    t.ok(mark3, 'sanity check')
+    t.ok(mark4, 'sanity check')
+    t.absent(mark5, 'returns falsy by default')
+  }
+})
+
 test('cannot open tx on snapshot', async (t) => {
   const core = await createCore(t)
 

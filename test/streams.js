@@ -272,6 +272,27 @@ test('block stream (atom)', async function (t) {
   }
 })
 
+test('mark stream', async function (t) {
+  const core = await createCore(t)
+
+  const tx = core.write()
+  const expected = []
+
+  for (let i = 0; i < 10; i++) {
+    tx.putMark(i)
+    expected.push({ index: i, value: true })
+  }
+  await tx.flush()
+
+  const marks = await toArray(core.createMarkStream())
+
+  t.alike(marks, expected)
+
+  const marksBackwards = await toArray(core.createMarkStream({ reverse: true }))
+
+  t.alike(marksBackwards, expected.reverse())
+})
+
 test('discoveryKey stream', async function (t) {
   const s = await create(t)
   const expectedAll = []

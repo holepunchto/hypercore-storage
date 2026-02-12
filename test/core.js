@@ -613,6 +613,29 @@ test('set and get mark', async (t) => {
     t.ok(mark4, 'sanity check')
     t.absent(mark5, 'returns falsy by default')
   }
+
+  {
+    const tx = core.write()
+    tx.deleteMarkRange(1, 3)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getMark(0),
+      rx.getMark(1),
+      rx.getMark(2),
+      rx.getMark(3)
+    ])
+    rx.tryFlush()
+    const [mark1, mark2, mark3, mark4] = await p
+
+    t.ok(mark1, 'sanity check')
+    t.absent(mark2, 'sanity check')
+    t.absent(mark3, 'sanity check')
+    t.ok(mark4, 'sanity check')
+  }
 })
 
 test('cannot open tx on snapshot', async (t) => {

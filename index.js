@@ -21,6 +21,7 @@ const {
   createBitfieldStream,
   createUserDataStream,
   createTreeNodeStream,
+  createMarkStream,
   createLocalStream
 } = require('./lib/streams.js')
 
@@ -222,6 +223,10 @@ class HypercoreStorage {
 
   createUserDataStream(opts) {
     return createUserDataStream(this.core, this.db, this.view, opts)
+  }
+
+  createMarkStream(opts) {
+    return createMarkStream(this.core, this.db, this.view, opts)
   }
 
   createLocalStream(opts) {

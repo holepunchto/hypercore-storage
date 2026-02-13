@@ -279,8 +279,9 @@ test('mark stream', async function (t) {
   const expected = []
 
   for (let i = 0; i < 10; i++) {
-    tx.putMark(i)
-    expected.push({ index: i, value: true })
+    const page = b4a.from('i' + i)
+    tx.putMark(i, page)
+    expected.push({ index: i, page })
   }
   await tx.flush()
 

@@ -588,10 +588,10 @@ test('set and get mark', async (t) => {
 
   {
     const tx = core.write()
-    tx.putMark(0)
-    tx.putMark(1)
-    tx.putMark(2)
-    tx.putMark(3)
+    tx.putMark(0, 'mark-data-1')
+    tx.putMark(1, 'mark-data-2')
+    tx.putMark(2, 'mark-data-3')
+    tx.putMark(3, 'mark-data-4')
     await tx.flush()
   }
 
@@ -607,10 +607,10 @@ test('set and get mark', async (t) => {
     rx.tryFlush()
     const [mark1, mark2, mark3, mark4, mark5] = await p
 
-    t.ok(mark1, 'sanity check')
-    t.ok(mark2, 'sanity check')
-    t.ok(mark3, 'sanity check')
-    t.ok(mark4, 'sanity check')
+    t.is(b4a.toString(mark1), 'mark-data-1', 'sanity check')
+    t.is(b4a.toString(mark2), 'mark-data-2', 'sanity check')
+    t.is(b4a.toString(mark3), 'mark-data-3', 'sanity check')
+    t.is(b4a.toString(mark4), 'mark-data-4', 'sanity check')
     t.absent(mark5, 'returns falsy by default')
   }
 
@@ -631,10 +631,10 @@ test('set and get mark', async (t) => {
     rx.tryFlush()
     const [mark1, mark2, mark3, mark4] = await p
 
-    t.ok(mark1, 'sanity check')
+    t.is(b4a.toString(mark1), 'mark-data-1', 'sanity check')
     t.absent(mark2, 'sanity check')
     t.absent(mark3, 'sanity check')
-    t.ok(mark4, 'sanity check')
+    t.is(b4a.toString(mark4), 'mark-data-4', 'sanity check')
   }
 })
 

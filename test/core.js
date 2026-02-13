@@ -583,6 +583,93 @@ test('delete bitfield page range', async (t) => {
   }
 })
 
+test('set and get mark', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putMark(0, 'mark-data-1')
+    tx.putMark(1, 'mark-data-2')
+    tx.putMark(2, 'mark-data-3')
+    tx.putMark(3, 'mark-data-4')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getMark(0),
+      rx.getMark(1),
+      rx.getMark(2),
+      rx.getMark(3),
+      rx.getMark(4)
+    ])
+    rx.tryFlush()
+    const [mark1, mark2, mark3, mark4, mark5] = await p
+
+    t.is(b4a.toString(mark1), 'mark-data-1', 'sanity check')
+    t.is(b4a.toString(mark2), 'mark-data-2', 'sanity check')
+    t.is(b4a.toString(mark3), 'mark-data-3', 'sanity check')
+    t.is(b4a.toString(mark4), 'mark-data-4', 'sanity check')
+    t.absent(mark5, 'returns falsy by default')
+  }
+
+  {
+    const tx = core.write()
+    tx.deleteMarkRange(1, 3)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([rx.getMark(0), rx.getMark(1), rx.getMark(2), rx.getMark(3)])
+    rx.tryFlush()
+    const [mark1, mark2, mark3, mark4] = await p
+
+    t.is(b4a.toString(mark1), 'mark-data-1', 'sanity check')
+    t.absent(mark2, 'sanity check')
+    t.absent(mark3, 'sanity check')
+    t.is(b4a.toString(mark4), 'mark-data-4', 'sanity check')
+  }
+})
+
+test('delete mark', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putMark(0, 'mark-data-1')
+    tx.putMark(1, 'mark-data-2')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([rx.getMark(0), rx.getMark(1)])
+    rx.tryFlush()
+    const [mark1, mark2] = await p
+
+    t.is(b4a.toString(mark1), 'mark-data-1', 'sanity check')
+    t.is(b4a.toString(mark2), 'mark-data-2', 'sanity check')
+  }
+
+  {
+    const tx = core.write()
+    tx.deleteMark(1)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([rx.getMark(0), rx.getMark(1)])
+    rx.tryFlush()
+    const [mark1, mark2] = await p
+
+    t.is(b4a.toString(mark1), 'mark-data-1', 'non-deleted page remains')
+    t.absent(mark2, 'mark page was deleted')
+  }
+})
+
 test('cannot open tx on snapshot', async (t) => {
   const core = await createCore(t)
 

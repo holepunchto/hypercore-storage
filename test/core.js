@@ -638,6 +638,49 @@ test('set and get mark', async (t) => {
   }
 })
 
+test('delete mark', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const tx = core.write()
+    tx.putMark(0, 'mark-data-1')
+    tx.putMark(1, 'mark-data-2')
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getMark(0),
+      rx.getMark(1)
+    ])
+    rx.tryFlush()
+    const [mark1, mark2] = await p
+
+    t.is(b4a.toString(mark1), 'mark-data-1', 'sanity check')
+    t.is(b4a.toString(mark2), 'mark-data-2', 'sanity check')
+  }
+
+  {
+    const tx = core.write()
+    tx.deleteMark(1)
+    await tx.flush()
+  }
+
+  {
+    const rx = core.read()
+    const p = Promise.all([
+      rx.getMark(0),
+      rx.getMark(1)
+    ])
+    rx.tryFlush()
+    const [mark1, mark2] = await p
+
+    t.is(b4a.toString(mark1), 'mark-data-1', 'non-deleted page remains')
+    t.absent(mark2, 'mark page was deleted')
+  }
+})
+
 test('cannot open tx on snapshot', async (t) => {
   const core = await createCore(t)
 

@@ -622,12 +622,7 @@ test('set and get mark', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getMark(0),
-      rx.getMark(1),
-      rx.getMark(2),
-      rx.getMark(3)
-    ])
+    const p = Promise.all([rx.getMark(0), rx.getMark(1), rx.getMark(2), rx.getMark(3)])
     rx.tryFlush()
     const [mark1, mark2, mark3, mark4] = await p
 
@@ -650,10 +645,7 @@ test('delete mark', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getMark(0),
-      rx.getMark(1)
-    ])
+    const p = Promise.all([rx.getMark(0), rx.getMark(1)])
     rx.tryFlush()
     const [mark1, mark2] = await p
 
@@ -669,10 +661,7 @@ test('delete mark', async (t) => {
 
   {
     const rx = core.read()
-    const p = Promise.all([
-      rx.getMark(0),
-      rx.getMark(1)
-    ])
+    const p = Promise.all([rx.getMark(0), rx.getMark(1)])
     rx.tryFlush()
     const [mark1, mark2] = await p
 

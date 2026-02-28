@@ -823,6 +823,7 @@ class CorestoreStorage {
       for (const inf of infos) {
         tx.setCoreHints(inf.core, { ...inf.hints, recovering })
       }
+      tx.apply()
     } finally {
       if (own) await this._exit()
     }

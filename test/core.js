@@ -400,7 +400,8 @@ test('set and get hypercore hints', async (t) => {
     const rx = core.read()
     const p = rx.getHints()
     rx.tryFlush()
-    t.alike(await p, { contiguousLength: 2, remoteContiguousLength: 1 }, 'updated hints')
+    const e = { contiguousLength: 2, remoteContiguousLength: 1, recovering: 0 }
+    t.alike(await p, e, 'updated hints')
   }
 })
 

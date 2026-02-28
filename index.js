@@ -547,6 +547,21 @@ class CorestoreStorage {
     }
   }
 
+  async _maybeRecover() {
+    const r = path.join(this.db.path, 'RECOVERING')
+    if (!(await fileExists(r))) return
+    await this.setRecovering()
+    await fs.promises.unlink(r)
+  }
+
+  _maybeRecoverLater(err) {
+    if (!shouldRecover(err)) return
+    fs.writeFileSync(path.join(this.db.path, 'RECOVERING'), '')
+    for (const file of fs.readdirSync(this.db.path)) {
+      if (file.endsWith('.log')) fs.unlinkSync(path.join(this.db.path, file))
+    }
+  }
+
   // runs pre any other mutation and read
   async _migrateStore() {
     const view = await this._enter()
@@ -555,7 +570,15 @@ class CorestoreStorage {
       if (this.version === VERSION) return
 
       await this._preopen
-      await this.db.ready()
+
+      try {
+        await this.db.ready()
+      } catch (err) {
+        this._maybeRecoverLater(err)
+        throw err
+      }
+
+      await this._maybeRecover()
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
@@ -770,6 +793,35 @@ class CorestoreStorage {
       tx.apply()
 
       return head.seed
+    } finally {
+      await this._exit()
+    }
+  }
+
+  async setRecovering() {
+    const recovering = Date.now()
+    let keys = []
+
+    for await (const data of this.createDiscoveryKeyStream()) {
+      keys.push(data)
+      if (keys.length > 16 * 1024) {
+        await this._flushRecovering(recovering, keys)
+        keys = []
+      }
+    }
+
+    if (keys.length) await this._flushRecovering(recovering, keys)
+  }
+
+  async _flushRecovering(recovering, keys) {
+    const view = await this._enter()
+    const tx = new CorestoreTX(view)
+
+    try {
+      const infos = await this.getInfos(keys, { auth: false, head: false, hints: true })
+      for (const inf of infos) {
+        tx.setCoreHints(inf.core, { ...inf.hints, recovering })
+      }
     } finally {
       await this._exit()
     }
@@ -1126,6 +1178,19 @@ async function toArray(stream) {
   const all = []
   for await (const e of stream) all.push(e)
   return all
+}
+
+async function fileExists(path) {
+  try {
+    await fs.promises.stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function shouldRecover(err) {
+  return err.message.toLowerCase().indexOf('sequence number is being set backwards') > -1
 }
 
 function noop() {}

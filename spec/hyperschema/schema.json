@@ -353,6 +353,11 @@
           "name": "remoteContiguousLength",
           "type": "uint",
           "version": 1
+        },
+        {
+          "name": "recovering",
+          "type": "uint",
+          "version": 1
         }
       ]
     },

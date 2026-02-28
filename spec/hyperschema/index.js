@@ -43,10 +43,7 @@ const encoding1 = {
     if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
   },
   encode(state, m) {
-    const flags =
-      (m.allocated ? 1 : 0) |
-      (m.seed ? 2 : 0) |
-      (m.defaultDiscoveryKey ? 4 : 0)
+    const flags = (m.allocated ? 1 : 0) | (m.seed ? 2 : 0) | (m.defaultDiscoveryKey ? 4 : 0)
 
     c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
@@ -269,10 +266,7 @@ const encoding9 = {
   },
   encode(state, m) {
     const flags =
-      (m.allowPatch ? 1 : 0) |
-      (m.prologue ? 2 : 0) |
-      (m.linked ? 4 : 0) |
-      (m.userData ? 8 : 0)
+      (m.allowPatch ? 1 : 0) | (m.prologue ? 2 : 0) | (m.linked ? 4 : 0) | (m.userData ? 8 : 0)
 
     c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
@@ -337,10 +331,7 @@ const encoding11 = {
     if (m.encryptionKey) c.buffer.preencode(state, m.encryptionKey)
   },
   encode(state, m) {
-    const flags =
-      (m.manifest ? 1 : 0) |
-      (m.keyPair ? 2 : 0) |
-      (m.encryptionKey ? 4 : 0)
+    const flags = (m.manifest ? 1 : 0) | (m.keyPair ? 2 : 0) | (m.encryptionKey ? 4 : 0)
 
     c.fixed32.encode(state, m.key)
     c.fixed32.encode(state, m.discoveryKey)
@@ -397,27 +388,29 @@ const encoding12 = {
 // @core/hints
 const encoding13 = {
   preencode(state, m) {
-    state.end++ // max flag is 2 so always one byte
+    state.end++ // max flag is 4 so always one byte
 
     if (m.contiguousLength) c.uint.preencode(state, m.contiguousLength)
     if (m.remoteContiguousLength) c.uint.preencode(state, m.remoteContiguousLength)
+    if (m.recovering) c.uint.preencode(state, m.recovering)
   },
   encode(state, m) {
     const flags =
-      (m.contiguousLength ? 1 : 0) |
-      (m.remoteContiguousLength ? 2 : 0)
+      (m.contiguousLength ? 1 : 0) | (m.remoteContiguousLength ? 2 : 0) | (m.recovering ? 4 : 0)
 
     c.uint.encode(state, flags)
 
     if (m.contiguousLength) c.uint.encode(state, m.contiguousLength)
     if (m.remoteContiguousLength) c.uint.encode(state, m.remoteContiguousLength)
+    if (m.recovering) c.uint.encode(state, m.recovering)
   },
   decode(state) {
     const flags = c.uint.decode(state)
 
     return {
       contiguousLength: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-      remoteContiguousLength: (flags & 2) !== 0 ? c.uint.decode(state) : 0
+      remoteContiguousLength: (flags & 2) !== 0 ? c.uint.decode(state) : 0,
+      recovering: (flags & 4) !== 0 ? c.uint.decode(state) : 0
     }
   }
 }

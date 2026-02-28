@@ -547,10 +547,10 @@ class CorestoreStorage {
     }
   }
 
-  async _maybeRecover() {
+  async _maybeRecover(view) {
     const r = path.join(this.db.path, 'RECOVERING')
     if (!(await fileExists(r))) return
-    await this.setRecovering()
+    await this.setRecovering(view)
     await fs.promises.unlink(r)
   }
 
@@ -578,7 +578,7 @@ class CorestoreStorage {
         throw err
       }
 
-      await this._maybeRecover()
+      await this._maybeRecover(view)
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
@@ -798,32 +798,33 @@ class CorestoreStorage {
     }
   }
 
-  async setRecovering() {
+  async setRecovering(view = null) {
     const recovering = Date.now()
     let keys = []
 
     for await (const data of this.createDiscoveryKeyStream()) {
       keys.push(data)
       if (keys.length > 16 * 1024) {
-        await this._flushRecovering(recovering, keys)
+        await this._flushRecovering(recovering, view, keys)
         keys = []
       }
     }
 
-    if (keys.length) await this._flushRecovering(recovering, keys)
+    if (keys.length) await this._flushRecovering(recovering, view, keys)
   }
 
-  async _flushRecovering(recovering, keys) {
-    const view = await this._enter()
+  async _flushRecovering(recovering, view, keys) {
+    const own = !view
+    if (own) view = await this._enter()
     const tx = new CorestoreTX(view)
 
     try {
-      const infos = await this.getInfos(keys, { auth: false, head: false, hints: true })
+      const infos = await this._getInfos(keys, { auth: false, head: false, hints: true })
       for (const inf of infos) {
         tx.setCoreHints(inf.core, { ...inf.hints, recovering })
       }
     } finally {
-      await this._exit()
+      if (own) await this._exit()
     }
   }
 
@@ -902,9 +903,12 @@ class CorestoreStorage {
     return (await this.getInfos([discoveryKey], opts))[0]
   }
 
-  async getInfos(discoveryKeys, { auth = true, head = true, hints = true } = {}) {
+  async getInfos(discoveryKeys, opts) {
     if (this.version === 0) await this._migrateStore()
+    return this._getInfos(discoveryKeys, opts)
+  }
 
+  async _getInfos(discoveryKeys, { auth = true, head = true, hints = true } = {}) {
     const rx = new CorestoreRX(this.db, EMPTY)
     const corePromises = new Array(discoveryKeys.length)
 

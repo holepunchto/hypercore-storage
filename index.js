@@ -1195,7 +1195,8 @@ async function fileExists(path) {
 }
 
 function shouldRecover(err) {
-  return err.message.toLowerCase().indexOf('sequence number is being set backwards') > -1
+  // return err.message.toLowerCase().indexOf('sequence number is being set backwards') > -1
+  return false // disabled for now, can reenable when needed
 }
 
 function noop() {}

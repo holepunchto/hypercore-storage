@@ -378,6 +378,44 @@ test('set and get hypercore dependency', async (t) => {
   }
 })
 
+test('core - setDependencyHead()', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const batch1 = await core.createSession('batch1', null)
+    const batch2 = await batch1.createSession('batch2', null)
+
+    t.is(batch2.core.dependencies.length, 2, 'deps setup with 2')
+
+    const prevTail = batch2.core.dependencies[0]
+    const prevHead = batch2.core.dependencies[batch2.core.dependencies.length - 1]
+    batch2.setDependencyHead({
+      dataPointer: prevHead.dataPointer, // will match existing dep
+      length: prevHead.length + 1
+    })
+    t.is(batch2.core.dependencies.length, 2, 'still has 2 deps')
+    const newHead = batch2.core.dependencies[batch2.core.dependencies.length - 1]
+    t.alike(newHead, { ...prevHead, length: prevHead.length + 1 }, 'set head dep correctly')
+
+    const firstDep = batch2.core.dependencies[0]
+    batch2.setDependencyHead({
+      dataPointer: firstDep.dataPointer, // will match existing dep
+      length: firstDep.length + 1
+    })
+    t.is(batch2.core.dependencies.length, 1, 'truncated deps to first')
+    const newHead2 = batch2.core.dependencies[batch2.core.dependencies.length - 1]
+    t.alike(newHead2, { ...firstDep, length: firstDep.length + 1 }, 'set head dep correctly')
+
+    const unseenDep = {
+      dataPointer: 1337, // wont match
+      length: 42
+    }
+    batch2.setDependencyHead(unseenDep)
+    t.is(batch2.core.dependencies.length, 1, 'cleared deps & overwrote')
+    t.alike(batch2.core.dependencies, [ unseenDep ], 'set head dep correctly')
+  }
+})
+
 test('set and get hypercore hints', async (t) => {
   const core = await createCore(t)
   {

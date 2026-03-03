@@ -412,7 +412,7 @@ test('core - setDependencyHead()', async (t) => {
     }
     batch2.setDependencyHead(unseenDep)
     t.is(batch2.core.dependencies.length, 1, 'cleared deps & overwrote')
-    t.alike(batch2.core.dependencies, [ unseenDep ], 'set head dep correctly')
+    t.alike(batch2.core.dependencies, [unseenDep], 'set head dep correctly')
   }
 })
 

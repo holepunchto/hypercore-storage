@@ -387,7 +387,6 @@ test('core - setDependencyHead()', async (t) => {
 
     t.is(batch2.core.dependencies.length, 2, 'deps setup with 2')
 
-    const prevTail = batch2.core.dependencies[0]
     const prevHead = batch2.core.dependencies[batch2.core.dependencies.length - 1]
     batch2.setDependencyHead({
       dataPointer: prevHead.dataPointer, // will match existing dep

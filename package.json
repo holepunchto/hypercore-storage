@@ -29,6 +29,16 @@
       "default": "path"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/holepunchto/hypercore-storage.git"
+  },
+  "author": "Holepunch",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/holepunchto/hypercore-storage/issues"
+  },
+  "homepage": "https://github.com/holepunchto/hypercore-storage#readme",
   "dependencies": {
     "b4a": "^1.6.7",
     "bare-fs": "^4.0.1",

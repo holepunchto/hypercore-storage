@@ -127,6 +127,7 @@ class HypercoreStorage {
         dataPointer: dep.dataPointer,
         length: dep.length
       }
+      return // updated head so done
     }
 
     this.core.dependencies = [

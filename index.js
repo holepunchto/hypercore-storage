@@ -429,6 +429,7 @@ class CorestoreStorage {
 
     this.bootstrap = storage !== null
     this.path = storage !== null ? storage : path.join(db.path, '..')
+    this.alwaysRecover = !!opts.alwaysRecover
     this.readOnly = !!opts.readOnly
     this.allowBackup = !!opts.allowBackup
     this.deviceFile = null
@@ -555,7 +556,7 @@ class CorestoreStorage {
   }
 
   _maybeRecoverLater(err) {
-    if (!shouldRecover(err)) return
+    if (!shouldRecover(err) && !this.alwaysRecover) return
     fs.writeFileSync(path.join(this.db.path, 'RECOVERING'), '')
     for (const file of fs.readdirSync(this.db.path)) {
       if (file.endsWith('.log')) fs.unlinkSync(path.join(this.db.path, file))

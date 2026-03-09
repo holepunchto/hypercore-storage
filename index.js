@@ -369,6 +369,52 @@ class HypercoreStorage {
     return deps
   }
 
+  async purgeBatches() {
+    const rx = this.read()
+    const existingSessionsPromise = rx.getSessions()
+    const existingHeadPromise = rx.getHead()
+    rx.tryFlush()
+
+    const [existingSessions, head] = await Promise.all([
+      existingSessionsPromise,
+      existingHeadPromise
+    ])
+
+    const length = head === null ? 0 : head.length
+
+    // Close all sessions for safety
+    // TODO Figure out the equivalent in storage
+    // await core.core.closeAllSessions()
+
+    // Remove batches
+    const tx = this.write()
+    tx.setSessions([]) // Clear sessions record
+
+    for (const sessionRecord of existingSessions) {
+      const session = getBatch(existingSessions, sessionRecord.name, false)
+      const core = {
+        corePointer: this.core.corePointer,
+        dataPointer: session.dataPointer,
+        dependencies: this._addDependency({
+          dataPointer: this.core.dataPointer,
+          length
+        })
+      }
+
+      const coreTx = new CoreTX(core, this.db, tx.view, tx.changes)
+
+      coreTx.deleteHead()
+      coreTx.deleteDependency()
+
+      // nuke all existing state...
+      coreTx.deleteBlockRange(0, -1)
+      coreTx.deleteTreeNodeRange(0, -1)
+      coreTx.deleteBitfieldPageRange(0, -1)
+    }
+
+    await tx.flush()
+  }
+
   read() {
     return new CoreRX(this.core, this.db, this.view)
   }

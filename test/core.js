@@ -415,6 +415,50 @@ test('core - setDependencyHead()', async (t) => {
   }
 })
 
+test('core - purgeBatches()', async (t) => {
+  const core = await createCore(t)
+  await writeBlocks(core, 2)
+
+  {
+    const rx = core.read()
+    const sessionsPromise = rx.getSessions()
+    rx.tryFlush()
+    t.alike(await sessionsPromise, null, 'null to start')
+  }
+
+  {
+    const batch1 = await core.createSession('batch1', null)
+    await writeBlocks(batch1, 2, { pre: 'batch1-', start: 2 })
+    const batch2 = await batch1.createSession('batch2', null)
+    await writeBlocks(batch2, 2, { pre: 'batch2-', start: 4 })
+
+    t.alike(core.core.dependencies, [], 'core has no deps')
+    t.alike(batch1.core.dependencies, [{ dataPointer: 0, length: 0 }], 'batch 1 has core as dep')
+    t.alike(
+      batch2.core.dependencies,
+      [
+        { dataPointer: 0, length: 0 },
+        { dataPointer: 1, length: 0 }
+      ],
+      'batch 2 has batch 1 & core as dep'
+    )
+
+    await core.purgeBatches()
+
+    const rx = core.read()
+    const sessionsPromise = rx.getSessions()
+    rx.tryFlush()
+    t.alike(await sessionsPromise, [], 'empty array to end')
+
+    const ex = await core.constructor.export(
+      { corePointer: core.core.corePointer, dataPointer: core.core.dataPointer, dependencies: [] },
+      core.db,
+      { batches: true }
+    )
+    t.is(ex.data.length, 1, 'only the core')
+  }
+})
+
 test('set and get hypercore hints', async (t) => {
   const core = await createCore(t)
   {

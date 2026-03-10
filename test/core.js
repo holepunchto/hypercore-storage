@@ -415,7 +415,7 @@ test('core - setDependencyHead()', async (t) => {
   }
 })
 
-test('core - purgeBatches()', async (t) => {
+test('core - deleteBatches()', async (t) => {
   const core = await createCore(t)
   await writeBlocks(core, 2)
 
@@ -443,7 +443,7 @@ test('core - purgeBatches()', async (t) => {
       'batch 2 has batch 1 & core as dep'
     )
 
-    await core.purgeBatches()
+    await core.deleteBatches()
 
     const rx = core.read()
     const sessionsPromise = rx.getSessions()

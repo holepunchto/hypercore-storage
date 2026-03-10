@@ -107,6 +107,11 @@ class HypercoreStorage {
   }
 
   setDependencyHead(dep) {
+    if (dep === null) {
+      this.core.dependencies = []
+      return
+    }
+
     const deps = this.core.dependencies
 
     for (let i = deps.length - 1; i >= 0; i--) {

@@ -450,6 +450,7 @@ test('core - deleteBatches()', async (t) => {
     rx.tryFlush()
     t.alike(await sessionsPromise, [], 'empty array to end')
 
+    // hack for testing, usually only accessible via corestore API
     const ex = await core.constructor.export(
       { corePointer: core.core.corePointer, dataPointer: core.core.dataPointer, dependencies: [] },
       core.db,

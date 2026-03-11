@@ -427,6 +427,11 @@ class HypercoreStorage {
 
     return core
   }
+
+  static isParentStorage(storage, parent) {
+    const last = getLastDependency(storage)
+    return !!last && last.dataPointer === parent.core.dataPointer
+  }
 }
 
 class CorestoreStorage {
@@ -1080,6 +1085,10 @@ class CorestoreStorage {
       await this._exit()
     }
   }
+
+  static isParentStorage(storage, parent) {
+    return HypercoreStorage.isParentStorage(storage, parent)
+  }
 }
 
 module.exports = CorestoreStorage
@@ -1132,6 +1141,12 @@ function createColumnFamily(db, opts = {}) {
   })
 
   return db.columnFamily(col)
+}
+
+function getLastDependency(storage) {
+  return storage.dependencies.length
+    ? storage.dependencies[storage.dependencies.length - 1]
+    : null
 }
 
 // TODO: remove in like 3-6 mo

@@ -62,7 +62,8 @@ class Atom {
     this.flushing = true
 
     try {
-      for (const fn of this.preflushes) fn()
+      const plen = this.preflushes.length
+      for (let i = 0; i < plen; i++) this.preflushes[i]()
 
       await View.flush(this.view.changes, this.db)
 

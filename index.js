@@ -242,7 +242,7 @@ class HypercoreStorage {
     const existingSessions = await existingSessionsPromise
 
     const sessions = existingSessions || []
-    const session = getBatch(sessions, name, false)
+    const session = getSession(sessions, name, false)
 
     if (session === null) return null
 
@@ -288,7 +288,7 @@ class HypercoreStorage {
     }
 
     const sessions = existingSessions || []
-    const session = getBatch(sessions, name, true)
+    const session = getSession(sessions, name, true)
     const fresh = session.dataPointer === -1
 
     if (fresh) {
@@ -372,6 +372,29 @@ class HypercoreStorage {
       deps.push(dep)
     }
     return deps
+  }
+
+  async deleteSessions() {
+    const rx = this.read()
+    const existingSessionsPromise = rx.getSessions()
+    rx.tryFlush()
+
+    const existingSessions = await existingSessionsPromise
+
+    // Remove batches
+    const coreTx = this.write()
+    coreTx.setSessions([]) // Clear sessions record
+    await coreTx.flush()
+
+    const tx = this.db.write({ autoDestroy: true })
+
+    for (const { dataPointer } of existingSessions) {
+      const start = core.data(dataPointer)
+      const end = core.data(dataPointer + 1)
+      tx.tryDeleteRange(start, end)
+    }
+
+    await tx.flush()
   }
 
   read() {
@@ -1096,7 +1119,7 @@ function initStoreHead() {
   }
 }
 
-function getBatch(sessions, name, alloc) {
+function getSession(sessions, name, alloc) {
   for (let i = 0; i < sessions.length; i++) {
     if (sessions[i].name === name) return sessions[i]
   }

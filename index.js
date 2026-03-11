@@ -32,7 +32,12 @@ class Atom {
     this.view = new View()
     this.flushedPromise = null
     this.flushing = false
+    this.preflushes = []
     this.flushes = []
+  }
+
+  preflush(fn) {
+    this.preflushes.push(fn)
   }
 
   onflush(fn) {
@@ -57,8 +62,10 @@ class Atom {
     this.flushing = true
 
     try {
+      const plen = this.preflushes.length
+      for (let i = 0; i < plen; i++) this.preflushes[i]()
+
       await View.flush(this.view.changes, this.db)
-      this.view.reset()
 
       const promises = []
       const len = this.flushes.length // in case of reentry
@@ -66,6 +73,7 @@ class Atom {
 
       await Promise.all(promises)
     } finally {
+      this.view.reset()
       this.flushing = false
       if (this.flushedPromise !== null) this._resolve()
     }
@@ -449,6 +457,11 @@ class HypercoreStorage {
     core.data = await Promise.all(data)
 
     return core
+  }
+
+  static isParentStorage(storage, parent) {
+    const last = getLastDependency(storage)
+    return !!last && last.dataPointer === parent.core.dataPointer
   }
 }
 
@@ -1103,6 +1116,10 @@ class CorestoreStorage {
       await this._exit()
     }
   }
+
+  static isParentStorage(storage, parent) {
+    return HypercoreStorage.isParentStorage(storage, parent)
+  }
 }
 
 module.exports = CorestoreStorage
@@ -1155,6 +1172,10 @@ function createColumnFamily(db, opts = {}) {
   })
 
   return db.columnFamily(col)
+}
+
+function getLastDependency(storage) {
+  return storage.dependencies.length ? storage.dependencies[storage.dependencies.length - 1] : null
 }
 
 // TODO: remove in like 3-6 mo

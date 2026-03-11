@@ -2,6 +2,8 @@ const test = require('brittle')
 const b4a = require('b4a')
 const { createCore, create, writeBlocks, readBlocks } = require('./helpers')
 
+const HypercoreStorage = require('../')
+
 test('read and write hypercore blocks', async (t) => {
   const core = await createCore(t)
   await writeBlocks(core, 2)
@@ -760,6 +762,20 @@ test('create named sessions', async (t) => {
   t.is(a.core.dependencies[0].length, 10)
   t.is(b.core.dependencies[0].length, 10)
   t.is(c.core.dependencies[0].length, 10)
+
+  t.ok(HypercoreStorage.isParentStorage(a, core))
+  t.ok(HypercoreStorage.isParentStorage(b, core))
+
+  const head = {
+    length: 10,
+    fork: 0,
+    rootHash: b4a.alloc(32),
+    signature: null
+  }
+
+  const d = await a.createSession('d', head)
+
+  t.absent(HypercoreStorage.isParentStorage(d, core))
 })
 
 test('export hypercore', async (t) => {

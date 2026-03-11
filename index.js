@@ -32,7 +32,12 @@ class Atom {
     this.view = new View()
     this.flushedPromise = null
     this.flushing = false
+    this.preflushes = []
     this.flushes = []
+  }
+
+  preflush(fn) {
+    this.preflushes.push(fn)
   }
 
   onflush(fn) {
@@ -57,6 +62,8 @@ class Atom {
     this.flushing = true
 
     try {
+      for (const fn of this.preflushes) fn()
+
       await View.flush(this.view.changes, this.db)
       this.view.reset()
 

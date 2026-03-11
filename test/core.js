@@ -443,7 +443,7 @@ test('core - deleteBatches()', async (t) => {
       'batch 2 has batch 1 & core as dep'
     )
 
-    await core.deleteBatches()
+    await core.deleteSessions()
 
     const rx = core.read()
     const sessionsPromise = rx.getSessions()

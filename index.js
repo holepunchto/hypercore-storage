@@ -65,7 +65,6 @@ class Atom {
       for (const fn of this.preflushes) fn()
 
       await View.flush(this.view.changes, this.db)
-      this.view.reset()
 
       const promises = []
       const len = this.flushes.length // in case of reentry
@@ -73,6 +72,7 @@ class Atom {
 
       await Promise.all(promises)
     } finally {
+      this.view.reset()
       this.flushing = false
       if (this.flushedPromise !== null) this._resolve()
     }

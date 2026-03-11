@@ -1151,9 +1151,7 @@ function createColumnFamily(db, opts = {}) {
 }
 
 function getLastDependency(storage) {
-  return storage.dependencies.length
-    ? storage.dependencies[storage.dependencies.length - 1]
-    : null
+  return storage.dependencies.length ? storage.dependencies[storage.dependencies.length - 1] : null
 }
 
 // TODO: remove in like 3-6 mo

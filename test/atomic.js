@@ -187,7 +187,8 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   }
   const expHints = {
     contiguousLength: 1,
-    remoteContiguousLength: 0
+    remoteContiguousLength: 0,
+    recovering: 0
   }
   const expBitfields = [b4a.from('bitfield-data-1'), null]
 

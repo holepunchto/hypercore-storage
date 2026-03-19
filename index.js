@@ -33,7 +33,12 @@ class Atom {
     this.view = new View()
     this.flushedPromise = null
     this.flushing = false
+    this.preflushes = []
     this.flushes = []
+  }
+
+  preflush(fn) {
+    this.preflushes.push(fn)
   }
 
   onflush(fn) {
@@ -58,8 +63,10 @@ class Atom {
     this.flushing = true
 
     try {
+      const plen = this.preflushes.length
+      for (let i = 0; i < plen; i++) this.preflushes[i]()
+
       await View.flush(this.view.changes, this.db)
-      this.view.reset()
 
       const promises = []
       const len = this.flushes.length // in case of reentry
@@ -67,6 +74,7 @@ class Atom {
 
       await Promise.all(promises)
     } finally {
+      this.view.reset()
       this.flushing = false
       if (this.flushedPromise !== null) this._resolve()
     }
@@ -108,6 +116,11 @@ class HypercoreStorage {
   }
 
   setDependencyHead(dep) {
+    if (dep === null) {
+      this.core.dependencies = []
+      return
+    }
+
     const deps = this.core.dependencies
 
     for (let i = deps.length - 1; i >= 0; i--) {
@@ -128,6 +141,7 @@ class HypercoreStorage {
         dataPointer: dep.dataPointer,
         length: dep.length
       }
+      return // updated head so done
     }
 
     this.core.dependencies = [
@@ -241,7 +255,7 @@ class HypercoreStorage {
     const existingSessions = await existingSessionsPromise
 
     const sessions = existingSessions || []
-    const session = getBatch(sessions, name, false)
+    const session = getSession(sessions, name, false)
 
     if (session === null) return null
 
@@ -287,7 +301,7 @@ class HypercoreStorage {
     }
 
     const sessions = existingSessions || []
-    const session = getBatch(sessions, name, true)
+    const session = getSession(sessions, name, true)
     const fresh = session.dataPointer === -1
 
     if (fresh) {
@@ -373,6 +387,29 @@ class HypercoreStorage {
     return deps
   }
 
+  async deleteSessions() {
+    const rx = this.read()
+    const existingSessionsPromise = rx.getSessions()
+    rx.tryFlush()
+
+    const existingSessions = await existingSessionsPromise
+
+    // Remove batches
+    const coreTx = this.write()
+    coreTx.setSessions([]) // Clear sessions record
+    await coreTx.flush()
+
+    const tx = this.db.write({ autoDestroy: true })
+
+    for (const { dataPointer } of existingSessions) {
+      const start = core.data(dataPointer)
+      const end = core.data(dataPointer + 1)
+      tx.tryDeleteRange(start, end)
+    }
+
+    await tx.flush()
+  }
+
   read() {
     return new CoreRX(this.core, this.db, this.view)
   }
@@ -426,6 +463,11 @@ class HypercoreStorage {
 
     return core
   }
+
+  static isParentStorage(storage, parent) {
+    const last = getLastDependency(storage)
+    return !!last && last.dataPointer === parent.core.dataPointer
+  }
 }
 
 class CorestoreStorage {
@@ -434,6 +476,7 @@ class CorestoreStorage {
 
     this.bootstrap = storage !== null
     this.path = storage !== null ? storage : path.join(db.path, '..')
+    this.alwaysRecover = !!opts.alwaysRecover
     this.readOnly = !!opts.readOnly
     this.allowBackup = !!opts.allowBackup
     this.deviceFile = null
@@ -552,6 +595,21 @@ class CorestoreStorage {
     }
   }
 
+  async _maybeRecover(view) {
+    const r = path.join(this.db.path, 'RECOVERING')
+    if (!(await fileExists(r))) return
+    await this.setRecovering(view)
+    await fs.promises.unlink(r)
+  }
+
+  _maybeRecoverLater(err) {
+    if (!shouldRecover(err) && !this.alwaysRecover) return
+    fs.writeFileSync(path.join(this.db.path, 'RECOVERING'), '')
+    for (const file of fs.readdirSync(this.db.path)) {
+      if (file.endsWith('.log')) fs.unlinkSync(path.join(this.db.path, file))
+    }
+  }
+
   // runs pre any other mutation and read
   async _migrateStore() {
     const view = await this._enter()
@@ -560,7 +618,15 @@ class CorestoreStorage {
       if (this.version === VERSION) return
 
       await this._preopen
-      await this.db.ready()
+
+      try {
+        await this.db.ready()
+      } catch (err) {
+        this._maybeRecoverLater(err)
+        throw err
+      }
+
+      await this._maybeRecover(view)
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
@@ -780,6 +846,37 @@ class CorestoreStorage {
     }
   }
 
+  async setRecovering(view = null) {
+    const recovering = Date.now()
+    let keys = []
+
+    for await (const data of this.createDiscoveryKeyStream()) {
+      keys.push(data)
+      if (keys.length > 16 * 1024) {
+        await this._flushRecovering(recovering, view, keys)
+        keys = []
+      }
+    }
+
+    if (keys.length) await this._flushRecovering(recovering, view, keys)
+  }
+
+  async _flushRecovering(recovering, view, keys) {
+    const own = !view
+    if (own) view = await this._enter()
+    const tx = new CorestoreTX(view)
+
+    try {
+      const infos = await this._getInfos(keys, { auth: false, head: false, hints: true })
+      for (const inf of infos) {
+        tx.setCoreHints(inf.core, { ...inf.hints, recovering })
+      }
+      tx.apply()
+    } finally {
+      if (own) await this._exit()
+    }
+  }
+
   async getDefaultDiscoveryKey() {
     if (this.version === 0) await this._migrateStore()
 
@@ -855,9 +952,12 @@ class CorestoreStorage {
     return (await this.getInfos([discoveryKey], opts))[0]
   }
 
-  async getInfos(discoveryKeys, { auth = true, head = true, hints = true } = {}) {
+  async getInfos(discoveryKeys, opts) {
     if (this.version === 0) await this._migrateStore()
+    return this._getInfos(discoveryKeys, opts)
+  }
 
+  async _getInfos(discoveryKeys, { auth = true, head = true, hints = true } = {}) {
     const rx = new CorestoreRX(this.db, EMPTY)
     const corePromises = new Array(discoveryKeys.length)
 
@@ -1021,6 +1121,10 @@ class CorestoreStorage {
       await this._exit()
     }
   }
+
+  static isParentStorage(storage, parent) {
+    return HypercoreStorage.isParentStorage(storage, parent)
+  }
 }
 
 module.exports = CorestoreStorage
@@ -1037,7 +1141,7 @@ function initStoreHead() {
   }
 }
 
-function getBatch(sessions, name, alloc) {
+function getSession(sessions, name, alloc) {
   for (let i = 0; i < sessions.length; i++) {
     if (sessions[i].name === name) return sessions[i]
   }
@@ -1073,6 +1177,10 @@ function createColumnFamily(db, opts = {}) {
   })
 
   return db.columnFamily(col)
+}
+
+function getLastDependency(storage) {
+  return storage.dependencies.length ? storage.dependencies[storage.dependencies.length - 1] : null
 }
 
 // TODO: remove in like 3-6 mo
@@ -1131,6 +1239,19 @@ async function toArray(stream) {
   const all = []
   for await (const e of stream) all.push(e)
   return all
+}
+
+async function fileExists(path) {
+  try {
+    await fs.promises.stat(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function shouldRecover(err) {
+  return err.message.toLowerCase().indexOf('sequence number is being set backwards') > -1
 }
 
 function noop() {}

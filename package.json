@@ -1,6 +1,6 @@
 {
   "name": "hypercore-storage",
-  "version": "2.4.1",
+  "version": "2.7.1",
   "main": "index.js",
   "files": [
     "index.js",
@@ -16,7 +16,7 @@
     "test:generate": "brittle -r test/all.js test/*.js",
     "test:node": "brittle-node test/all.js"
   },
-  "author": "Holepunch Inc.",
+  "author": "Holepunch",
   "license": "Apache-2.0",
   "description": "Storage engine for Hypercore",
   "imports": {
@@ -29,6 +29,14 @@
       "default": "path"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/holepunchto/hypercore-storage.git"
+  },
+  "bugs": {
+    "url": "https://github.com/holepunchto/hypercore-storage/issues"
+  },
+  "homepage": "https://github.com/holepunchto/hypercore-storage#readme",
   "dependencies": {
     "b4a": "^1.6.7",
     "bare-fs": "^4.0.1",

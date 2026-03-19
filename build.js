@@ -290,6 +290,10 @@ core.register({
     {
       name: 'remoteContiguousLength',
       type: 'uint'
+    },
+    {
+      name: 'recovering',
+      type: 'uint'
     }
   ]
 })

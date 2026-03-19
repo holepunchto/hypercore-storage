@@ -46,6 +46,8 @@ test('make many in parallel', async function (t) {
   // all unique allocations
   t.is(ptrs.size, cores.length)
 
+  await s.setRecovering()
+
   for (const c of cores) await c.close()
 
   await s.close()

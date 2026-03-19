@@ -2,6 +2,8 @@ const test = require('brittle')
 const b4a = require('b4a')
 const { createCore, create, writeBlocks, readBlocks } = require('./helpers')
 
+const HypercoreStorage = require('../')
+
 test('read and write hypercore blocks', async (t) => {
   const core = await createCore(t)
   await writeBlocks(core, 2)
@@ -378,6 +380,92 @@ test('set and get hypercore dependency', async (t) => {
   }
 })
 
+test('core - setDependencyHead()', async (t) => {
+  const core = await createCore(t)
+
+  {
+    const batch1 = await core.createSession('batch1', null)
+    const batch2 = await batch1.createSession('batch2', null)
+
+    t.is(batch2.core.dependencies.length, 2, 'deps setup with 2')
+
+    const prevHead = batch2.core.dependencies[batch2.core.dependencies.length - 1]
+    batch2.setDependencyHead({
+      dataPointer: prevHead.dataPointer, // will match existing dep
+      length: prevHead.length + 1
+    })
+    t.is(batch2.core.dependencies.length, 2, 'still has 2 deps')
+    const newHead = batch2.core.dependencies[batch2.core.dependencies.length - 1]
+    t.alike(newHead, { ...prevHead, length: prevHead.length + 1 }, 'set head dep correctly')
+
+    const firstDep = batch2.core.dependencies[0]
+    batch2.setDependencyHead({
+      dataPointer: firstDep.dataPointer, // will match existing dep
+      length: firstDep.length + 1
+    })
+    t.is(batch2.core.dependencies.length, 1, 'truncated deps to first')
+    const newHead2 = batch2.core.dependencies[batch2.core.dependencies.length - 1]
+    t.alike(newHead2, { ...firstDep, length: firstDep.length + 1 }, 'set head dep correctly')
+
+    const unseenDep = {
+      dataPointer: 1337, // wont match
+      length: 42
+    }
+    batch2.setDependencyHead(unseenDep)
+    t.is(batch2.core.dependencies.length, 1, 'cleared deps & overwrote')
+    t.alike(batch2.core.dependencies, [unseenDep], 'set head dep correctly')
+
+    batch2.setDependencyHead(null)
+    t.is(batch2.core.dependencies.length, 0, 'cleared deps')
+    t.alike(batch2.core.dependencies, [], 'no deps')
+  }
+})
+
+test('core - deleteBatches()', async (t) => {
+  const core = await createCore(t)
+  await writeBlocks(core, 2)
+
+  {
+    const rx = core.read()
+    const sessionsPromise = rx.getSessions()
+    rx.tryFlush()
+    t.alike(await sessionsPromise, null, 'null to start')
+  }
+
+  {
+    const batch1 = await core.createSession('batch1', null)
+    await writeBlocks(batch1, 2, { pre: 'batch1-', start: 2 })
+    const batch2 = await batch1.createSession('batch2', null)
+    await writeBlocks(batch2, 2, { pre: 'batch2-', start: 4 })
+
+    t.alike(core.core.dependencies, [], 'core has no deps')
+    t.alike(batch1.core.dependencies, [{ dataPointer: 0, length: 0 }], 'batch 1 has core as dep')
+    t.alike(
+      batch2.core.dependencies,
+      [
+        { dataPointer: 0, length: 0 },
+        { dataPointer: 1, length: 0 }
+      ],
+      'batch 2 has batch 1 & core as dep'
+    )
+
+    await core.deleteSessions()
+
+    const rx = core.read()
+    const sessionsPromise = rx.getSessions()
+    rx.tryFlush()
+    t.alike(await sessionsPromise, [], 'empty array to end')
+
+    // hack for testing, usually only accessible via corestore API
+    const ex = await core.constructor.export(
+      { corePointer: core.core.corePointer, dataPointer: core.core.dataPointer, dependencies: [] },
+      core.db,
+      { batches: true }
+    )
+    t.is(ex.data.length, 1, 'only the core')
+  }
+})
+
 test('set and get hypercore hints', async (t) => {
   const core = await createCore(t)
   {
@@ -400,7 +488,8 @@ test('set and get hypercore hints', async (t) => {
     const rx = core.read()
     const p = rx.getHints()
     rx.tryFlush()
-    t.alike(await p, { contiguousLength: 2, remoteContiguousLength: 1 }, 'updated hints')
+    const e = { contiguousLength: 2, remoteContiguousLength: 1, recovering: 0 }
+    t.alike(await p, e, 'updated hints')
   }
 })
 
@@ -760,6 +849,20 @@ test('create named sessions', async (t) => {
   t.is(a.core.dependencies[0].length, 10)
   t.is(b.core.dependencies[0].length, 10)
   t.is(c.core.dependencies[0].length, 10)
+
+  t.ok(HypercoreStorage.isParentStorage(a, core))
+  t.ok(HypercoreStorage.isParentStorage(b, core))
+
+  const head = {
+    length: 10,
+    fork: 0,
+    rootHash: b4a.alloc(32),
+    signature: null
+  }
+
+  const d = await a.createSession('d', head)
+
+  t.absent(HypercoreStorage.isParentStorage(d, core))
 })
 
 test('export hypercore', async (t) => {

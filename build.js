@@ -338,4 +338,44 @@ core.register({
   ]
 })
 
+const wakeup = schema.namespace('wakeup')
+
+wakeup.register({
+  name: 'session',
+  fields: [
+    {
+      name: 'version',
+      type: 'uint',
+      required: true
+    },
+    {
+      name: 'clock',
+      type: 'uint',
+      required: true
+    },
+    {
+      name: 'drained',
+      type: 'uint',
+      required: true
+    }
+  ]
+})
+
+wakeup.register({
+  name: 'entry',
+  compact: true,
+  fields: [
+    {
+      name: 'key',
+      type: 'fixed32',
+      required: true
+    },
+    {
+      name: 'length',
+      type: 'uint',
+      required: true
+    }
+  ]
+})
+
 Hyperschema.toDisk(schema, SPEC)

@@ -460,6 +460,52 @@ const encoding16 = {
   }
 }
 
+// @wakeup/session
+const encoding17 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.version)
+    c.uint.preencode(state, m.clock)
+    c.uint.preencode(state, m.drained)
+  },
+  encode(state, m) {
+    c.uint.encode(state, m.version)
+    c.uint.encode(state, m.clock)
+    c.uint.encode(state, m.drained)
+  },
+  decode(state) {
+    const r0 = c.uint.decode(state)
+    const r1 = c.uint.decode(state)
+    const r2 = c.uint.decode(state)
+
+    return {
+      version: r0,
+      clock: r1,
+      drained: r2
+    }
+  }
+}
+
+// @wakeup/entry
+const encoding18 = {
+  preencode(state, m) {
+    c.fixed32.preencode(state, m.key)
+    c.uint.preencode(state, m.length)
+  },
+  encode(state, m) {
+    c.fixed32.encode(state, m.key)
+    c.uint.encode(state, m.length)
+  },
+  decode(state) {
+    const r0 = c.fixed32.decode(state)
+    const r1 = c.uint.decode(state)
+
+    return {
+      key: r0,
+      length: r1
+    }
+  }
+}
+
 function setVersion(v) {
   version = v
 }
@@ -521,6 +567,10 @@ function getEncoding(name) {
       return encoding15
     case '@core/dependency':
       return encoding16
+    case '@wakeup/session':
+      return encoding17
+    case '@wakeup/entry':
+      return encoding18
     default:
       throw new Error('Encoder not found ' + name)
   }

@@ -4,14 +4,17 @@ const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
+const { isEnded, getStreamError } = require('streamx')
+
 const View = require('./lib/view.js')
 
 const VERSION = 1
+const DEFAULT_WAKEUP_SIZE = 128
 const COLUMN_FAMILY = 'corestore'
 
 const { store, core } = require('./lib/keys.js')
 
-const { CorestoreRX, CorestoreTX, CoreTX, CoreRX } = require('./lib/tx.js')
+const { CorestoreRX, CorestoreTX, CoreTX, CoreRX, WakeupTX } = require('./lib/tx.js')
 
 const {
   createCoreStream,
@@ -22,7 +25,8 @@ const {
   createUserDataStream,
   createTreeNodeStream,
   createMarkStream,
-  createLocalStream
+  createLocalStream,
+  createWakeupStream
 } = require('./lib/streams.js')
 
 const EMPTY = new View()
@@ -1122,8 +1126,116 @@ class CorestoreStorage {
     }
   }
 
+  // not allowed to throw validation errors as its a shared tx!
+  async _createWakeup(view, topic, maxSize) {
+    const rx = new CorestoreRX(this.db, view)
+    const tx = new CorestoreTX(view)
+
+    const wakeupPromise = rx.getWakeupSession(topic)
+
+    rx.tryFlush()
+
+    let wakeup = await wakeupPromise
+    if (wakeup) {
+      return new WakeupStorage(this.db.session(), topic, wakeup.clock, wakeup.drained, maxSize)
+    }
+
+    wakeup = { version: VERSION, clock: 0, drained: 0 }
+
+    tx.putWakeupSession(topic, wakeup)
+    tx.apply()
+
+    return new WakeupStorage(this.db.session(), topic, 0, 0, maxSize)
+  }
+
+  async createWakeupSession(topic, { maxSize = DEFAULT_WAKEUP_SIZE } = {}) {
+    if (this.version === 0) await this._migrateStore()
+
+    const view = await this._enter()
+
+    try {
+      return await this._createWakeup(view, topic, maxSize)
+    } finally {
+      await this._exit()
+    }
+  }
+
   static isParentStorage(storage, parent) {
     return HypercoreStorage.isParentStorage(storage, parent)
+  }
+}
+
+class WakeupStorage {
+  constructor(db, topic, clock, drained, maxSize) {
+    this.db = db
+    this.topic = topic
+    this.clock = clock
+    this.drained = drained
+
+    this._flushing = null
+    this._flushes = 0
+    this._maxSize = maxSize
+  }
+
+  get dirty() {
+    return this.clock > this.drained
+  }
+
+  close() {
+    return this.db.close()
+  }
+
+  write() {
+    return new WakeupTX(this.topic, this.db)
+  }
+
+  async addWakeup(key, length) {
+    const clock = this.clock++
+
+    const tx = this.write()
+    tx.putWakeup(clock, { key, length })
+    if (clock - this.drained >= this._maxSize) {
+      tx.deleteWakeup(this.drained++)
+    }
+    await tx.flush()
+
+    return this.flush()
+  }
+
+  async drain() {
+    const clock = this.clock
+    this.drained = clock
+
+    const result = await collectWakeup(createWakeupStream(this.topic, this.db, { lt: clock }))
+
+    const tx = this.write()
+    tx.deleteWakeupRange(0, clock)
+    await tx.flush()
+
+    return result
+  }
+
+  flush() {
+    this._flushes++
+    if (!this._flushing) this._flushing = this._flush()
+    return this._flushing
+  }
+
+  async _flush() {
+    while (true) {
+      try {
+        const tx = this.write()
+        tx.updateSession({ version: VERSION, clock: this.clock, drained: this.drained })
+        await tx.flush()
+      } finally {
+        if (this._flushes === 1) break
+        this._flushes = 1
+      }
+    }
+
+    this._flushing = null
+
+    return this.clock
   }
 }
 
@@ -1273,4 +1385,34 @@ async function getInfoFromBatch(db, c, discoveryKey, getAuth, getHead, getHints)
     head: await headPromise,
     hints: await hintsPromise
   }
+}
+
+function collectWakeup(stream) {
+  const list = []
+  const index = new Map()
+
+  return new Promise(function (resolve, reject) {
+    stream.on('error', noop)
+    stream.on('readable', onreadable)
+    stream.on('close', onclose)
+
+    function onreadable() {
+      while (true) {
+        const data = stream.read()
+        if (data === null) return
+
+        const hex = data.key.toString('hex')
+        if (index.has(hex)) {
+          list[index.get(hex)] = data
+        } else {
+          index.set(hex, list.push(data) - 1)
+        }
+      }
+    }
+
+    function onclose() {
+      if (isEnded(stream)) resolve(list)
+      else reject(getStreamError(stream, { all: true }))
+    }
+  })
 }

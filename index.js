@@ -4,7 +4,7 @@ const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
-const { Readable, isEnded, getStreamError } = require('streamx')
+const { isEnded, getStreamError } = require('streamx')
 
 const View = require('./lib/view.js')
 
@@ -1211,7 +1211,7 @@ class WakeupStorage {
     return result
   }
 
-  async flush() {
+  flush() {
     this._flushes++
     if (!this._flushing) this._flushing = this._flush()
     return this._flushing

@@ -23,6 +23,8 @@ test('wakeup', async (t) => {
 
   t.alike(await wakeup.drain(), updates.slice(1))
   t.alike(await wakeup.drain(), [])
+
+  await wakeup.close()
 })
 
 test('wakeup - concurrent', async (t) => {
@@ -50,6 +52,8 @@ test('wakeup - concurrent', async (t) => {
 
   t.alike(await drain, updates.slice(1))
   t.alike(await wakeup.drain(), [{ key: b4a.alloc(32, 1), length: 3 }])
+
+  await wakeup.close()
 })
 
 test('wakeup - max size', async (t) => {
@@ -76,6 +80,8 @@ test('wakeup - max size', async (t) => {
 
   t.is(hints.length, 4)
   t.alike(hints, updates.slice(2))
+
+  await wakeup.close()
 })
 
 test('wakeup - multiple sessions', async (t) => {
@@ -107,36 +113,9 @@ test('wakeup - multiple sessions', async (t) => {
 
   t.alike(await a.drain(), au)
   t.alike(await b.drain(), bu)
-})
 
-test('wakeup - multiple sessions', async (t) => {
-  const s = await create(t)
-
-  const a = await s.createWakeupSession(b4a.alloc(32, 1))
-  const b = await s.createWakeupSession(b4a.alloc(32, 2))
-
-  const au = [
-    { key: b4a.alloc(32, 1), length: 1 },
-    { key: b4a.alloc(32, 2), length: 1 },
-    { key: b4a.alloc(32, 3), length: 1 }
-  ]
-
-  const bu = [
-    { key: b4a.alloc(32, 4), length: 1 },
-    { key: b4a.alloc(32, 5), length: 1 },
-    { key: b4a.alloc(32, 6), length: 1 }
-  ]
-
-  for (const { key, length } of au) {
-    await a.addWakeup(key, length)
-  }
-
-  for (const { key, length } of bu) {
-    await b.addWakeup(key, length)
-  }
-
-  t.alike(await a.drain(), au)
-  t.alike(await b.drain(), bu)
+  await a.close()
+  await b.close()
 })
 
 test('wakeup - persists', async (t) => {
@@ -168,6 +147,7 @@ test('wakeup - persists', async (t) => {
       await wakeup.addWakeup(key, length)
     }
 
+    await wakeup.close()
     await s.close()
   }
 
@@ -177,6 +157,7 @@ test('wakeup - persists', async (t) => {
 
     t.alike(await wakeup.drain(), updates.slice(3, 6))
 
+    await wakeup.close()
     await s.close()
   }
 })

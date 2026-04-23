@@ -1181,6 +1181,10 @@ class WakeupStorage {
     return this.clock > this.drained
   }
 
+  close() {
+    return this.db.close()
+  }
+
   write() {
     return new WakeupTX(this.topic, this.db)
   }

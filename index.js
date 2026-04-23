@@ -9,7 +9,7 @@ const { Readable, isEnded, getStreamError } = require('streamx')
 const View = require('./lib/view.js')
 
 const VERSION = 1
-const MAX_WAKEUP_SIZE = 128
+const DEFAULT_WAKEUP_SIZE = 128
 const COLUMN_FAMILY = 'corestore'
 
 const { store, core } = require('./lib/keys.js')
@@ -1148,7 +1148,7 @@ class CorestoreStorage {
     return new WakeupStorage(this.db.session(), topic, 0, 0, maxSize)
   }
 
-  async createWakeupSession(topic, { maxSize = MAX_WAKEUP_SIZE } = {}) {
+  async createWakeupSession(topic, { maxSize = DEFAULT_WAKEUP_SIZE } = {}) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()

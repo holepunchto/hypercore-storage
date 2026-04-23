@@ -25,6 +25,7 @@ test('wakeup', async (t) => {
   t.alike(await wakeup.drain(), [])
 
   await wakeup.close()
+  await s.close()
 })
 
 test('wakeup - concurrent', async (t) => {
@@ -54,6 +55,7 @@ test('wakeup - concurrent', async (t) => {
   t.alike(await wakeup.drain(), [{ key: b4a.alloc(32, 1), length: 3 }])
 
   await wakeup.close()
+  await s.close()
 })
 
 test('wakeup - max size', async (t) => {
@@ -82,6 +84,7 @@ test('wakeup - max size', async (t) => {
   t.alike(hints, updates.slice(2))
 
   await wakeup.close()
+  await s.close()
 })
 
 test('wakeup - multiple sessions', async (t) => {
@@ -116,6 +119,7 @@ test('wakeup - multiple sessions', async (t) => {
 
   await a.close()
   await b.close()
+  await s.close()
 })
 
 test('wakeup - persists', async (t) => {

@@ -45,7 +45,7 @@
     "device-file": "^2.1.2",
     "flat-tree": "^1.12.1",
     "hypercore-crypto": "^3.4.2",
-    "hyperschema": "^1.7.0",
+    "hyperschema": "github:holepunchto/hyperschema#compact-encoding-v3",
     "index-encoder": "^3.3.2",
     "resolve-reject-promise": "^1.0.0",
     "rocksdb-native": "^3.11.0",

@@ -274,7 +274,7 @@ core.register({
     },
     {
       name: 'signature',
-      type: 'buffer',
+      type: 'optionalBuffer',
       required: true
     }
   ]

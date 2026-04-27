@@ -362,19 +362,19 @@ const encoding12 = {
     c.uint.preencode(state, m.fork)
     c.uint.preencode(state, m.length)
     c.fixed32.preencode(state, m.rootHash)
-    c.buffer.preencode(state, m.signature)
+    c.optionalBuffer.preencode(state, m.signature)
   },
   encode(state, m) {
     c.uint.encode(state, m.fork)
     c.uint.encode(state, m.length)
     c.fixed32.encode(state, m.rootHash)
-    c.buffer.encode(state, m.signature)
+    c.optionalBuffer.encode(state, m.signature)
   },
   decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
     const r2 = c.fixed32.decode(state)
-    const r3 = c.buffer.decode(state)
+    const r3 = c.optionalBuffer.decode(state)
 
     return {
       fork: r0,

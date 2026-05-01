@@ -29,10 +29,10 @@ test('migration - basic from corestore@6.18.4', async (t) => {
 
   t.ok(await storage.hasCore(coreDKey), 'finds old core & triggers migration')
   t.is(storage.version, 1, 'version 1')
-  t.absent(await fileExists(primaryKeyFile), 'primary key was gc\'ed')
+  t.absent(await fileExists(primaryKeyFile), "primary key was gc'ed")
 })
 
-async function fileExists (path) {
+async function fileExists(path) {
   try {
     await access(path)
     return true

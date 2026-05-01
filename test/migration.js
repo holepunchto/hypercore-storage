@@ -19,10 +19,12 @@ test('migration - basic from corestore@6.18.4', async (t) => {
     coreDKey = a.discoveryKey // setup for opening later
     t.is(await a.get(0), 'beep')
     t.ok(await fileExists(primaryKeyFile), 'primary key file exists from old version')
+    await store.close()
   }
 
   // New storage
   const storage = new CorestoreStorage(dir)
+  t.teardown(() => storage.close())
   t.is(storage.version, 0, 'version 0')
 
   t.ok(await fileExists(primaryKeyFile), 'primary key file exists')

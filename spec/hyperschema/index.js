@@ -299,15 +299,15 @@ const encoding9 = {
 const encoding10 = {
   preencode(state, m) {
     c.buffer.preencode(state, m.publicKey)
-    c.buffer.preencode(state, m.secretKey)
+    c.optionalBuffer.preencode(state, m.secretKey)
   },
   encode(state, m) {
     c.buffer.encode(state, m.publicKey)
-    c.buffer.encode(state, m.secretKey)
+    c.optionalBuffer.encode(state, m.secretKey)
   },
   decode(state) {
     const r0 = c.buffer.decode(state)
-    const r1 = c.buffer.decode(state)
+    const r1 = c.optionalBuffer.decode(state)
 
     return {
       publicKey: r0,

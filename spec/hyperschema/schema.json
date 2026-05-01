@@ -266,7 +266,7 @@
         {
           "name": "secretKey",
           "required": true,
-          "type": "buffer",
+          "type": "optionalBuffer",
           "version": 1
         }
       ]

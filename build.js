@@ -220,7 +220,7 @@ core.register({
     },
     {
       name: 'secretKey',
-      type: 'buffer',
+      type: 'optionalBuffer',
       required: true
     }
   ]

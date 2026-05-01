@@ -220,7 +220,7 @@ core.register({
     },
     {
       name: 'secretKey',
-      type: 'buffer',
+      type: 'optionalBuffer',
       required: true
     }
   ]
@@ -274,7 +274,7 @@ core.register({
     },
     {
       name: 'signature',
-      type: 'buffer',
+      type: 'optionalBuffer',
       required: true
     }
   ]

@@ -253,6 +253,25 @@ test('set and get auth', async (t) => {
 
   {
     const tx = core.write()
+    t.execution(
+      () =>
+        tx.setAuth({
+          key: b4a.alloc(32),
+          discoveryKey: b4a.alloc(32),
+          manifest: null,
+          keyPair: {
+            publicKey: b4a.alloc(32),
+            secretKey: null
+          },
+          encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+        }),
+      "auth's secretKey can be null"
+    )
+    await tx.flush()
+  }
+
+  {
+    const tx = core.write()
     tx.setAuth({
       key: b4a.alloc(32),
       discoveryKey: b4a.alloc(32),

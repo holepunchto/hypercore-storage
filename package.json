@@ -24,6 +24,10 @@
       "bare": "bare-fs",
       "default": "fs"
     },
+    "fs/*": {
+      "bare": "bare-fs/*",
+      "default": "fs/*"
+    },
     "path": {
       "bare": "bare-path",
       "default": "path"
@@ -54,6 +58,7 @@
   },
   "devDependencies": {
     "brittle": "^3.7.0",
+    "corestore-6.18.4": "npm:corestore@^6.18.4",
     "lunte": "^1.3.0",
     "prettier": "^3.6.2",
     "prettier-config-holepunch": "^2.0.0",

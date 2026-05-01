@@ -13,5 +13,8 @@ async function runTests() {
   await import('./snapshot.js')
   await import('./streams.js')
 
+  // Fixtures
+  await import('./migration.js')
+
   test.resume()
 }

@@ -364,14 +364,14 @@ const dataUpgrade = {
     c.uint.preencode(state, u.length)
     nodeArray.preencode(state, u.nodes)
     nodeArray.preencode(state, u.additionalNodes)
-    c.buffer.preencode(state, u.signature)
+    c.optionalBuffer.preencode(state, u.signature)
   },
   encode (state, u) {
     c.uint.encode(state, u.start)
     c.uint.encode(state, u.length)
     nodeArray.encode(state, u.nodes)
     nodeArray.encode(state, u.additionalNodes)
-    c.buffer.encode(state, u.signature)
+    c.optionalBuffer.encode(state, u.signature)
   },
   decode (state) {
     return {
@@ -379,7 +379,7 @@ const dataUpgrade = {
       length: c.uint.decode(state),
       nodes: nodeArray.decode(state),
       additionalNodes: nodeArray.decode(state),
-      signature: c.buffer.decode(state)
+      signature: c.optionalBuffer.decode(state)
     }
   }
 }
@@ -404,18 +404,18 @@ const dataSeek = {
 const dataBlock = {
   preencode (state, b) {
     c.uint.preencode(state, b.index)
-    c.buffer.preencode(state, b.value)
+    c.optionalBuffer.preencode(state, b.value)
     nodeArray.preencode(state, b.nodes)
   },
   encode (state, b) {
     c.uint.encode(state, b.index)
-    c.buffer.encode(state, b.value)
+    c.optionalBuffer.encode(state, b.value)
     nodeArray.encode(state, b.nodes)
   },
   decode (state) {
     return {
       index: c.uint.decode(state),
-      value: c.buffer.decode(state) || EMPTY,
+      value: c.optionalBuffer.decode(state) || EMPTY,
       nodes: nodeArray.decode(state)
     }
   }
@@ -633,16 +633,16 @@ wire.extension = {
 const keyValue = {
   preencode (state, p) {
     c.string.preencode(state, p.key)
-    c.buffer.preencode(state, p.value)
+    c.optionalBuffer.preencode(state, p.value)
   },
   encode (state, p) {
     c.string.encode(state, p.key)
-    c.buffer.encode(state, p.value)
+    c.optionalBuffer.encode(state, p.value)
   },
   decode (state) {
     return {
       key: c.string.decode(state),
-      value: c.buffer.decode(state)
+      value: c.optionalBuffer.decode(state)
     }
   }
 }
@@ -652,20 +652,20 @@ const treeUpgrade = {
     c.uint.preencode(state, u.fork)
     c.uint.preencode(state, u.ancestors)
     c.uint.preencode(state, u.length)
-    c.buffer.preencode(state, u.signature)
+    c.optionalBuffer.preencode(state, u.signature)
   },
   encode (state, u) {
     c.uint.encode(state, u.fork)
     c.uint.encode(state, u.ancestors)
     c.uint.encode(state, u.length)
-    c.buffer.encode(state, u.signature)
+    c.optionalBuffer.encode(state, u.signature)
   },
   decode (state) {
     return {
       fork: c.uint.decode(state),
       ancestors: c.uint.decode(state),
       length: c.uint.decode(state),
-      signature: c.buffer.decode(state)
+      signature: c.optionalBuffer.decode(state)
     }
   }
 }
@@ -737,17 +737,17 @@ oplog.entry = {
 
 const keyPair = {
   preencode (state, kp) {
-    c.buffer.preencode(state, kp.publicKey)
-    c.buffer.preencode(state, kp.secretKey)
+    c.optionalBuffer.preencode(state, kp.publicKey)
+    c.optionalBuffer.preencode(state, kp.secretKey)
   },
   encode (state, kp) {
-    c.buffer.encode(state, kp.publicKey)
-    c.buffer.encode(state, kp.secretKey)
+    c.optionalBuffer.encode(state, kp.publicKey)
+    c.optionalBuffer.encode(state, kp.secretKey)
   },
   decode (state) {
     return {
-      publicKey: c.buffer.decode(state),
-      secretKey: c.buffer.decode(state)
+      publicKey: c.optionalBuffer.decode(state),
+      secretKey: c.optionalBuffer.decode(state)
     }
   }
 }
@@ -795,21 +795,21 @@ const treeHeader = {
   preencode (state, t) {
     c.uint.preencode(state, t.fork)
     c.uint.preencode(state, t.length)
-    c.buffer.preencode(state, t.rootHash)
-    c.buffer.preencode(state, t.signature)
+    c.optionalBuffer.preencode(state, t.rootHash)
+    c.optionalBuffer.preencode(state, t.signature)
   },
   encode (state, t) {
     c.uint.encode(state, t.fork)
     c.uint.encode(state, t.length)
-    c.buffer.encode(state, t.rootHash)
-    c.buffer.encode(state, t.signature)
+    c.optionalBuffer.encode(state, t.rootHash)
+    c.optionalBuffer.encode(state, t.signature)
   },
   decode (state) {
     return {
       fork: c.uint.decode(state),
       length: c.uint.decode(state),
-      rootHash: c.buffer.decode(state),
-      signature: c.buffer.decode(state)
+      rootHash: c.optionalBuffer.decode(state),
+      signature: c.optionalBuffer.decode(state)
     }
   }
 }

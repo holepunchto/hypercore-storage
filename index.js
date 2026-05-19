@@ -1388,8 +1388,7 @@ async function getInfoFromBatch(db, c, discoveryKey, getAuth, getHead, getHints)
 }
 
 function collectWakeup(stream) {
-  const list = []
-  const index = new Map()
+  const hints = new Map()
 
   return new Promise(function (resolve, reject) {
     stream.on('error', noop)
@@ -1402,16 +1401,12 @@ function collectWakeup(stream) {
         if (data === null) return
 
         const hex = data.key.toString('hex')
-        if (index.has(hex)) {
-          list[index.get(hex)] = data
-        } else {
-          index.set(hex, list.push(data) - 1)
-        }
+        hints.set(hex, data.length)
       }
     }
 
     function onclose() {
-      if (isEnded(stream)) resolve(list)
+      if (isEnded(stream)) resolve(hints)
       else reject(getStreamError(stream, { all: true }))
     }
   })

@@ -21,8 +21,8 @@ test('wakeup', async (t) => {
   await wakeup.addWakeup(updates[1].key, updates[1].length)
   await wakeup.addWakeup(updates[2].key, updates[2].length)
 
-  t.alike(await wakeup.drain(), updates.slice(1))
-  t.alike(await wakeup.drain(), [])
+  t.alike(toList(await wakeup.drain()), updates.slice(1))
+  t.alike(toList(await wakeup.drain()), [])
 
   await wakeup.close()
   await s.close()
@@ -51,8 +51,8 @@ test('wakeup - concurrent', async (t) => {
   const drain = wakeup.drain()
   wakeup.addWakeup(b4a.alloc(32, 1), 3)
 
-  t.alike(await drain, updates.slice(1))
-  t.alike(await wakeup.drain(), [{ key: b4a.alloc(32, 1), length: 3 }])
+  t.alike(toList(await drain), updates.slice(1))
+  t.alike(toList(await wakeup.drain()), [{ key: b4a.alloc(32, 1), length: 3 }])
 
   await wakeup.close()
   await s.close()
@@ -80,8 +80,8 @@ test('wakeup - max size', async (t) => {
 
   const hints = await wakeup.drain()
 
-  t.is(hints.length, 4)
-  t.alike(hints, updates.slice(2))
+  t.is(hints.size, 4)
+  t.alike(toList(hints), updates.slice(2))
 
   await wakeup.close()
   await s.close()
@@ -114,8 +114,8 @@ test('wakeup - multiple sessions', async (t) => {
     await b.addWakeup(key, length)
   }
 
-  t.alike(await a.drain(), au)
-  t.alike(await b.drain(), bu)
+  t.alike(toList(await a.drain()), au)
+  t.alike(toList(await b.drain()), bu)
 
   await a.close()
   await b.close()
@@ -144,7 +144,7 @@ test('wakeup - persists', async (t) => {
       await wakeup.addWakeup(key, length)
     }
 
-    t.alike(await wakeup.drain(), updates.slice(0, 3))
+    t.alike(toList(await wakeup.drain()), updates.slice(0, 3))
 
     for (let i = 3; i < 6; i++) {
       const { key, length } = updates[i]
@@ -159,9 +159,17 @@ test('wakeup - persists', async (t) => {
     const s = new Storage(dir)
     const wakeup = await s.createWakeupSession(topic)
 
-    t.alike(await wakeup.drain(), updates.slice(3, 6))
+    t.alike(toList(await wakeup.drain()), updates.slice(3, 6))
 
     await wakeup.close()
     await s.close()
   }
 })
+
+function toList(map) {
+  const list = []
+  for (const [hex, length] of map) {
+    list.push({ key: b4a.from(hex, 'hex'), length })
+  }
+  return list
+}

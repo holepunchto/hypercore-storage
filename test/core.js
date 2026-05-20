@@ -245,7 +245,8 @@ test('set and get auth', async (t) => {
         discoveryKey: b4a.alloc(32),
         manifest: null,
         keyPair: null,
-        encryptionKey: null
+        encryptionKey: null,
+        group: null
       },
       'fresh core auth'
     )
@@ -293,7 +294,8 @@ test('set and get auth', async (t) => {
         discoveryKey: b4a.alloc(32),
         manifest: null,
         keyPair: null,
-        encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+        encryptionKey: b4a.from('a'.repeat(64, 'hex')),
+        group: null
       },
       'updated auth'
     )
@@ -359,7 +361,8 @@ test('set and get hypercore head', async (t) => {
         fork: 1,
         length: 3,
         rootHash: b4a.from('a'.repeat(64), 'hex'),
-        signature: b4a.from('b'.repeat(64), 'hex')
+        signature: b4a.from('b'.repeat(64), 'hex'),
+        timestamp: 0
       },
       'updated head'
     )
@@ -897,7 +900,8 @@ test('export hypercore', async (t) => {
     fork: 1,
     length: 3,
     rootHash: b4a.from('a'.repeat(64), 'hex'),
-    signature: b4a.from('b'.repeat(64), 'hex')
+    signature: b4a.from('b'.repeat(64), 'hex'),
+    timestamp: 0
   }
 
   const node0 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }
@@ -936,7 +940,8 @@ test('export hypercore', async (t) => {
     discoveryKey: b4a.alloc(32),
     manifest: null,
     keyPair: null,
-    encryptionKey: b4a.from('a'.repeat(64), 'hex')
+    encryptionKey: b4a.from('a'.repeat(64), 'hex'),
+    group: null
   })
 
   t.alike(exported.sessions, [])
@@ -971,7 +976,8 @@ test('export named sessions', async (t) => {
     length: 10,
     fork: 0,
     rootHash: b4a.alloc(32),
-    signature: null
+    signature: null,
+    timestamp: 0
   }
 
   const node0 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }

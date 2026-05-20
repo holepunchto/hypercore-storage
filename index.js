@@ -8,7 +8,7 @@ const { isEnded, getStreamError } = require('streamx')
 
 const View = require('./lib/view.js')
 
-const VERSION = 1
+const VERSION = 2
 const DEFAULT_WAKEUP_SIZE = 128
 const COLUMN_FAMILY = 'corestore'
 
@@ -26,7 +26,7 @@ const {
   createTreeNodeStream,
   createMarkStream,
   createLocalStream,
-  createWakeupStream
+  createGroupUpdateStream
 } = require('./lib/streams.js')
 
 const EMPTY = new View()
@@ -651,6 +651,21 @@ class CorestoreStorage {
           await require('./migrations/0').store(this, target)
           break
         }
+        case 1: {
+          const { cores, datas } = head.allocated
+
+          const tx = new CorestoreTX(view)
+          tx.setHead({
+            version: VERSION,
+            allocated: { cores, datas, groups: 0 },
+            seed: head.seed,
+            defaultDiscoveryKey: head.defaultDiscoveryKey
+          })
+          tx.apply()
+
+          await View.flush(view.changes, storage.db)
+          break
+        }
         default: {
           throw new Error(
             'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'
@@ -803,6 +818,10 @@ class CorestoreStorage {
 
   createDiscoveryKeyStream(namespace) {
     return createDiscoveryKeyStream(this.db, EMPTY, namespace)
+  }
+
+  createGroupUpdateStream(group, { since } = {}) {
+    return createGroupUpdateStream(this.db, EMPTY, group, { gte: since })
   }
 
   async getAlias(alias) {
@@ -1127,34 +1146,37 @@ class CorestoreStorage {
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _createWakeup(view, topic, maxSize) {
+  async _createGroup(view, topic, maxSize) {
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 
-    const wakeupPromise = rx.getWakeupSession(topic)
+    const groupPromise = rx.getGroup(topic)
+    const headPromise = rx.getHead()
 
     rx.tryFlush()
 
-    let wakeup = await wakeupPromise
-    if (wakeup) {
-      return new WakeupStorage(this.db.session(), topic, wakeup.clock, wakeup.drained, maxSize)
-    }
+    let group = await groupPromise
+    if (group !== null) return group
 
-    wakeup = { version: VERSION, clock: 0, drained: 0 }
+    let head = await headPromise
+    if (head === null) head = initStoreHead()
 
-    tx.putWakeupSession(topic, wakeup)
+    group = head.allocated.groups++
+
+    tx.putGroup(topic, group)
+    tx.setHead(head)
     tx.apply()
 
-    return new WakeupStorage(this.db.session(), topic, 0, 0, maxSize)
+    return group
   }
 
-  async createWakeupSession(topic, { maxSize = DEFAULT_WAKEUP_SIZE } = {}) {
+  async createGroup(topic) {
     if (this.version === 0) await this._migrateStore()
 
     const view = await this._enter()
 
     try {
-      return await this._createWakeup(view, topic, maxSize)
+      return await this._createGroup(view, topic)
     } finally {
       await this._exit()
     }
@@ -1165,80 +1187,6 @@ class CorestoreStorage {
   }
 }
 
-class WakeupStorage {
-  constructor(db, topic, clock, drained, maxSize) {
-    this.db = db
-    this.topic = topic
-    this.clock = clock
-    this.drained = drained
-
-    this._flushing = null
-    this._flushes = 0
-    this._maxSize = maxSize
-  }
-
-  get dirty() {
-    return this.clock > this.drained
-  }
-
-  close() {
-    return this.db.close()
-  }
-
-  write() {
-    return new WakeupTX(this.topic, this.db)
-  }
-
-  async addWakeup(key, length) {
-    const clock = this.clock++
-
-    const tx = this.write()
-    tx.putWakeup(clock, { key, length })
-    if (clock - this.drained >= this._maxSize) {
-      tx.deleteWakeup(this.drained++)
-    }
-    await tx.flush()
-
-    return this.flush()
-  }
-
-  async drain() {
-    const clock = this.clock
-    this.drained = clock
-
-    const result = await collectWakeup(createWakeupStream(this.topic, this.db, { lt: clock }))
-
-    const tx = this.write()
-    tx.deleteWakeupRange(0, clock)
-    await tx.flush()
-
-    return result
-  }
-
-  flush() {
-    this._flushes++
-    if (!this._flushing) this._flushing = this._flush()
-    return this._flushing
-  }
-
-  async _flush() {
-    while (true) {
-      try {
-        const tx = this.write()
-        tx.updateSession({ version: VERSION, clock: this.clock, drained: this.drained })
-        await tx.flush()
-      } finally {
-        if (this._flushes === 1) break
-        this._flushes = 1
-      }
-    }
-
-    this._flushing = null
-
-    return this.clock
-  }
-}
-
 module.exports = CorestoreStorage
 
 function initStoreHead() {
@@ -1246,7 +1194,8 @@ function initStoreHead() {
     version: 0, // cause we wanna run the migration
     allocated: {
       datas: 0,
-      cores: 0
+      cores: 0,
+      groups: 0
     },
     seed: null,
     defaultDiscoveryKey: null

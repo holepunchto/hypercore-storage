@@ -139,7 +139,8 @@ test('snapshots immutable (all operations)', async (t) => {
     discoveryKey: b4a.alloc(32),
     manifest: null,
     keyPair: null,
-    encryptionKey: null
+    encryptionKey: null,
+    group: null
   }
   t.not(await getAuth(core), origAuth, 'sanity check (core itself got updated)')
   t.alike(await getAuth(snap), origAuth, 'auth unchanged')

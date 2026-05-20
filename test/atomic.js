@@ -173,13 +173,15 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     discoveryKey: b4a.alloc(32),
     manifest: null,
     keyPair: null,
-    encryptionKey: b4a.from('a'.repeat(64, 'hex'))
+    encryptionKey: b4a.from('a'.repeat(64, 'hex')),
+    group: null
   }
   const expHead = {
     fork: 1,
     length: 3,
     rootHash: b4a.from('a'.repeat(64), 'hex'),
-    signature: b4a.from('b'.repeat(64), 'hex')
+    signature: b4a.from('b'.repeat(64), 'hex'),
+    timestamp: 0
   }
   const expDependency = {
     dataPointer: 1,
@@ -210,7 +212,8 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
       discoveryKey: b4a.alloc(32),
       manifest: null,
       keyPair: null,
-      encryptionKey: null
+      encryptionKey: null,
+      group: null
     },
     'auth orig pre flush'
   )

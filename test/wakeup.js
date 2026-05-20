@@ -4,164 +4,189 @@ const { create } = require('./helpers')
 
 const Storage = require('../')
 
-test('wakeup', async (t) => {
+test.solo('groups', async (t) => {
   const s = await create(t)
 
+  let timestamp = 0
   const topic = b4a.alloc(32)
+  const group = await s.createGroup(topic)
 
-  const wakeup = await s.createWakeupSession(topic)
+  t.is(group, 0)
 
-  const updates = [
-    { key: b4a.alloc(32, 1), length: 1 },
-    { key: b4a.alloc(32, 1), length: 2 },
-    { key: b4a.alloc(32, 2), length: 1 }
-  ]
+  const core = await s.createCore({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 1)
+  })
 
-  await wakeup.addWakeup(updates[0].key, updates[0].length)
-  await wakeup.addWakeup(updates[1].key, updates[1].length)
-  await wakeup.addWakeup(updates[2].key, updates[2].length)
-
-  t.alike(toList(await wakeup.drain()), updates.slice(1))
-  t.alike(toList(await wakeup.drain()), [])
-
-  await wakeup.close()
-  await s.close()
-})
-
-test('wakeup - concurrent', async (t) => {
-  const s = await create(t)
-
-  const topic = b4a.alloc(32)
-
-  const wakeup = await s.createWakeupSession(topic)
-
-  const updates = [
-    { key: b4a.alloc(32, 1), length: 1 },
-    { key: b4a.alloc(32, 1), length: 2 },
-    { key: b4a.alloc(32, 2), length: 1 }
-  ]
-
-  const proms = []
-  proms.push(wakeup.addWakeup(updates[0].key, updates[0].length))
-  proms.push(wakeup.addWakeup(updates[1].key, updates[1].length))
-  proms.push(wakeup.addWakeup(updates[2].key, updates[2].length))
-
-  await Promise.all(proms)
-
-  const drain = wakeup.drain()
-  wakeup.addWakeup(b4a.alloc(32, 1), 3)
-
-  t.alike(toList(await drain), updates.slice(1))
-  t.alike(toList(await wakeup.drain()), [{ key: b4a.alloc(32, 1), length: 3 }])
-
-  await wakeup.close()
-  await s.close()
-})
-
-test('wakeup - max size', async (t) => {
-  const s = await create(t)
-
-  const topic = b4a.alloc(32)
-
-  const wakeup = await s.createWakeupSession(topic, { maxSize: 4 })
-
-  const updates = [
-    { key: b4a.alloc(32, 1), length: 1 },
-    { key: b4a.alloc(32, 2), length: 1 },
-    { key: b4a.alloc(32, 3), length: 1 },
-    { key: b4a.alloc(32, 4), length: 1 },
-    { key: b4a.alloc(32, 5), length: 1 },
-    { key: b4a.alloc(32, 6), length: 1 }
-  ]
-
-  for (const { key, length } of updates) {
-    await wakeup.addWakeup(key, length)
-  }
-
-  const hints = await wakeup.drain()
-
-  t.is(hints.size, 4)
-  t.alike(toList(hints), updates.slice(2))
-
-  await wakeup.close()
-  await s.close()
-})
-
-test('wakeup - multiple sessions', async (t) => {
-  const s = await create(t)
-
-  const a = await s.createWakeupSession(b4a.alloc(32, 1))
-  const b = await s.createWakeupSession(b4a.alloc(32, 2))
-
-  const au = [
-    { key: b4a.alloc(32, 1), length: 1 },
-    { key: b4a.alloc(32, 2), length: 1 },
-    { key: b4a.alloc(32, 3), length: 1 }
-  ]
-
-  const bu = [
-    { key: b4a.alloc(32, 4), length: 1 },
-    { key: b4a.alloc(32, 5), length: 1 },
-    { key: b4a.alloc(32, 6), length: 1 }
-  ]
-
-  const proms = []
-  for (const { key, length } of au) {
-    await a.addWakeup(key, length)
-  }
-
-  for (const { key, length } of bu) {
-    await b.addWakeup(key, length)
-  }
-
-  t.alike(toList(await a.drain()), au)
-  t.alike(toList(await b.drain()), bu)
-
-  await a.close()
-  await b.close()
-  await s.close()
-})
-
-test('wakeup - persists', async (t) => {
-  const dir = await t.tmp()
-
-  const topic = b4a.alloc(32, 1)
-  const updates = [
-    { key: b4a.alloc(32, 1), length: 1 },
-    { key: b4a.alloc(32, 2), length: 1 },
-    { key: b4a.alloc(32, 3), length: 1 },
-    { key: b4a.alloc(32, 1), length: 2 },
-    { key: b4a.alloc(32, 2), length: 2 },
-    { key: b4a.alloc(32, 3), length: 2 }
-  ]
+  const tx = core.write()
+  tx.putGroupUpdate(group, timestamp++, b4a.alloc(32, 1))
+  await tx.flush()
 
   {
+    const values = []
+    for await (const key of s.createGroupUpdateStream(group)) {
+      values.push(key)
+    }
+    t.alike(values, [b4a.alloc(32, 1)])
+  }
+
+  {
+    const values = []
+    for await (const key of s.createGroupUpdateStream(group, { since: timestamp })) {
+      values.push(key)
+    }
+    t.alike(values, [])
+  }
+
+  await s.close()
+})
+
+test.solo('groups - multiple cores', async (t) => {
+  const s = await create(t)
+
+  let timestamp = 0
+  const topic = b4a.alloc(32)
+  const group = await s.createGroup(topic)
+
+  const c1 = await s.createCore({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 1)
+  })
+
+  const c2 = await s.createCore({
+    key: b4a.alloc(32, 2),
+    discoveryKey: b4a.alloc(32, 2)
+  })
+
+  const tx1 = c1.write()
+  const tx2 = c2.write()
+
+  tx2.putGroupUpdate(group, timestamp++, b4a.alloc(32, 2))
+  tx1.putGroupUpdate(group, timestamp++, b4a.alloc(32, 1))
+
+  await Promise.all([
+    tx1.flush(),
+    tx2.flush()
+  ])
+
+  {
+    const values = []
+    for await (const key of s.createGroupUpdateStream(group)) {
+      values.push(key)
+    }
+    t.alike(values, [b4a.alloc(32, 1), b4a.alloc(32, 2)])
+  }
+
+  {
+    const values = []
+    for await (const key of s.createGroupUpdateStream(group, { since: timestamp - 1 })) {
+      values.push(key)
+    }
+    t.alike(values, [b4a.alloc(32, 1)])
+  }
+
+  await s.close()
+})
+
+test.solo('groups - multiple groups', async (t) => {
+  const s = await create(t)
+
+  let timestamp = 0
+
+  const group1 = await s.createGroup(b4a.alloc(32, 0))
+  const group2 = await s.createGroup(b4a.alloc(32, 1))
+
+  t.is(group1, 0)
+  t.is(group2, 1)
+
+  // group 1
+  const c1 = await s.createCore({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 1)
+  })
+  const c2 = await s.createCore({
+    key: b4a.alloc(32, 2),
+    discoveryKey: b4a.alloc(32, 2)
+  })
+
+  // group 2
+  const c3 = await s.createCore({
+    key: b4a.alloc(32, 3),
+    discoveryKey: b4a.alloc(32, 3)
+  })
+
+  const tx1 = c1.write()
+  const tx2 = c2.write()
+  const tx3 = c3.write()
+
+  tx2.putGroupUpdate(group1, timestamp++, b4a.alloc(32, 2))
+  tx1.putGroupUpdate(group1, timestamp++, b4a.alloc(32, 1))
+  tx3.putGroupUpdate(group2, timestamp++, b4a.alloc(32, 3))
+
+  await Promise.all([
+    tx1.flush(),
+    tx2.flush(),
+    tx3.flush()
+  ])
+
+  {
+    const values = []
+    for await (const key of s.createGroupUpdateStream(group1)) {
+      values.push(key)
+    }
+    t.alike(values, [b4a.alloc(32, 1), b4a.alloc(32, 2)])
+  }
+
+  {
+    const values = []
+    for await (const key of s.createGroupUpdateStream(group2)) {
+      values.push(key)
+    }
+    t.alike(values, [b4a.alloc(32, 3)])
+  }
+
+  await s.close()
+})
+
+test.solo('wakeup - persists', async (t) => {
+  const dir = await t.tmp()
+
+  let group = null
+  {
     const s = new Storage(dir)
-    const wakeup = await s.createWakeupSession(topic)
 
-    for (let i = 0; i < 3; i++) {
-      const { key, length } = updates[i]
-      await wakeup.addWakeup(key, length)
-    }
+    let timestamp = 0
+    const topic = b4a.alloc(32)
+    group = await s.createGroup(topic)
 
-    t.alike(toList(await wakeup.drain()), updates.slice(0, 3))
+    t.is(group, 0)
 
-    for (let i = 3; i < 6; i++) {
-      const { key, length } = updates[i]
-      await wakeup.addWakeup(key, length)
-    }
+    const core = await s.createCore({
+      key: b4a.alloc(32, 1),
+      discoveryKey: b4a.alloc(32, 1)
+    })
 
-    await wakeup.close()
+    const tx = core.write()
+    tx.putGroupUpdate(group, timestamp++, b4a.alloc(32, 1))
+    await tx.flush()
+
     await s.close()
   }
 
   {
     const s = new Storage(dir)
-    const wakeup = await s.createWakeupSession(topic)
+    const values = []
 
-    t.alike(toList(await wakeup.drain()), updates.slice(3, 6))
+    const anotherGroup = await s.createGroup(b4a.alloc(32, 1))
+    const origGroup = await s.createGroup(b4a.alloc(32))
 
-    await wakeup.close()
+    t.is(origGroup, 0)
+    t.is(anotherGroup, 1)
+
+    for await (const key of s.createGroupUpdateStream(group)) {
+      values.push(key)
+    }
+    t.alike(values, [b4a.alloc(32, 1)])
     await s.close()
   }
 })

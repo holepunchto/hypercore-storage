@@ -5,9 +5,9 @@ const SPEC = './spec/hyperschema'
 const schema = Hyperschema.from(SPEC, { versioned: false })
 const corestore = schema.namespace('corestore')
 
+
 corestore.register({
   name: 'allocated',
-  compact: true,
   fields: [
     {
       name: 'cores',
@@ -23,13 +23,29 @@ corestore.register({
 })
 
 corestore.register({
-  name: 'head',
+  name: 'allocated-v2',
   fields: [
     {
-      name: 'version',
+      name: 'cores',
       type: 'uint',
       required: true
     },
+    {
+      name: 'datas',
+      type: 'uint',
+      required: true
+    },
+    {
+      name: 'groups',
+      type: 'uint',
+      required: true
+    }
+  ]
+})
+
+corestore.register({
+  name: 'head-v1',
+  fields: [
     {
       name: 'allocated',
       type: '@corestore/allocated'
@@ -41,6 +57,38 @@ corestore.register({
     {
       name: 'defaultDiscoveryKey',
       type: 'fixed32'
+    }
+  ]
+})
+
+corestore.register({
+  name: 'head-v2',
+  fields: [
+    {
+      name: 'allocated',
+      type: '@corestore/allocated-v2'
+    },
+    {
+      name: 'seed',
+      type: 'fixed32'
+    },
+    {
+      name: 'defaultDiscoveryKey',
+      type: 'fixed32'
+    }
+  ]
+})
+
+corestore.register({
+  name: 'head',
+  versions: [
+    {
+      version: 1,
+      type: '@corestore/head-v1'
+    },
+    {
+      version: 2,
+      type: '@corestore/head-v2'
     }
   ]
 })
@@ -227,6 +275,20 @@ core.register({
 })
 
 core.register({
+  name: 'group-pointer',
+  fields: [
+    {
+      name: 'key',
+      type: 'fixed32'
+    },
+    {
+      name: 'pointer',
+      type: 'uint'
+    }
+  ]
+})
+
+core.register({
   name: 'auth',
   fields: [
     {
@@ -250,6 +312,10 @@ core.register({
     {
       name: 'encryptionKey',
       type: 'buffer'
+    },
+    {
+      name: 'group',
+      type: '@core/group-pointer'
     }
   ]
 })
@@ -276,6 +342,11 @@ core.register({
       name: 'signature',
       type: 'optionalBuffer',
       required: true
+    },
+    {
+      name: 'timestamp',
+      type: 'uint64',
+      required: false
     }
   ]
 })
@@ -328,46 +399,6 @@ core.register({
     {
       name: 'dataPointer',
       type: 'uint',
-      required: true
-    },
-    {
-      name: 'length',
-      type: 'uint',
-      required: true
-    }
-  ]
-})
-
-const wakeup = schema.namespace('wakeup')
-
-wakeup.register({
-  name: 'session',
-  fields: [
-    {
-      name: 'version',
-      type: 'uint',
-      required: true
-    },
-    {
-      name: 'clock',
-      type: 'uint',
-      required: true
-    },
-    {
-      name: 'drained',
-      type: 'uint',
-      required: true
-    }
-  ]
-})
-
-wakeup.register({
-  name: 'entry',
-  compact: true,
-  fields: [
-    {
-      name: 'key',
-      type: 'fixed32',
       required: true
     },
     {

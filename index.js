@@ -4,17 +4,15 @@ const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
-const { isEnded, getStreamError } = require('streamx')
 
 const View = require('./lib/view.js')
 
 const VERSION = 2
-const DEFAULT_WAKEUP_SIZE = 128
 const COLUMN_FAMILY = 'corestore'
 
 const { store, core } = require('./lib/keys.js')
 
-const { CorestoreRX, CorestoreTX, CoreTX, CoreRX, WakeupTX } = require('./lib/tx.js')
+const { CorestoreRX, CorestoreTX, CoreTX, CoreRX } = require('./lib/tx.js')
 
 const {
   createCoreStream,
@@ -663,7 +661,7 @@ class CorestoreStorage {
           })
           tx.apply()
 
-          await View.flush(view.changes, storage.db)
+          await View.flush(view.changes, this.db)
           break
         }
         default: {
@@ -1351,29 +1349,4 @@ async function getInfoFromBatch(db, c, discoveryKey, getAuth, getHead, getHints)
     head: await headPromise,
     hints: await hintsPromise
   }
-}
-
-function collectWakeup(stream) {
-  const hints = new Map()
-
-  return new Promise(function (resolve, reject) {
-    stream.on('error', noop)
-    stream.on('readable', onreadable)
-    stream.on('close', onclose)
-
-    function onreadable() {
-      while (true) {
-        const data = stream.read()
-        if (data === null) return
-
-        const hex = data.key.toString('hex')
-        hints.set(hex, data.length)
-      }
-    }
-
-    function onclose() {
-      if (isEnded(stream)) resolve(hints)
-      else reject(getStreamError(stream, { all: true }))
-    }
-  })
 }

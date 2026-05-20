@@ -184,11 +184,3 @@ test('wakeup - persists', async (t) => {
     await s.close()
   }
 })
-
-function toList(map) {
-  const list = []
-  for (const [hex, length] of map) {
-    list.push({ key: b4a.from(hex, 'hex'), length })
-  }
-  return list
-}

@@ -331,7 +331,7 @@
       ]
     },
     {
-      "name": "group-pointer",
+      "name": "group",
       "namespace": "core",
       "compact": false,
       "flagsPosition": 0,
@@ -379,11 +379,6 @@
         {
           "name": "encryptionKey",
           "type": "buffer",
-          "version": 1
-        },
-        {
-          "name": "group",
-          "type": "@core/group-pointer",
           "version": 1
         }
       ]

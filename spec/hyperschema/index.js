@@ -426,7 +426,7 @@ const encoding13 = {
   }
 }
 
-// @core/group-pointer
+// @core/group
 const encoding14 = {
   preencode(state, m) {
     state.end++ // max flag is 2 so always one byte
@@ -454,24 +454,20 @@ const encoding14 = {
 
 // @core/auth.manifest
 const encoding15_2 = c.frame(encoding12)
-// @core/auth.group
-const encoding15_5 = c.frame(encoding14)
 
 // @core/auth
 const encoding15 = {
   preencode(state, m) {
     c.fixed32.preencode(state, m.key)
     c.fixed32.preencode(state, m.discoveryKey)
-    state.end++ // max flag is 8 so always one byte
+    state.end++ // max flag is 4 so always one byte
 
     if (m.manifest) encoding15_2.preencode(state, m.manifest)
     if (m.keyPair) encoding13.preencode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.preencode(state, m.encryptionKey)
-    if (m.group) encoding15_5.preencode(state, m.group)
   },
   encode(state, m) {
-    const flags =
-      (m.manifest ? 1 : 0) | (m.keyPair ? 2 : 0) | (m.encryptionKey ? 4 : 0) | (m.group ? 8 : 0)
+    const flags = (m.manifest ? 1 : 0) | (m.keyPair ? 2 : 0) | (m.encryptionKey ? 4 : 0)
 
     c.fixed32.encode(state, m.key)
     c.fixed32.encode(state, m.discoveryKey)
@@ -480,7 +476,6 @@ const encoding15 = {
     if (m.manifest) encoding15_2.encode(state, m.manifest)
     if (m.keyPair) encoding13.encode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.encode(state, m.encryptionKey)
-    if (m.group) encoding15_5.encode(state, m.group)
   },
   decode(state) {
     const r0 = c.fixed32.decode(state)
@@ -492,8 +487,7 @@ const encoding15 = {
       discoveryKey: r1,
       manifest: (flags & 1) !== 0 ? encoding15_2.decode(state) : null,
       keyPair: (flags & 2) !== 0 ? encoding13.decode(state) : null,
-      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
-      group: (flags & 8) !== 0 ? encoding15_5.decode(state) : null
+      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null
     }
   }
 }
@@ -667,7 +661,7 @@ function getEncoding(name) {
       return encoding12
     case '@core/keyPair':
       return encoding13
-    case '@core/group-pointer':
+    case '@core/group':
       return encoding14
     case '@core/auth':
       return encoding15

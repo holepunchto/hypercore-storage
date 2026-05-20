@@ -12,7 +12,6 @@ async function runTests() {
   await import('./core.js')
   await import('./snapshot.js')
   await import('./streams.js')
-  // await import('./wakeup.js')
 
   test.resume()
 }

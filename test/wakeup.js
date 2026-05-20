@@ -64,10 +64,7 @@ test.solo('groups - multiple cores', async (t) => {
   tx2.putGroupUpdate(group, timestamp++, b4a.alloc(32, 2))
   tx1.putGroupUpdate(group, timestamp++, b4a.alloc(32, 1))
 
-  await Promise.all([
-    tx1.flush(),
-    tx2.flush()
-  ])
+  await Promise.all([tx1.flush(), tx2.flush()])
 
   {
     const values = []
@@ -123,11 +120,7 @@ test.solo('groups - multiple groups', async (t) => {
   tx1.putGroupUpdate(group1, timestamp++, b4a.alloc(32, 1))
   tx3.putGroupUpdate(group2, timestamp++, b4a.alloc(32, 3))
 
-  await Promise.all([
-    tx1.flush(),
-    tx2.flush(),
-    tx3.flush()
-  ])
+  await Promise.all([tx1.flush(), tx2.flush(), tx3.flush()])
 
   {
     const values = []

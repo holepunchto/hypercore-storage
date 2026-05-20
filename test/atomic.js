@@ -173,8 +173,7 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     discoveryKey: b4a.alloc(32),
     manifest: null,
     keyPair: null,
-    encryptionKey: b4a.from('a'.repeat(64, 'hex')),
-    group: null
+    encryptionKey: b4a.from('a'.repeat(64, 'hex'))
   }
   const expHead = {
     fork: 1,
@@ -212,8 +211,7 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
       discoveryKey: b4a.alloc(32),
       manifest: null,
       keyPair: null,
-      encryptionKey: null,
-      group: null
+      encryptionKey: null
     },
     'auth orig pre flush'
   )

@@ -5,7 +5,6 @@ const SPEC = './spec/hyperschema'
 const schema = Hyperschema.from(SPEC, { versioned: false })
 const corestore = schema.namespace('corestore')
 
-
 corestore.register({
   name: 'allocated',
   fields: [
@@ -275,7 +274,7 @@ core.register({
 })
 
 core.register({
-  name: 'group-pointer',
+  name: 'group',
   fields: [
     {
       name: 'key',
@@ -312,10 +311,6 @@ core.register({
     {
       name: 'encryptionKey',
       type: 'buffer'
-    },
-    {
-      name: 'group',
-      type: '@core/group-pointer'
     }
   ]
 })

@@ -92,8 +92,7 @@ test('first core created is the default core', async function (t) {
     discoveryKey: b4a.alloc(32, 2),
     manifest: null,
     keyPair: null,
-    encryptionKey: null,
-    group: null
+    encryptionKey: null
   })
 
   await c.close()
@@ -241,11 +240,10 @@ test('can get info from store efficiently', async function (t) {
         discoveryKey: b4a.alloc(32, 2),
         manifest: null,
         keyPair: null,
-        encryptionKey: null,
-        group: null
+        encryptionKey: null
       },
       head: { fork: 0, length: 2, rootHash: b4a.alloc(32, 0), signature: null, timestamp: 0 },
-      hints: null,
+      hints: null
     })
   }
 

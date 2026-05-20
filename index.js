@@ -820,8 +820,8 @@ class CorestoreStorage {
     return createDiscoveryKeyStream(this.db, EMPTY, namespace)
   }
 
-  createGroupUpdateStream(group, { since } = {}) {
-    return createGroupUpdateStream(this.db, EMPTY, group, { gte: since })
+  createGroupUpdateStream(group, { since, reverse } = {}) {
+    return createGroupUpdateStream(this.db, EMPTY, group, { gte: since, reverse })
   }
 
   async getAlias(alias) {
@@ -843,6 +843,15 @@ class CorestoreStorage {
 
     const head = await headPromise
     return head === null ? null : head.seed
+  }
+
+  async getGroup(topic) {
+    if (this.version === 0) await this._migrateStore()
+
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const groupPromise = rx.getGroup(topic)
+    rx.tryFlush()
+    return groupPromise
   }
 
   async setSeed(seed, { overwrite = true } = {}) {
@@ -1156,7 +1165,12 @@ class CorestoreStorage {
     rx.tryFlush()
 
     let group = await groupPromise
-    if (group !== null) return group
+    if (group !== null) {
+      return {
+        key: topic,
+        pointer: group
+      }
+    }
 
     let head = await headPromise
     if (head === null) head = initStoreHead()
@@ -1167,7 +1181,10 @@ class CorestoreStorage {
     tx.setHead(head)
     tx.apply()
 
-    return group
+    return {
+      key: topic,
+      pointer: group
+    }
   }
 
   async createGroup(topic) {

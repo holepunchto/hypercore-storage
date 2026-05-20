@@ -10,6 +10,7 @@ module.exports = {
   readBlocks,
   readTreeNodes,
   getAuth,
+  getGroup,
   getHead,
   getDependency,
   getHints,
@@ -70,6 +71,13 @@ async function readTreeNodes(core, nr) {
 async function getAuth(core) {
   const rx = core.read()
   const p = rx.getAuth()
+  rx.tryFlush()
+  return await p
+}
+
+async function getGroup(core) {
+  const rx = core.read()
+  const p = rx.getGroup()
   rx.tryFlush()
   return await p
 }

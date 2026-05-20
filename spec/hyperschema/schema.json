@@ -4,7 +4,7 @@
     {
       "name": "allocated",
       "namespace": "corestore",
-      "compact": true,
+      "compact": false,
       "flagsPosition": -1,
       "fields": [
         {
@@ -24,29 +24,16 @@
     {
       "name": "head",
       "namespace": "corestore",
-      "compact": false,
-      "flagsPosition": 1,
-      "fields": [
+      "versions": [
         {
-          "name": "version",
-          "required": true,
-          "type": "uint",
+          "type": "@corestore/head-v1",
+          "map": null,
           "version": 1
         },
         {
-          "name": "allocated",
-          "type": "@corestore/allocated",
-          "version": 1
-        },
-        {
-          "name": "seed",
-          "type": "fixed32",
-          "version": 1
-        },
-        {
-          "name": "defaultDiscoveryKey",
-          "type": "fixed32",
-          "version": 1
+          "type": "@corestore/head-v2",
+          "map": null,
+          "version": 2
         }
       ]
     },
@@ -303,6 +290,11 @@
           "name": "encryptionKey",
           "type": "buffer",
           "version": 1
+        },
+        {
+          "name": "group",
+          "type": "@core/group-pointer",
+          "version": 1
         }
       ]
     },
@@ -310,7 +302,7 @@
       "name": "head",
       "namespace": "core",
       "compact": false,
-      "flagsPosition": -1,
+      "flagsPosition": 4,
       "fields": [
         {
           "name": "fork",
@@ -334,6 +326,12 @@
           "name": "signature",
           "required": true,
           "type": "optionalBuffer",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": false,
+          "type": "uint64",
           "version": 1
         }
       ]
@@ -448,6 +446,102 @@
         {
           "name": "length",
           "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "allocated-v2",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": -1,
+      "fields": [
+        {
+          "name": "cores",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "datas",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "groups",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head-v1",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "allocated",
+          "type": "@corestore/allocated",
+          "version": 1
+        },
+        {
+          "name": "seed",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "defaultDiscoveryKey",
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head-v2",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "allocated",
+          "type": "@corestore/allocated-v2",
+          "version": 1
+        },
+        {
+          "name": "seed",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "defaultDiscoveryKey",
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "group",
+      "namespace": "corestore",
+      "alias": "uint",
+      "version": 1
+    },
+    {
+      "name": "group-pointer",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "key",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "pointer",
           "type": "uint",
           "version": 1
         }

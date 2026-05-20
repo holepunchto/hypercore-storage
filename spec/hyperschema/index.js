@@ -36,31 +36,48 @@ const encoding0 = {
 const encoding1 = {
   preencode(state, m) {
     c.uint.preencode(state, m.version)
-    state.end++ // max flag is 4 so always one byte
-
-    if (m.allocated) encoding0.preencode(state, m.allocated)
-    if (m.seed) c.fixed32.preencode(state, m.seed)
-    if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
+    switch (m.version) {
+      case 0:
+      case 1:
+        encoding20.preencode(state, m)
+        break
+      case 2:
+        encoding21.preencode(state, m)
+        break
+      default:
+        throw new Error('Unsupported version')
+    }
   },
   encode(state, m) {
-    const flags = (m.allocated ? 1 : 0) | (m.seed ? 2 : 0) | (m.defaultDiscoveryKey ? 4 : 0)
-
     c.uint.encode(state, m.version)
-    c.uint.encode(state, flags)
-
-    if (m.allocated) encoding0.encode(state, m.allocated)
-    if (m.seed) c.fixed32.encode(state, m.seed)
-    if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
+    switch (m.version) {
+      case 0:
+      case 1:
+        encoding20.encode(state, m)
+        break
+      case 2:
+        encoding21.encode(state, m)
+        break
+      default:
+        throw new Error('Unsupported version')
+    }
   },
   decode(state) {
-    const r0 = c.uint.decode(state)
-    const flags = c.uint.decode(state)
-
-    return {
-      version: r0,
-      allocated: (flags & 1) !== 0 ? encoding0.decode(state) : null,
-      seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
-      defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
+    const start = state.start
+    const v = c.uint.decode(state)
+    state.start = start
+    switch (v) {
+      case 0:
+      case 1: {
+        const decoded = encoding20.decode(state)
+        return decoded
+      }
+      case 2: {
+        const decoded = encoding21.decode(state)
+        return decoded
+      }
+      default:
+        throw new Error('Unsupported version')
     }
   }
 }
@@ -324,14 +341,16 @@ const encoding11 = {
   preencode(state, m) {
     c.fixed32.preencode(state, m.key)
     c.fixed32.preencode(state, m.discoveryKey)
-    state.end++ // max flag is 4 so always one byte
+    state.end++ // max flag is 8 so always one byte
 
     if (m.manifest) encoding11_2.preencode(state, m.manifest)
     if (m.keyPair) encoding10.preencode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.preencode(state, m.encryptionKey)
+    if (m.group) encoding11_5.preencode(state, m.group)
   },
   encode(state, m) {
-    const flags = (m.manifest ? 1 : 0) | (m.keyPair ? 2 : 0) | (m.encryptionKey ? 4 : 0)
+    const flags =
+      (m.manifest ? 1 : 0) | (m.keyPair ? 2 : 0) | (m.encryptionKey ? 4 : 0) | (m.group ? 8 : 0)
 
     c.fixed32.encode(state, m.key)
     c.fixed32.encode(state, m.discoveryKey)
@@ -340,6 +359,7 @@ const encoding11 = {
     if (m.manifest) encoding11_2.encode(state, m.manifest)
     if (m.keyPair) encoding10.encode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.encode(state, m.encryptionKey)
+    if (m.group) encoding11_5.encode(state, m.group)
   },
   decode(state) {
     const r0 = c.fixed32.decode(state)
@@ -351,7 +371,8 @@ const encoding11 = {
       discoveryKey: r1,
       manifest: (flags & 1) !== 0 ? encoding11_2.decode(state) : null,
       keyPair: (flags & 2) !== 0 ? encoding10.decode(state) : null,
-      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null
+      encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
+      group: (flags & 8) !== 0 ? encoding11_5.decode(state) : null
     }
   }
 }
@@ -363,24 +384,34 @@ const encoding12 = {
     c.uint.preencode(state, m.length)
     c.fixed32.preencode(state, m.rootHash)
     c.optionalBuffer.preencode(state, m.signature)
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.timestamp) c.uint64.preencode(state, m.timestamp)
   },
   encode(state, m) {
+    const flags = m.timestamp ? 1 : 0
+
     c.uint.encode(state, m.fork)
     c.uint.encode(state, m.length)
     c.fixed32.encode(state, m.rootHash)
     c.optionalBuffer.encode(state, m.signature)
+    c.uint.encode(state, flags)
+
+    if (m.timestamp) c.uint64.encode(state, m.timestamp)
   },
   decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
     const r2 = c.fixed32.decode(state)
     const r3 = c.optionalBuffer.decode(state)
+    const flags = c.uint.decode(state)
 
     return {
       fork: r0,
       length: r1,
       rootHash: r2,
-      signature: r3
+      signature: r3,
+      timestamp: (flags & 1) !== 0 ? c.uint64.decode(state) : 0
     }
   }
 }
@@ -506,6 +537,128 @@ const encoding18 = {
   }
 }
 
+// @corestore/allocated-v2
+const encoding19 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.cores)
+    c.uint.preencode(state, m.datas)
+    c.uint.preencode(state, m.groups)
+  },
+  encode(state, m) {
+    c.uint.encode(state, m.cores)
+    c.uint.encode(state, m.datas)
+    c.uint.encode(state, m.groups)
+  },
+  decode(state) {
+    const r0 = c.uint.decode(state)
+    const r1 = c.uint.decode(state)
+    const r2 = c.uint.decode(state)
+
+    return {
+      cores: r0,
+      datas: r1,
+      groups: r2
+    }
+  }
+}
+
+// @corestore/head-v1.allocated
+const encoding20_0 = c.frame(encoding0)
+
+// @corestore/head-v1
+const encoding20 = {
+  preencode(state, m) {
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.allocated) encoding20_0.preencode(state, m.allocated)
+    if (m.seed) c.fixed32.preencode(state, m.seed)
+    if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
+  },
+  encode(state, m) {
+    const flags = (m.allocated ? 1 : 0) | (m.seed ? 2 : 0) | (m.defaultDiscoveryKey ? 4 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.allocated) encoding20_0.encode(state, m.allocated)
+    if (m.seed) c.fixed32.encode(state, m.seed)
+    if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
+  },
+  decode(state) {
+    const v = c.uint.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      version: v,
+      allocated: (flags & 1) !== 0 ? encoding20_0.decode(state) : null,
+      seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
+      defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
+    }
+  }
+}
+
+// @corestore/head-v2.allocated
+const encoding21_0 = c.frame(encoding19)
+
+// @corestore/head-v2
+const encoding21 = {
+  preencode(state, m) {
+    state.end++ // max flag is 4 so always one byte
+
+    if (m.allocated) encoding21_0.preencode(state, m.allocated)
+    if (m.seed) c.fixed32.preencode(state, m.seed)
+    if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
+  },
+  encode(state, m) {
+    const flags = (m.allocated ? 1 : 0) | (m.seed ? 2 : 0) | (m.defaultDiscoveryKey ? 4 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.allocated) encoding21_0.encode(state, m.allocated)
+    if (m.seed) c.fixed32.encode(state, m.seed)
+    if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
+  },
+  decode(state) {
+    const v = c.uint.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      version: v,
+      allocated: (flags & 1) !== 0 ? encoding21_0.decode(state) : null,
+      seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
+      defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
+    }
+  }
+}
+
+// @core/group-pointer
+const encoding22 = {
+  preencode(state, m) {
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.key) c.fixed32.preencode(state, m.key)
+    if (m.pointer) c.uint.preencode(state, m.pointer)
+  },
+  encode(state, m) {
+    const flags = (m.key ? 1 : 0) | (m.pointer ? 2 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.key) c.fixed32.encode(state, m.key)
+    if (m.pointer) c.uint.encode(state, m.pointer)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      key: (flags & 1) !== 0 ? c.fixed32.decode(state) : null,
+      pointer: (flags & 2) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
+// @core/auth.group, deferred due to recusive use
+const encoding11_5 = c.frame(encoding22)
+
 function setVersion(v) {
   version = v
 }
@@ -571,6 +724,14 @@ function getEncoding(name) {
       return encoding17
     case '@wakeup/entry':
       return encoding18
+    case '@corestore/allocated-v2':
+      return encoding19
+    case '@corestore/head-v1':
+      return encoding20
+    case '@corestore/head-v2':
+      return encoding21
+    case '@core/group-pointer':
+      return encoding22
     default:
       throw new Error('Encoder not found ' + name)
   }

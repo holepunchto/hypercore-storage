@@ -99,7 +99,7 @@
       "versions": [
         {
           "type": "@corestore/head-v1",
-          "map": null,
+          "map": "headLegacyMap",
           "version": 1
         },
         {

@@ -649,21 +649,6 @@ class CorestoreStorage {
           await require('./migrations/0').store(this, target)
           break
         }
-        case 1: {
-          const { cores, datas } = head.allocated
-
-          const tx = new CorestoreTX(view)
-          tx.setHead({
-            version: VERSION,
-            allocated: { cores, datas, groups: 0 },
-            seed: head.seed,
-            defaultDiscoveryKey: head.defaultDiscoveryKey
-          })
-          tx.apply()
-
-          await View.flush(view.changes, this.db)
-          break
-        }
         default: {
           throw new Error(
             'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'

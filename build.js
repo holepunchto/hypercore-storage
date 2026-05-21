@@ -1,9 +1,12 @@
+const path = require('path')
 const Hyperschema = require('hyperschema')
 
-const SPEC = './spec/hyperschema'
+const SPEC = path.resolve('./encoding/spec/hyperschema')
 
 const schema = Hyperschema.from(SPEC, { versioned: false })
 const corestore = schema.namespace('corestore')
+
+corestore.require(path.resolve('./encoding/external.js'))
 
 corestore.register({
   name: 'allocated',
@@ -83,7 +86,8 @@ corestore.register({
   versions: [
     {
       version: 1,
-      type: '@corestore/head-v1'
+      type: '@corestore/head-v1',
+      map: 'headLegacyMap'
     },
     {
       version: 2,

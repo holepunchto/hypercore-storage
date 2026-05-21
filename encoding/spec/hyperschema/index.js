@@ -5,6 +5,7 @@
 /* eslint-disable space-before-function-paren */
 
 const { c } = require('hyperschema/runtime')
+const external0 = require('../../external.js')
 
 const VERSION = 1
 
@@ -163,7 +164,8 @@ const encoding4 = {
       case 0:
       case 1: {
         const decoded = encoding2.decode(state)
-        return decoded
+        const map = external0.headLegacyMap
+        return map(decoded)
       }
       case 2: {
         const decoded = encoding3.decode(state)

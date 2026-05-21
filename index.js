@@ -1142,7 +1142,7 @@ class CorestoreStorage {
   }
 
   // not allowed to throw validation errors as its a shared tx!
-  async _createGroup(view, topic, maxSize) {
+  async _createGroup(view, topic) {
     const rx = new CorestoreRX(this.db, view)
     const tx = new CorestoreTX(view)
 

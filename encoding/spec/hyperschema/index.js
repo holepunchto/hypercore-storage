@@ -126,10 +126,10 @@ const encoding4_enum = {
 
 // @core/hashes enum
 const encoding4 = {
-  preencode (state, m) {
+  preencode(state, m) {
     state.end++ // max enum is 0 so always one byte
   },
-  encode (state, m) {
+  encode(state, m) {
     switch (m) {
       case 'blake2b':
         c.uint.encode(state, 0)
@@ -138,11 +138,12 @@ const encoding4 = {
         throw new Error('Unknown enum')
     }
   },
-  decode (state) {
+  decode(state) {
     switch (c.uint.decode(state)) {
       case 0:
         return 'blake2b'
-      default: return null
+      default:
+        return null
     }
   }
 }
@@ -153,10 +154,10 @@ const encoding5_enum = {
 
 // @core/signatures enum
 const encoding5 = {
-  preencode (state, m) {
+  preencode(state, m) {
     state.end++ // max enum is 0 so always one byte
   },
-  encode (state, m) {
+  encode(state, m) {
     switch (m) {
       case 'ed25519':
         c.uint.encode(state, 0)
@@ -165,11 +166,12 @@ const encoding5 = {
         throw new Error('Unknown enum')
     }
   },
-  decode (state) {
+  decode(state) {
     switch (c.uint.decode(state)) {
       case 0:
         return 'ed25519'
-      default: return null
+      default:
+        return null
     }
   }
 }

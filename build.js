@@ -58,7 +58,8 @@ corestore.register({
     },
     {
       name: 'groups',
-      type: 'uint'
+      type: 'uint',
+      required: true
     },
     {
       name: 'seed',

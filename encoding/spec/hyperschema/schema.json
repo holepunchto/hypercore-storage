@@ -429,7 +429,7 @@
       "name": "head-v2",
       "namespace": "corestore",
       "compact": false,
-      "flagsPosition": 2,
+      "flagsPosition": 3,
       "fields": [
         {
           "name": "cores",
@@ -445,6 +445,7 @@
         },
         {
           "name": "groups",
+          "required": true,
           "type": "uint",
           "version": 1
         },

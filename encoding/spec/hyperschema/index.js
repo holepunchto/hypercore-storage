@@ -500,20 +500,20 @@ const encoding18 = {
   preencode(state, m) {
     c.uint.preencode(state, m.cores)
     c.uint.preencode(state, m.datas)
-    state.end++ // max flag is 4 so always one byte
+    c.uint.preencode(state, m.groups)
+    state.end++ // max flag is 2 so always one byte
 
-    if (m.groups) c.uint.preencode(state, m.groups)
     if (m.seed) c.fixed32.preencode(state, m.seed)
     if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
   },
   encode(state, m) {
-    const flags = (m.groups ? 1 : 0) | (m.seed ? 2 : 0) | (m.defaultDiscoveryKey ? 4 : 0)
+    const flags = (m.seed ? 1 : 0) | (m.defaultDiscoveryKey ? 2 : 0)
 
     c.uint.encode(state, m.cores)
     c.uint.encode(state, m.datas)
+    c.uint.encode(state, m.groups)
     c.uint.encode(state, flags)
 
-    if (m.groups) c.uint.encode(state, m.groups)
     if (m.seed) c.fixed32.encode(state, m.seed)
     if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
   },
@@ -521,15 +521,16 @@ const encoding18 = {
     const v = c.uint.decode(state)
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
+    const r2 = c.uint.decode(state)
     const flags = c.uint.decode(state)
 
     return {
       version: v,
       cores: r0,
       datas: r1,
-      groups: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-      seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
-      defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
+      groups: r2,
+      seed: (flags & 1) !== 0 ? c.fixed32.decode(state) : null,
+      defaultDiscoveryKey: (flags & 2) !== 0 ? c.fixed32.decode(state) : null
     }
   }
 }

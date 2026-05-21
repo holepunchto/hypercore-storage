@@ -26,27 +26,6 @@ corestore.register({
 })
 
 corestore.register({
-  name: 'allocated-v2',
-  fields: [
-    {
-      name: 'cores',
-      type: 'uint',
-      required: true
-    },
-    {
-      name: 'datas',
-      type: 'uint',
-      required: true
-    },
-    {
-      name: 'groups',
-      type: 'uint',
-      required: true
-    }
-  ]
-})
-
-corestore.register({
   name: 'head-v1',
   fields: [
     {
@@ -68,8 +47,18 @@ corestore.register({
   name: 'head-v2',
   fields: [
     {
-      name: 'allocated',
-      type: '@corestore/allocated-v2'
+      name: 'cores',
+      type: 'uint',
+      required: true
+    },
+    {
+      name: 'datas',
+      type: 'uint',
+      required: true
+    },
+    {
+      name: 'groups',
+      type: 'uint'
     },
     {
       name: 'seed',

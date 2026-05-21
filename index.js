@@ -744,7 +744,7 @@ class CorestoreStorage {
     try {
       const head = await this._getHead(view)
 
-      dataPointer = head.allocated.datas++
+      dataPointer = head.datas++
 
       tx.setHead(head)
       tx.apply()
@@ -1098,8 +1098,8 @@ class CorestoreStorage {
     if (head === null) head = initStoreHead()
     if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
-    const corePointer = ptrs ? ptrs.corePointer : head.allocated.cores++
-    const dataPointer = ptrs ? ptrs.dataPointer : head.allocated.datas++
+    const corePointer = ptrs ? ptrs.corePointer : head.cores++
+    const dataPointer = ptrs ? ptrs.dataPointer : head.datas++
 
     core = { version: VERSION, corePointer, dataPointer, alias }
 
@@ -1162,7 +1162,7 @@ class CorestoreStorage {
     let head = await headPromise
     if (head === null) head = initStoreHead()
 
-    group = head.allocated.groups++
+    group = head.groups++
 
     tx.putGroup(topic, group)
     tx.setHead(head)
@@ -1196,11 +1196,9 @@ module.exports = CorestoreStorage
 function initStoreHead() {
   return {
     version: 0, // cause we wanna run the migration
-    allocated: {
-      datas: 0,
-      cores: 0,
-      groups: 0
-    },
+    datas: 0,
+    cores: 0,
+    groups: 0,
     seed: null,
     defaultDiscoveryKey: null
   }

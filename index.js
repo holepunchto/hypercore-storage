@@ -4,9 +4,10 @@ const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
+
 const View = require('./lib/view.js')
 
-const VERSION = 1
+const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
 
 const { store, core } = require('./lib/keys.js')
@@ -22,7 +23,8 @@ const {
   createUserDataStream,
   createTreeNodeStream,
   createMarkStream,
-  createLocalStream
+  createLocalStream,
+  createGroupUpdateStream
 } = require('./lib/streams.js')
 
 const EMPTY = new View()
@@ -647,6 +649,10 @@ class CorestoreStorage {
           await require('./migrations/0').store(this, target)
           break
         }
+        case 1: {
+          // implicit migration on write
+          break
+        }
         default: {
           throw new Error(
             'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'
@@ -738,7 +744,7 @@ class CorestoreStorage {
     try {
       const head = await this._getHead(view)
 
-      dataPointer = head.allocated.datas++
+      dataPointer = head.datas++
 
       tx.setHead(head)
       tx.apply()
@@ -801,6 +807,10 @@ class CorestoreStorage {
     return createDiscoveryKeyStream(this.db, EMPTY, namespace)
   }
 
+  createGroupUpdateStream(group, { since, reverse } = {}) {
+    return createGroupUpdateStream(this.db, EMPTY, group, { gte: since, reverse })
+  }
+
   async getAlias(alias) {
     if (this.version === 0) await this._migrateStore()
 
@@ -820,6 +830,15 @@ class CorestoreStorage {
 
     const head = await headPromise
     return head === null ? null : head.seed
+  }
+
+  async getGroup(topic) {
+    if (this.version === 0) await this._migrateStore()
+
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const groupPromise = rx.getGroup(topic)
+    rx.tryFlush()
+    return groupPromise
   }
 
   async setSeed(seed, { overwrite = true } = {}) {
@@ -1079,8 +1098,8 @@ class CorestoreStorage {
     if (head === null) head = initStoreHead()
     if (head.defaultDiscoveryKey === null) head.defaultDiscoveryKey = discoveryKey
 
-    const corePointer = ptrs ? ptrs.corePointer : head.allocated.cores++
-    const dataPointer = ptrs ? ptrs.dataPointer : head.allocated.datas++
+    const corePointer = ptrs ? ptrs.corePointer : head.cores++
+    const dataPointer = ptrs ? ptrs.dataPointer : head.datas++
 
     core = { version: VERSION, corePointer, dataPointer, alias }
 
@@ -1122,6 +1141,51 @@ class CorestoreStorage {
     }
   }
 
+  // not allowed to throw validation errors as its a shared tx!
+  async _createGroup(view, topic) {
+    const rx = new CorestoreRX(this.db, view)
+    const tx = new CorestoreTX(view)
+
+    const groupPromise = rx.getGroup(topic)
+    const headPromise = rx.getHead()
+
+    rx.tryFlush()
+
+    let group = await groupPromise
+    if (group !== null) {
+      return {
+        key: topic,
+        pointer: group
+      }
+    }
+
+    let head = await headPromise
+    if (head === null) head = initStoreHead()
+
+    group = head.groups++
+
+    tx.putGroup(topic, group)
+    tx.setHead(head)
+    tx.apply()
+
+    return {
+      key: topic,
+      pointer: group
+    }
+  }
+
+  async createGroup(topic) {
+    if (this.version === 0) await this._migrateStore()
+
+    const view = await this._enter()
+
+    try {
+      return await this._createGroup(view, topic)
+    } finally {
+      await this._exit()
+    }
+  }
+
   static isParentStorage(storage, parent) {
     return HypercoreStorage.isParentStorage(storage, parent)
   }
@@ -1132,10 +1196,9 @@ module.exports = CorestoreStorage
 function initStoreHead() {
   return {
     version: 0, // cause we wanna run the migration
-    allocated: {
-      datas: 0,
-      cores: 0
-    },
+    datas: 0,
+    cores: 0,
+    groups: 0,
     seed: null,
     defaultDiscoveryKey: null
   }

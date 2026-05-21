@@ -22,17 +22,11 @@
       ]
     },
     {
-      "name": "head",
+      "name": "head-v1",
       "namespace": "corestore",
       "compact": false,
-      "flagsPosition": 1,
+      "flagsPosition": 0,
       "fields": [
-        {
-          "name": "version",
-          "required": true,
-          "type": "uint",
-          "version": 1
-        },
         {
           "name": "allocated",
           "type": "@corestore/allocated",
@@ -272,6 +266,24 @@
       ]
     },
     {
+      "name": "group",
+      "namespace": "core",
+      "compact": false,
+      "flagsPosition": 0,
+      "fields": [
+        {
+          "name": "key",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "pointer",
+          "type": "uint",
+          "version": 1
+        }
+      ]
+    },
+    {
       "name": "auth",
       "namespace": "core",
       "compact": false,
@@ -310,7 +322,7 @@
       "name": "head",
       "namespace": "core",
       "compact": false,
-      "flagsPosition": -1,
+      "flagsPosition": 4,
       "fields": [
         {
           "name": "fork",
@@ -334,6 +346,12 @@
           "name": "signature",
           "required": true,
           "type": "optionalBuffer",
+          "version": 1
+        },
+        {
+          "name": "timestamp",
+          "required": false,
+          "type": "uint64",
           "version": 1
         }
       ]
@@ -404,6 +422,58 @@
           "required": true,
           "type": "uint",
           "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head-v2",
+      "namespace": "corestore",
+      "compact": false,
+      "flagsPosition": 3,
+      "fields": [
+        {
+          "name": "cores",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "datas",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "groups",
+          "required": true,
+          "type": "uint",
+          "version": 1
+        },
+        {
+          "name": "seed",
+          "type": "fixed32",
+          "version": 1
+        },
+        {
+          "name": "defaultDiscoveryKey",
+          "type": "fixed32",
+          "version": 1
+        }
+      ]
+    },
+    {
+      "name": "head",
+      "namespace": "corestore",
+      "versions": [
+        {
+          "type": "@corestore/head-v1",
+          "map": "headLegacyMap",
+          "version": 1
+        },
+        {
+          "type": "@corestore/head-v2",
+          "map": null,
+          "version": 2
         }
       ]
     }

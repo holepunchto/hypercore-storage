@@ -5,7 +5,7 @@
   "files": [
     "index.js",
     "lib/*.js",
-    "spec/hyperschema/*.js",
+    "encoding/*",
     "migrations/0/*.js"
   ],
   "scripts": {
@@ -41,7 +41,7 @@
     "b4a": "^1.6.7",
     "bare-fs": "^4.0.1",
     "bare-path": "^3.0.0",
-    "compact-encoding": "^3.0.0",
+    "compact-encoding": "^3.1.0",
     "device-file": "^2.1.2",
     "flat-tree": "^1.12.1",
     "hypercore-crypto": "^3.4.2",

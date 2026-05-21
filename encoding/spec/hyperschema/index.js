@@ -5,6 +5,7 @@
 /* eslint-disable space-before-function-paren */
 
 const { c } = require('hyperschema/runtime')
+const external0 = require('../../external.js')
 
 const VERSION = 1
 
@@ -32,10 +33,9 @@ const encoding0 = {
   }
 }
 
-// @corestore/head
+// @corestore/head-v1
 const encoding1 = {
   preencode(state, m) {
-    c.uint.preencode(state, m.version)
     state.end++ // max flag is 4 so always one byte
 
     if (m.allocated) encoding0.preencode(state, m.allocated)
@@ -45,7 +45,6 @@ const encoding1 = {
   encode(state, m) {
     const flags = (m.allocated ? 1 : 0) | (m.seed ? 2 : 0) | (m.defaultDiscoveryKey ? 4 : 0)
 
-    c.uint.encode(state, m.version)
     c.uint.encode(state, flags)
 
     if (m.allocated) encoding0.encode(state, m.allocated)
@@ -53,11 +52,11 @@ const encoding1 = {
     if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
   },
   decode(state) {
-    const r0 = c.uint.decode(state)
+    const v = c.uint.decode(state)
     const flags = c.uint.decode(state)
 
     return {
-      version: r0,
+      version: v,
       allocated: (flags & 1) !== 0 ? encoding0.decode(state) : null,
       seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
       defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
@@ -127,10 +126,10 @@ const encoding4_enum = {
 
 // @core/hashes enum
 const encoding4 = {
-  preencode (state, m) {
+  preencode(state, m) {
     state.end++ // max enum is 0 so always one byte
   },
-  encode (state, m) {
+  encode(state, m) {
     switch (m) {
       case 'blake2b':
         c.uint.encode(state, 0)
@@ -139,11 +138,12 @@ const encoding4 = {
         throw new Error('Unknown enum')
     }
   },
-  decode (state) {
+  decode(state) {
     switch (c.uint.decode(state)) {
       case 0:
         return 'blake2b'
-      default: return null
+      default:
+        return null
     }
   }
 }
@@ -154,10 +154,10 @@ const encoding5_enum = {
 
 // @core/signatures enum
 const encoding5 = {
-  preencode (state, m) {
+  preencode(state, m) {
     state.end++ // max enum is 0 so always one byte
   },
-  encode (state, m) {
+  encode(state, m) {
     switch (m) {
       case 'ed25519':
         c.uint.encode(state, 0)
@@ -166,11 +166,12 @@ const encoding5 = {
         throw new Error('Unknown enum')
     }
   },
-  decode (state) {
+  decode(state) {
     switch (c.uint.decode(state)) {
       case 0:
         return 'ed25519'
-      default: return null
+      default:
+        return null
     }
   }
 }
@@ -316,17 +317,43 @@ const encoding10 = {
   }
 }
 
+// @core/group
+const encoding11 = {
+  preencode(state, m) {
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.key) c.fixed32.preencode(state, m.key)
+    if (m.pointer) c.uint.preencode(state, m.pointer)
+  },
+  encode(state, m) {
+    const flags = (m.key ? 1 : 0) | (m.pointer ? 2 : 0)
+
+    c.uint.encode(state, flags)
+
+    if (m.key) c.fixed32.encode(state, m.key)
+    if (m.pointer) c.uint.encode(state, m.pointer)
+  },
+  decode(state) {
+    const flags = c.uint.decode(state)
+
+    return {
+      key: (flags & 1) !== 0 ? c.fixed32.decode(state) : null,
+      pointer: (flags & 2) !== 0 ? c.uint.decode(state) : 0
+    }
+  }
+}
+
 // @core/auth.manifest
-const encoding11_2 = c.frame(encoding9)
+const encoding12_2 = c.frame(encoding9)
 
 // @core/auth
-const encoding11 = {
+const encoding12 = {
   preencode(state, m) {
     c.fixed32.preencode(state, m.key)
     c.fixed32.preencode(state, m.discoveryKey)
     state.end++ // max flag is 4 so always one byte
 
-    if (m.manifest) encoding11_2.preencode(state, m.manifest)
+    if (m.manifest) encoding12_2.preencode(state, m.manifest)
     if (m.keyPair) encoding10.preencode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.preencode(state, m.encryptionKey)
   },
@@ -337,7 +364,7 @@ const encoding11 = {
     c.fixed32.encode(state, m.discoveryKey)
     c.uint.encode(state, flags)
 
-    if (m.manifest) encoding11_2.encode(state, m.manifest)
+    if (m.manifest) encoding12_2.encode(state, m.manifest)
     if (m.keyPair) encoding10.encode(state, m.keyPair)
     if (m.encryptionKey) c.buffer.encode(state, m.encryptionKey)
   },
@@ -349,7 +376,7 @@ const encoding11 = {
     return {
       key: r0,
       discoveryKey: r1,
-      manifest: (flags & 1) !== 0 ? encoding11_2.decode(state) : null,
+      manifest: (flags & 1) !== 0 ? encoding12_2.decode(state) : null,
       keyPair: (flags & 2) !== 0 ? encoding10.decode(state) : null,
       encryptionKey: (flags & 4) !== 0 ? c.buffer.decode(state) : null
     }
@@ -357,36 +384,46 @@ const encoding11 = {
 }
 
 // @core/head
-const encoding12 = {
+const encoding13 = {
   preencode(state, m) {
     c.uint.preencode(state, m.fork)
     c.uint.preencode(state, m.length)
     c.fixed32.preencode(state, m.rootHash)
     c.optionalBuffer.preencode(state, m.signature)
+    state.end++ // max flag is 1 so always one byte
+
+    if (m.timestamp) c.uint64.preencode(state, m.timestamp)
   },
   encode(state, m) {
+    const flags = m.timestamp ? 1 : 0
+
     c.uint.encode(state, m.fork)
     c.uint.encode(state, m.length)
     c.fixed32.encode(state, m.rootHash)
     c.optionalBuffer.encode(state, m.signature)
+    c.uint.encode(state, flags)
+
+    if (m.timestamp) c.uint64.encode(state, m.timestamp)
   },
   decode(state) {
     const r0 = c.uint.decode(state)
     const r1 = c.uint.decode(state)
     const r2 = c.fixed32.decode(state)
     const r3 = c.optionalBuffer.decode(state)
+    const flags = c.uint.decode(state)
 
     return {
       fork: r0,
       length: r1,
       rootHash: r2,
-      signature: r3
+      signature: r3,
+      timestamp: (flags & 1) !== 0 ? c.uint64.decode(state) : 0
     }
   }
 }
 
 // @core/hints
-const encoding13 = {
+const encoding14 = {
   preencode(state, m) {
     state.end++ // max flag is 4 so always one byte
 
@@ -416,7 +453,7 @@ const encoding13 = {
 }
 
 // @core/session
-const encoding14 = {
+const encoding15 = {
   preencode(state, m) {
     c.string.preencode(state, m.name)
     c.uint.preencode(state, m.dataPointer)
@@ -437,10 +474,10 @@ const encoding14 = {
 }
 
 // @core/sessions
-const encoding15 = c.array(encoding14)
+const encoding16 = c.array(encoding15)
 
 // @core/dependency
-const encoding16 = {
+const encoding17 = {
   preencode(state, m) {
     c.uint.preencode(state, m.dataPointer)
     c.uint.preencode(state, m.length)
@@ -456,6 +493,97 @@ const encoding16 = {
     return {
       dataPointer: r0,
       length: r1
+    }
+  }
+}
+
+// @corestore/head-v2
+const encoding18 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.cores)
+    c.uint.preencode(state, m.datas)
+    c.uint.preencode(state, m.groups)
+    state.end++ // max flag is 2 so always one byte
+
+    if (m.seed) c.fixed32.preencode(state, m.seed)
+    if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
+  },
+  encode(state, m) {
+    const flags = (m.seed ? 1 : 0) | (m.defaultDiscoveryKey ? 2 : 0)
+
+    c.uint.encode(state, m.cores)
+    c.uint.encode(state, m.datas)
+    c.uint.encode(state, m.groups)
+    c.uint.encode(state, flags)
+
+    if (m.seed) c.fixed32.encode(state, m.seed)
+    if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
+  },
+  decode(state) {
+    const v = c.uint.decode(state)
+    const r0 = c.uint.decode(state)
+    const r1 = c.uint.decode(state)
+    const r2 = c.uint.decode(state)
+    const flags = c.uint.decode(state)
+
+    return {
+      version: v,
+      cores: r0,
+      datas: r1,
+      groups: r2,
+      seed: (flags & 1) !== 0 ? c.fixed32.decode(state) : null,
+      defaultDiscoveryKey: (flags & 2) !== 0 ? c.fixed32.decode(state) : null
+    }
+  }
+}
+
+// @corestore/head
+const encoding19 = {
+  preencode(state, m) {
+    c.uint.preencode(state, m.version)
+    switch (m.version) {
+      case 0:
+      case 1:
+        encoding1.preencode(state, m)
+        break
+      case 2:
+        encoding18.preencode(state, m)
+        break
+      default:
+        throw new Error('Unsupported version')
+    }
+  },
+  encode(state, m) {
+    c.uint.encode(state, m.version)
+    switch (m.version) {
+      case 0:
+      case 1:
+        encoding1.encode(state, m)
+        break
+      case 2:
+        encoding18.encode(state, m)
+        break
+      default:
+        throw new Error('Unsupported version')
+    }
+  },
+  decode(state) {
+    const start = state.start
+    const v = c.uint.decode(state)
+    state.start = start
+    switch (v) {
+      case 0:
+      case 1: {
+        const decoded = encoding1.decode(state)
+        const map = external0.headLegacyMap
+        return map(decoded)
+      }
+      case 2: {
+        const decoded = encoding18.decode(state)
+        return decoded
+      }
+      default:
+        throw new Error('Unsupported version')
     }
   }
 }
@@ -489,7 +617,7 @@ function getEncoding(name) {
   switch (name) {
     case '@corestore/allocated':
       return encoding0
-    case '@corestore/head':
+    case '@corestore/head-v1':
       return encoding1
     case '@corestore/alias':
       return encoding2
@@ -509,18 +637,24 @@ function getEncoding(name) {
       return encoding9
     case '@core/keyPair':
       return encoding10
-    case '@core/auth':
+    case '@core/group':
       return encoding11
-    case '@core/head':
+    case '@core/auth':
       return encoding12
-    case '@core/hints':
+    case '@core/head':
       return encoding13
-    case '@core/session':
+    case '@core/hints':
       return encoding14
-    case '@core/sessions':
+    case '@core/session':
       return encoding15
-    case '@core/dependency':
+    case '@core/sessions':
       return encoding16
+    case '@core/dependency':
+      return encoding17
+    case '@corestore/head-v2':
+      return encoding18
+    case '@corestore/head':
+      return encoding19
     default:
       throw new Error('Encoder not found ' + name)
   }

@@ -7,6 +7,7 @@ const {
   readBlocks,
   readTreeNodes,
   getAuth,
+  getGroup,
   getHead,
   getDependency,
   getHints,
@@ -147,6 +148,10 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     tx.setHints({
       contiguousLength: 1
     })
+    tx.setGroup({
+      key: b4a.alloc(32, 2),
+      pointer: 5
+    })
     tx.putUserData('key', b4a.from('value'))
     tx.putBitfieldPage(0, b4a.from('bitfield-data-1'))
 
@@ -179,7 +184,8 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     fork: 1,
     length: 3,
     rootHash: b4a.from('a'.repeat(64), 'hex'),
-    signature: b4a.from('b'.repeat(64), 'hex')
+    signature: b4a.from('b'.repeat(64), 'hex'),
+    timestamp: 0
   }
   const expDependency = {
     dataPointer: 1,
@@ -191,6 +197,10 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     recovering: 0
   }
   const expBitfields = [b4a.from('bitfield-data-1'), null]
+  const expGroup = {
+    key: b4a.alloc(32, 2),
+    pointer: 5
+  }
 
   t.alike(await readBlocks(atomCore, 5), expBlocks, 'blocks atom')
   t.alike(
@@ -230,6 +240,9 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   t.alike(await getBitfieldPages(atomCore, 2), expBitfields, 'bitfields atom')
   t.alike(await getBitfieldPages(core, 2), [null, null], 'bitfields orig pre flush')
 
+  t.alike(await getGroup(atomCore), expGroup, 'group atom')
+  t.alike(await getGroup(core), null, 'group orig pre flush')
+
   await atom.flush()
   t.alike(await readBlocks(core, 5), expBlocks, 'blocks orig post flush')
   t.alike(await readTreeNodes(core, 2), expNodes, 'tree nodes orig post flush')
@@ -239,6 +252,7 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
   t.alike(await getHints(core), expHints, 'hints orig post flush')
   t.alike(await getUserData(core, 'key'), b4a.from('value'), 'userdata orig post flush')
   t.alike(await getBitfieldPages(core, 2), expBitfields, 'bitfields orig post flush')
+  t.alike(await getGroup(core), expGroup, 'group orig post flush')
 })
 
 test('basic atomized flow with multiple cores', async (t) => {

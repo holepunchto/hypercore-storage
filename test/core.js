@@ -359,7 +359,8 @@ test('set and get hypercore head', async (t) => {
         fork: 1,
         length: 3,
         rootHash: b4a.from('a'.repeat(64), 'hex'),
-        signature: b4a.from('b'.repeat(64), 'hex')
+        signature: b4a.from('b'.repeat(64), 'hex'),
+        timestamp: 0
       },
       'updated head'
     )
@@ -897,7 +898,8 @@ test('export hypercore', async (t) => {
     fork: 1,
     length: 3,
     rootHash: b4a.from('a'.repeat(64), 'hex'),
-    signature: b4a.from('b'.repeat(64), 'hex')
+    signature: b4a.from('b'.repeat(64), 'hex'),
+    timestamp: 0
   }
 
   const node0 = { index: 0, size: 1, hash: b4a.from('a'.repeat(64), 'hex') }

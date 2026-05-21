@@ -1,6 +1,6 @@
 function headLegacyMap(m) {
   return {
-    version: 2,
+    version: 2, // version bumped from 1
     allocated: {
       cores: m.allocated.cores,
       datas: m.allocated.datas,

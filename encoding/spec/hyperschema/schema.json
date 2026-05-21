@@ -4,7 +4,7 @@
     {
       "name": "allocated",
       "namespace": "corestore",
-      "compact": false,
+      "compact": true,
       "flagsPosition": -1,
       "fields": [
         {

@@ -10,6 +10,7 @@ corestore.require(path.resolve('./encoding/external.js'))
 
 corestore.register({
   name: 'allocated',
+  compact: true,
   fields: [
     {
       name: 'cores',

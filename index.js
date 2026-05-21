@@ -649,6 +649,10 @@ class CorestoreStorage {
           await require('./migrations/0').store(this, target)
           break
         }
+        case 1: {
+          // implicit migration on write
+          break
+        }
         default: {
           throw new Error(
             'Unsupported version: ' + version + ' - you should probably upgrade your dependencies'

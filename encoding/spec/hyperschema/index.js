@@ -58,15 +58,12 @@ const encoding1 = {
   }
 }
 
-// @corestore/head-v1.allocated
-const encoding2_0 = c.frame(encoding0)
-
 // @corestore/head-v1
 const encoding2 = {
   preencode(state, m) {
     state.end++ // max flag is 4 so always one byte
 
-    if (m.allocated) encoding2_0.preencode(state, m.allocated)
+    if (m.allocated) encoding0.preencode(state, m.allocated)
     if (m.seed) c.fixed32.preencode(state, m.seed)
     if (m.defaultDiscoveryKey) c.fixed32.preencode(state, m.defaultDiscoveryKey)
   },
@@ -75,7 +72,7 @@ const encoding2 = {
 
     c.uint.encode(state, flags)
 
-    if (m.allocated) encoding2_0.encode(state, m.allocated)
+    if (m.allocated) encoding0.encode(state, m.allocated)
     if (m.seed) c.fixed32.encode(state, m.seed)
     if (m.defaultDiscoveryKey) c.fixed32.encode(state, m.defaultDiscoveryKey)
   },
@@ -85,7 +82,7 @@ const encoding2 = {
 
     return {
       version: v,
-      allocated: (flags & 1) !== 0 ? encoding2_0.decode(state) : null,
+      allocated: (flags & 1) !== 0 ? encoding0.decode(state) : null,
       seed: (flags & 2) !== 0 ? c.fixed32.decode(state) : null,
       defaultDiscoveryKey: (flags & 4) !== 0 ? c.fixed32.decode(state) : null
     }

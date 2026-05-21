@@ -1,6 +1,6 @@
 function headLegacyMap(m) {
   return {
-    version: 1,
+    version: 2,
     allocated: {
       cores: m.allocated.cores,
       datas: m.allocated.datas,

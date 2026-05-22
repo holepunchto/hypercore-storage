@@ -23,7 +23,7 @@ async function core (core, { version, dryRun = false } = {}) {
   if (!storedAuth) return
 
   const auth = c.decode(CORE_AUTH, storedAuth)
-  console.log({ auth })
+
   if (storedHead === null) {
     await commitCoreMigration(auth, core, version)
     return // no data

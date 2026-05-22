@@ -6,7 +6,8 @@
     "index.js",
     "lib/*.js",
     "encoding/*",
-    "migrations/0/*.js"
+    "migrations/0/*.js",
+    "migrations/1/*.js"
   ],
   "scripts": {
     "format": "prettier --write .",

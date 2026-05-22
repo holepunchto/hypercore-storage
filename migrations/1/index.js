@@ -11,14 +11,11 @@ async function core (core, { version, dryRun = false } = {}) {
   if (dryRun) return // dryRun mode not supported atm
 
   const rx = core.db.read({ autoDestroy: true })
-  const promises = [
-    rx.get(coreKey.auth(core.core.corePointer)),
-    rx.get(coreKey.head(core.core.corePointer))
-  ]
+  const storedAuthPromise = rx.get(coreKey.auth(core.core.corePointer))
 
   rx.tryFlush()
 
-  const [storedAuth, storedHead] = await Promise.all(promises)
+  const storedAuth = await storedAuthPromise
   if (!storedAuth) return
 
   const auth = c.decode(CORE_AUTH, storedAuth)

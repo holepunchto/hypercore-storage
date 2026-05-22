@@ -10,7 +10,7 @@ const skip = os.platform() !== 'darwin' // fixture was generated on darwin/macos
 
 test('migrate v2 -> v3 - core migration (macos)', { skip }, async (t) => {
   const dir = path.join(__dirname, './fixtures/2.9.0-darwin')
-  const storage = new HypercoreStorage(dir)
+  const storage = new HypercoreStorage(dir, { allowBackup: true })
   const EMPTY = new View()
 
   const discoveryKey = b4a.alloc(32)

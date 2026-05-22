@@ -11,7 +11,7 @@ const HypercoreStorage = require('../index.js')
 const { CorestoreRX } = require('../lib/tx.js')
 const View = require('../lib/view.js')
 
-test('migrate v2 -> v3 - core head', async (t) => {
+test('migrate v2 -> v3 - core migration', async (t) => {
   const dir = await t.tmp()
   const storagev2 = new HypercoreStorage2_9_0(dir)
 
@@ -74,7 +74,7 @@ test('migrate v2 -> v3 - core head', async (t) => {
 
     rx2.tryFlush()
     const core = await corePromise
-    t.is(core.version, 1, 'core entry still version 1 head')
+    t.is(core.version, 2, 'core entry upgraded to version 2')
   }
 
   await c.close()

@@ -1,54 +1,30 @@
 const test = require('brittle')
 const b4a = require('b4a')
-
-// 2.9.0
-const HypercoreStorage2_9_0 = require('hypercore-storage-2.9.0')
-const { CorestoreRX: CorestoreRX2_9_0 } = require('hypercore-storage-2.9.0/lib/tx.js')
-const View2_9_0 = require('hypercore-storage-2.9.0/lib/view.js')
-
-// Current
+const path = require('path')
+const os = require('os')
 const HypercoreStorage = require('../index.js')
 const { CorestoreRX } = require('../lib/tx.js')
 const View = require('../lib/view.js')
 
-test('migrate v2 -> v3 - core migration', async (t) => {
-  const dir = await t.tmp()
-  const storagev2 = new HypercoreStorage2_9_0(dir)
+const skip = os.platform() !== 'darwin' // fixture was generated on darwin/macos
 
-  const key = b4a.alloc(32)
+test('migrate v2 -> v3 - core migration (macos)', { skip }, async (t) => {
+  const dir = path.join(__dirname, './fixtures/2.9.0-darwin')
+  const storage = new HypercoreStorage(dir)
+  const EMPTY = new View()
+
   const discoveryKey = b4a.alloc(32)
 
-  t.comment('v2 - core setup')
-  const cV2 = await storagev2.createCore({ key, discoveryKey })
-
   {
-    const EMPTY = new View2_9_0()
-    const rx = new CorestoreRX2_9_0(storagev2.db, EMPTY)
-    const corePromise = rx.getCore(discoveryKey)
+    // Core entry before
+    // v2.9.0 fixture was generated with version = 1
+    const rx2 = new CorestoreRX(storage.db, EMPTY)
+    const corePromise = rx2.getCore(discoveryKey)
 
-    rx.tryFlush()
+    rx2.tryFlush()
     const core = await corePromise
-    t.is(core.version, 1)
+    t.is(core.version, 1, 'core entry starts version 1')
   }
-
-  {
-    const w = cV2.write()
-
-    w.setHead({
-      fork: 3,
-      length: 2,
-      rootHash: b4a.alloc(32),
-      signature: null
-    })
-
-    await w.flush()
-  }
-
-  await cV2.close()
-  await storagev2.close()
-
-  t.comment('v3 - load')
-  const storage = new HypercoreStorage(dir)
 
   t.is(await storage.hasCore(discoveryKey), true)
   const c = await storage.resumeCore(b4a.alloc(32))
@@ -56,6 +32,15 @@ test('migrate v2 -> v3 - core migration', async (t) => {
 
   {
     const rx = c.read()
+
+    // v2.9.0 fixture was generated with head for dkey b4a.alloc(32) with:
+    // {
+    //   fork: 3,
+    //   length: 2,
+    //   rootHash: b4a.alloc(32),
+    //   signature: null
+    // }
+    // So no timestamp
 
     const headPromise = rx.getHead()
     rx.tryFlush()
@@ -68,7 +53,7 @@ test('migrate v2 -> v3 - core migration', async (t) => {
     t.is(head.signature, null, 'got signature')
 
     // Core entry
-    const EMPTY = new View()
+    // v2.9.0 fixture was generated with version = 1
     const rx2 = new CorestoreRX(storage.db, EMPTY)
     const corePromise = rx2.getCore(discoveryKey)
 

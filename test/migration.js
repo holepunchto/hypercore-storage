@@ -44,6 +44,7 @@ test('migrate v2 -> v3 - core head', async (t) => {
     await w.flush()
   }
 
+  await cV2.close()
   await storagev2.close()
 
   t.comment('v3 - load')
@@ -75,4 +76,7 @@ test('migrate v2 -> v3 - core head', async (t) => {
     const core = await corePromise
     t.is(core.version, 2, 'core entry now v3 (aka version = 2)')
   }
+
+  await c.close()
+  await storage.close()
 })

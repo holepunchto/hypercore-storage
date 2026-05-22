@@ -1,6 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
 const path = require('path')
+const fs = require('fs/promises')
 const os = require('os')
 const HypercoreStorage = require('../index.js')
 const { CorestoreRX } = require('../lib/tx.js')
@@ -9,7 +10,10 @@ const View = require('../lib/view.js')
 const skip = os.platform() !== 'darwin' // fixture was generated on darwin/macos
 
 test('migrate v2 -> v3 - core migration (macos)', { skip }, async (t) => {
-  const dir = path.join(__dirname, './fixtures/2.9.0-darwin')
+  const fixturePath = path.join(__dirname, './fixtures/2.9.0-darwin')
+  const dir = await t.tmp()
+  await fs.cp(fixturePath, dir, { recursive: true })
+
   const storage = new HypercoreStorage(dir, { allowBackup: true })
   const EMPTY = new View()
 

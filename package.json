@@ -24,6 +24,14 @@
       "bare": "bare-fs",
       "default": "fs"
     },
+    "fs/*": {
+      "bare": "bare-fs/*",
+      "default": "fs/*"
+    },
+    "os": {
+      "bare": "bare-os",
+      "default": "os"
+    },
     "path": {
       "bare": "bare-path",
       "default": "path"
@@ -39,7 +47,6 @@
   "homepage": "https://github.com/holepunchto/hypercore-storage#readme",
   "dependencies": {
     "b4a": "^1.6.7",
-    "bare-fs": "^4.0.1",
     "bare-path": "^3.0.0",
     "compact-encoding": "^3.1.0",
     "device-file": "^2.1.2",
@@ -53,6 +60,7 @@
     "streamx": "^2.21.1"
   },
   "devDependencies": {
+    "bare-os": "^3.9.1",
     "brittle": "^3.7.0",
     "hypercore-storage-2.9.0": "npm:hypercore-storage@^2.9.0",
     "lunte": "^1.3.0",

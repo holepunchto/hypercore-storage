@@ -3,7 +3,7 @@ const Hyperschema = require('hyperschema')
 
 const SPEC = path.resolve('./encoding/spec/hyperschema')
 
-const schema = Hyperschema.from(SPEC, { versioned: false })
+const schema = Hyperschema.from(SPEC)
 const corestore = schema.namespace('corestore')
 
 corestore.require(path.resolve('./encoding/external.js'))

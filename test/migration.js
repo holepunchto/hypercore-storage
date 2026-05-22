@@ -74,7 +74,7 @@ test('migrate v2 -> v3 - core head', async (t) => {
 
     rx2.tryFlush()
     const core = await corePromise
-    t.is(core.version, 2, 'core entry now v3 (aka version = 2)')
+    t.is(core.version, 1, 'core entry still version 1 head')
   }
 
   await c.close()

@@ -680,7 +680,7 @@ class CorestoreStorage {
           break
         }
         case 1: {
-          // implicit migration on write
+          await require('./migrations/1').core(core, target)
           break
         }
         default: {

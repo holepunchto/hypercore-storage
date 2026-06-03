@@ -524,8 +524,8 @@ class CorestoreStorage {
     return this.db.ready()
   }
 
-  compact() {
-    return this.db.compactRange()
+  compact(opts) {
+    return this.db.compactRange(opts)
   }
 
   async audit() {

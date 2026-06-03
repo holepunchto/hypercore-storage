@@ -524,8 +524,8 @@ class CorestoreStorage {
     return this.db.ready()
   }
 
-  compact() {
-    return this.db.compactRange()
+  compact(opts) {
+    return this.db.compactRange(opts)
   }
 
   async audit() {
@@ -1228,19 +1228,24 @@ function createColumnFamily(db, opts = {}) {
   const {
     tableCacheIndexAndFilterBlocks = true,
     blockCache = true,
-    optimizeFiltersForMemory = false
+    optimizeFiltersForMemory = false,
+    blobFileSize = 256 * 1024 * 1024,
+    blobGarbageCollectionAgeCutOff = 0.25,
+    blobGarbageCollectionForceThreshold = 1.0
   } = opts
 
   const col = new RocksDB.ColumnFamily(COLUMN_FAMILY, {
     enableBlobFiles: true,
     minBlobSize: 4096,
-    blobFileSize: 256 * 1024 * 1024,
+    blobFileSize,
     enableBlobGarbageCollection: true,
     tableBlockSize: 8192,
     tableCacheIndexAndFilterBlocks,
     tableFormatVersion: 6,
     optimizeFiltersForMemory,
-    blockCache
+    blockCache,
+    blobGarbageCollectionAgeCutOff,
+    blobGarbageCollectionForceThreshold
   })
 
   return db.columnFamily(col)

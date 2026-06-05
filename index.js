@@ -1006,9 +1006,15 @@ class CorestoreStorage {
     return Promise.all(resultPromises)
   }
 
-  async suspend() {
+  async suspend({ log = noop } = {}) {
+    await log('Suspending hypercore storage...')
     await this.db.suspend()
-    if (this.deviceFile) await this.deviceFile.suspend()
+    await log('db suspended')
+    if (this.deviceFile) {
+      await log('suspend deviceFile')
+      await this.deviceFile.suspend()
+      await log('deviceFile suspended')
+    }
   }
 
   async resume() {

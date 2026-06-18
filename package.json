@@ -1,6 +1,6 @@
 {
   "name": "hypercore-storage",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "main": "index.js",
   "files": [
     "index.js",
@@ -50,7 +50,7 @@
     "b4a": "^1.6.7",
     "bare-path": "^3.0.0",
     "compact-encoding": "^3.1.0",
-    "device-file": "^2.1.2",
+    "device-file": "^2.3.2",
     "flat-tree": "^1.12.1",
     "hypercore-crypto": "^3.4.2",
     "hyperschema": "^1.21.0",

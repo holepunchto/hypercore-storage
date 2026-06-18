@@ -947,7 +947,7 @@ class CorestoreStorage {
     const core = await promise
 
     if (core === null) return false
-    if (core.version !== VERSION && ifMigrated) return false
+    if (core.version === 0 && ifMigrated) return false
 
     return true
   }

@@ -56,7 +56,7 @@
     "hyperschema": "^1.21.0",
     "index-encoder": "^3.3.2",
     "resolve-reject-promise": "^1.0.0",
-    "rocksdb-native": "^3.11.0",
+    "rocksdb-native": "^3.16.0",
     "scope-lock": "^1.2.4",
     "streamx": "^2.21.1"
   },

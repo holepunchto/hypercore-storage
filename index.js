@@ -6,6 +6,7 @@ const path = require('path')
 const fs = require('fs')
 
 const View = require('./lib/view.js')
+const AsyncCache = require('./lib/async-cache.js')
 
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
@@ -92,6 +93,7 @@ class HypercoreStorage {
     this.atom = atom
 
     this.view.readStart()
+    this.cache = new AsyncCache({ maxAge: 5, maxSize: 10 })
   }
 
   get readOnly() {
@@ -267,7 +269,7 @@ class HypercoreStorage {
       dependencies: []
     }
 
-    const coreRx = new CoreRX(core, this.db, this.view)
+    const coreRx = new CoreRX(core, this.db, this.view, this.cache)
 
     const dependencyPromise = coreRx.getDependency()
     coreRx.tryFlush()
@@ -413,7 +415,7 @@ class HypercoreStorage {
   }
 
   read() {
-    return new CoreRX(this.core, this.db, this.view)
+    return new CoreRX(this.core, this.db, this.view, this.cache)
   }
 
   write() {
@@ -530,7 +532,7 @@ class CorestoreStorage {
 
   async audit() {
     for await (const { core } of this.createCoreStream()) {
-      const coreRx = new CoreRX(core, this.db, EMPTY)
+      const coreRx = new CoreRX(core, this.db, EMPTY, this.cache)
       const authPromise = coreRx.getAuth()
 
       coreRx.tryFlush()
@@ -548,7 +550,7 @@ class CorestoreStorage {
   }
 
   async deleteCore(ptr) {
-    const rx = new CoreRX(ptr, this.db, EMPTY)
+    const rx = new CoreRX(ptr, this.db, EMPTY, this.cache)
 
     const authPromise = rx.getAuth()
     const sessionsPromise = rx.getSessions()
@@ -1053,7 +1055,7 @@ class CorestoreStorage {
     const ptr = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY)
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY, this.cache)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -1074,7 +1076,7 @@ class CorestoreStorage {
     const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view, this.cache)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise

@@ -58,7 +58,8 @@
     "resolve-reject-promise": "^1.0.0",
     "rocksdb-native": "^3.11.0",
     "scope-lock": "^1.2.4",
-    "streamx": "^2.21.1"
+    "streamx": "^2.21.1",
+    "xache": "^1.2.1"
   },
   "devDependencies": {
     "bare-os": "^3.9.1",

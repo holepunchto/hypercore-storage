@@ -221,8 +221,17 @@ class HypercoreStorage {
     if (this.atom && this.atom !== atom) {
       throw new Error('Cannot atomize and atomized session with a new atom')
     }
+
     atom.onflush(this.cache.invalidate.bind(this.cache))
-    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
+
+    return new HypercoreStorage(
+      this.store,
+      this.db.session(),
+      this.core,
+      atom.view,
+      atom,
+      AsyncCache.NO_CACHE // disable cache for atoms
+    )
   }
 
   createAtom() {

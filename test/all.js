@@ -13,6 +13,7 @@ async function runTests() {
   await import('./groups.js')
   await import('./snapshot.js')
   await import('./streams.js')
+  await import('./async-cache.js')
 
   // Fixtures
   await import('./migration.js')

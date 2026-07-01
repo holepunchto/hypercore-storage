@@ -85,7 +85,7 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor(store, db, core, view, atom) {
+  constructor(store, db, core, view, atom, cache = null) {
     this.store = store
     this.db = db
     this.core = core
@@ -93,7 +93,8 @@ class HypercoreStorage {
     this.atom = atom
 
     this.view.readStart()
-    this.cache = new AsyncCache({ maxAge: 5, maxSize: 10 })
+    this.cache = cache || new AsyncCache({ maxAge: 200, maxSize: 7000 })
+    this.cache.ref()
   }
 
   get readOnly() {
@@ -220,6 +221,7 @@ class HypercoreStorage {
     if (this.atom && this.atom !== atom) {
       throw new Error('Cannot atomize and atomized session with a new atom')
     }
+    atom.onflush(this.cache.invalidate.bind(this.cache))
     return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
   }
 
@@ -282,7 +284,8 @@ class HypercoreStorage {
       this.db.session(),
       core,
       this.atom ? this.view : new View(),
-      this.atom
+      this.atom,
+      this.cache
     )
   }
 
@@ -326,7 +329,7 @@ class HypercoreStorage {
       })
     }
 
-    const coreTx = new CoreTX(core, this.db, tx.view, tx.changes)
+    const coreTx = new CoreTX(core, this.db, tx.view, tx.changes, null)
 
     if (length > 0) coreTx.setHead(head)
     coreTx.setDependency(core.dependencies[core.dependencies.length - 1])
@@ -339,13 +342,15 @@ class HypercoreStorage {
     }
 
     await tx.flush()
+    if (!fresh) this.cache.invalidate()
 
     return new HypercoreStorage(
       this.store,
       this.db.session(),
       core,
       this.atom ? this.view : new View(),
-      this.atom
+      this.atom,
+      this.cache
     )
   }
 
@@ -357,7 +362,7 @@ class HypercoreStorage {
       dependencies: this._addDependency(null)
     }
 
-    const coreTx = new CoreTX(core, this.db, atom.view, [])
+    const coreTx = new CoreTX(core, this.db, atom.view, [], this.cache)
 
     if (length > 0) coreTx.setHead(head)
 
@@ -412,6 +417,7 @@ class HypercoreStorage {
     }
 
     await tx.flush()
+    this.cache.invalidate()
   }
 
   read() {
@@ -419,7 +425,7 @@ class HypercoreStorage {
   }
 
   write() {
-    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
+    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [], this.cache)
   }
 
   close() {
@@ -427,6 +433,8 @@ class HypercoreStorage {
       this.view.readStop()
       this.view = null
     }
+
+    this.cache.destroy()
 
     return this.db.close()
   }
@@ -532,7 +540,7 @@ class CorestoreStorage {
 
   async audit() {
     for await (const { core } of this.createCoreStream()) {
-      const coreRx = new CoreRX(core, this.db, EMPTY, this.cache)
+      const coreRx = new CoreRX(core, this.db, EMPTY)
       const authPromise = coreRx.getAuth()
 
       coreRx.tryFlush()
@@ -550,7 +558,7 @@ class CorestoreStorage {
   }
 
   async deleteCore(ptr) {
-    const rx = new CoreRX(ptr, this.db, EMPTY, this.cache)
+    const rx = new CoreRX(ptr, this.db, EMPTY)
 
     const authPromise = rx.getAuth()
     const sessionsPromise = rx.getSessions()
@@ -580,7 +588,7 @@ class CorestoreStorage {
       }
     }
 
-    return tx.flush()
+    await tx.flush()
   }
 
   static isCoreStorage(db) {
@@ -1055,7 +1063,7 @@ class CorestoreStorage {
     const ptr = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY, this.cache)
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -1076,7 +1084,7 @@ class CorestoreStorage {
     const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view, this.cache)
+      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise

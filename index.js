@@ -588,7 +588,7 @@ class CorestoreStorage {
       }
     }
 
-    await tx.flush()
+    return tx.flush()
   }
 
   static isCoreStorage(db) {

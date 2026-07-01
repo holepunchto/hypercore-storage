@@ -92,6 +92,25 @@ test('tree cache invalidates parent nodes after atom flush', async (t) => {
   t.alike(await readTreeNodes(core, 1), [second], 'parent sees atom result')
 })
 
+test('tree cache invalidates sibling atomized sessions', async (t) => {
+  const core = await createCore(t)
+  const atom = core.createAtom()
+  const firstSession = core.atomize(atom)
+  const secondSession = core.atomize(atom)
+
+  t.teardown(() => firstSession.close())
+  t.teardown(() => secondSession.close())
+
+  const first = treeNode(0, 1)
+  const second = treeNode(0, 2)
+
+  await putTreeNodes(firstSession, [first])
+  t.alike(await readTreeNodes(secondSession, 1), [first], 'sibling caches first node')
+
+  await putTreeNodes(firstSession, [second])
+  t.alike(await readTreeNodes(secondSession, 1), [second], 'sibling observes overwritten node')
+})
+
 async function putTreeNodes(core, nodes) {
   const tx = core.write()
   for (const node of nodes) tx.putTreeNode(node)

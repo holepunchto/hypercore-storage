@@ -434,7 +434,7 @@ class HypercoreStorage {
       this.view = null
     }
 
-    this.cache.destroy()
+    this.cache.unref()
 
     return this.db.close()
   }

@@ -222,15 +222,13 @@ class HypercoreStorage {
       throw new Error('Cannot atomize and atomized session with a new atom')
     }
 
-    atom.onflush(this.cache.invalidate.bind(this.cache))
-
     return new HypercoreStorage(
       this.store,
       this.db.session(),
       this.core,
       atom.view,
       atom,
-      AsyncCache.NO_CACHE // disable cache for atoms
+      this.cache
     )
   }
 
@@ -338,7 +336,7 @@ class HypercoreStorage {
       })
     }
 
-    const coreTx = new CoreTX(core, this.db, tx.view, tx.changes, null)
+    const coreTx = new CoreTX(core, this.db, tx.view, tx.changes)
 
     if (length > 0) coreTx.setHead(head)
     coreTx.setDependency(core.dependencies[core.dependencies.length - 1])
@@ -351,7 +349,6 @@ class HypercoreStorage {
     }
 
     await tx.flush()
-    if (!fresh) this.cache.invalidate()
 
     return new HypercoreStorage(
       this.store,
@@ -371,7 +368,7 @@ class HypercoreStorage {
       dependencies: this._addDependency(null)
     }
 
-    const coreTx = new CoreTX(core, this.db, atom.view, [], this.cache)
+    const coreTx = new CoreTX(core, this.db, atom.view, [])
 
     if (length > 0) coreTx.setHead(head)
 
@@ -426,15 +423,17 @@ class HypercoreStorage {
     }
 
     await tx.flush()
-    this.cache.invalidate()
   }
 
   read() {
-    return new CoreRX(this.core, this.db, this.view, this.cache)
+    let cache = null
+    if (!this.atom) cache = this.cache
+
+    return new CoreRX(this.core, this.db, this.view, cache)
   }
 
   write() {
-    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [], this.cache)
+    return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
   close() {

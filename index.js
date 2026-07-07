@@ -425,11 +425,11 @@ class HypercoreStorage {
     await tx.flush()
   }
 
-  read() {
+  read(fork = -1) {
     let cache = null
     if (!this.atom) cache = this.cache
 
-    return new CoreRX(this.core, this.db, this.view, cache)
+    return new CoreRX(this.core, this.db, this.view, cache, fork)
   }
 
   write() {

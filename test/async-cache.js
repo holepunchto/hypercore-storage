@@ -19,7 +19,7 @@ test('tree cache is bypassed without a fork', async (t) => {
     core.cache.get = get
   })
 
-  t.alike(await readTreeNodes(core, 1, null), [node])
+  t.alike(await readTreeNodes(core, 1, -1), [node])
   t.is(cacheReads, 0, 'does not read from cache')
 })
 
@@ -162,8 +162,7 @@ test('atomized siblings observe shared view writes', async (t) => {
 })
 
 async function readTreeNodes(core, nr, fork) {
-  const rx = core.read()
-  if (fork !== null) rx.setFork(fork)
+  const rx = core.read(fork)
 
   const proms = []
   for (let i = 0; i < nr; i++) proms.push(rx.getTreeNode(i))

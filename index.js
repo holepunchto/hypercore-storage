@@ -4,9 +4,9 @@ const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
+const Xache = require('xache')
 
 const View = require('./lib/view.js')
-const AsyncCache = require('./lib/async-cache.js')
 
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
@@ -93,8 +93,7 @@ class HypercoreStorage {
     this.atom = atom
 
     this.view.readStart()
-    this.cache = cache || new AsyncCache({ maxAge: 200, maxSize: 7000 })
-    this.cache.ref()
+    this.cache = cache || new Xache({ maxAge: 200, maxSize: 7000 })
   }
 
   get readOnly() {
@@ -441,8 +440,6 @@ class HypercoreStorage {
       this.view.readStop()
       this.view = null
     }
-
-    this.cache.unref()
 
     return this.db.close()
   }

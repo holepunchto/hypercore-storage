@@ -11,9 +11,9 @@ test('tree cache is bypassed without a fork', async (t) => {
   const get = core.cache.get
   let cacheReads = 0
 
-  core.cache.get = function (key, fetch) {
+  core.cache.get = function (key) {
     cacheReads++
-    return get.call(this, key, fetch)
+    return get.call(this, key)
   }
   t.teardown(() => {
     core.cache.get = get
@@ -29,22 +29,11 @@ test('tree cache is used with a fork', async (t) => {
 
   await putTreeNodes(core, [node])
 
-  const get = core.cache.get
-  let fetches = 0
-
-  core.cache.get = function (key, fetch) {
-    return get.call(this, key, async () => {
-      fetches++
-      return await fetch()
-    })
-  }
-  t.teardown(() => {
-    core.cache.get = get
-  })
-
-  t.alike(await readTreeNodes(core, 1, 0), [node])
-  t.alike(await readTreeNodes(core, 1, 0), [node])
-  t.is(fetches, 1, 'fetches tree node once')
+  const [result1] = await readTreeNodes(core, 1, 0)
+  const [result2] = await readTreeNodes(core, 1, 0)
+  t.alike(result1, node)
+  t.alike(result2, node)
+  t.is(result1, result2, 'caches same tree node')
 })
 
 test('tree cache is bypassed for atomized reads', async (t) => {

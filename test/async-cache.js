@@ -8,15 +8,15 @@ test('tree cache is bypassed without a fork', async (t) => {
 
   await putTreeNodes(core, [node])
 
-  const get = core.cache.get
+  const get = core.treeCache.get
   let cacheReads = 0
 
-  core.cache.get = function (key) {
+  core.treeCache.get = function (key) {
     cacheReads++
     return get.call(this, key)
   }
   t.teardown(() => {
-    core.cache.get = get
+    core.treeCache.get = get
   })
 
   t.alike(await readTreeNodes(core, 1, -1), [node])

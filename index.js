@@ -85,7 +85,7 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor(store, db, core, view, atom, cache = null) {
+  constructor(store, db, core, view, atom, treeCache = null) {
     this.store = store
     this.db = db
     this.core = core
@@ -93,7 +93,7 @@ class HypercoreStorage {
     this.atom = atom
 
     this.view.readStart()
-    this.cache = cache || new Xache({ maxAge: 200, maxSize: 7000 })
+    this.treeCache = treeCache
   }
 
   get readOnly() {
@@ -205,7 +205,8 @@ class HypercoreStorage {
       this.db.snapshot(),
       this.core,
       this.view.snapshot(),
-      this.atom
+      this.atom,
+      this.treeCache
     )
   }
 
@@ -227,7 +228,7 @@ class HypercoreStorage {
       this.core,
       atom.view,
       atom,
-      this.cache
+      this.treeCache
     )
   }
 
@@ -277,7 +278,7 @@ class HypercoreStorage {
       dependencies: []
     }
 
-    const coreRx = new CoreRX(core, this.db, this.view, this.cache)
+    const coreRx = new CoreRX(core, this.db, this.view, this.treeCache)
 
     const dependencyPromise = coreRx.getDependency()
     coreRx.tryFlush()
@@ -291,7 +292,7 @@ class HypercoreStorage {
       core,
       this.atom ? this.view : new View(),
       this.atom,
-      this.cache
+      this.treeCache
     )
   }
 
@@ -355,7 +356,7 @@ class HypercoreStorage {
       core,
       this.atom ? this.view : new View(),
       this.atom,
-      this.cache
+      this.treeCache
     )
   }
 
@@ -425,10 +426,10 @@ class HypercoreStorage {
   }
 
   read(fork = -1) {
-    let cache = null
-    if (!this.atom) cache = this.cache
+    let treeCache = null
+    if (!this.atom) treeCache = this.treeCache
 
-    return new CoreRX(this.core, this.db, this.view, cache, fork)
+    return new CoreRX(this.core, this.db, this.view, treeCache, fork)
   }
 
   write() {
@@ -524,6 +525,8 @@ class CorestoreStorage {
 
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
+
+    this.treeCache = new Xache({ maxAge: 200, maxSize: 7000 })
   }
 
   get opened() {
@@ -1098,7 +1101,7 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
+    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null, this.treeCache)
 
     if (version < VERSION) await this._migrateCore(result, discoveryKey, version, create)
     return result
@@ -1151,7 +1154,7 @@ class CorestoreStorage {
 
     tx.apply()
 
-    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
+    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null, this.treeCache)
   }
 
   async createCore(data) {

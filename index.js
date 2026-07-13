@@ -85,7 +85,7 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor(store, db, core, view, atom, treeCache = null) {
+  constructor(store, db, treeCache, core, view, atom) {
     this.store = store
     this.db = db
     this.core = core
@@ -203,10 +203,10 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.snapshot(),
+      this.treeCache,
       this.core,
       this.view.snapshot(),
-      this.atom,
-      this.treeCache
+      this.atom
     )
   }
 
@@ -225,10 +225,10 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.session(),
+      this.treeCache,
       this.core,
       atom.view,
-      atom,
-      this.treeCache
+      atom
     )
   }
 
@@ -289,10 +289,10 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.session(),
+      this.treeCache,
       core,
       this.atom ? this.view : new View(),
-      this.atom,
-      this.treeCache
+      this.atom
     )
   }
 
@@ -353,10 +353,10 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.session(),
+      this.treeCache,
       core,
       this.atom ? this.view : new View(),
-      this.atom,
-      this.treeCache
+      this.atom
     )
   }
 
@@ -1124,7 +1124,7 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null, this.treeCache)
+    const result = new HypercoreStorage(this, this.db.session(), this.treeCache, core, EMPTY, null)
 
     if (version < VERSION) await this._migrateCore(result, discoveryKey, version, create)
     return result
@@ -1177,7 +1177,7 @@ class CorestoreStorage {
 
     tx.apply()
 
-    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null, this.treeCache)
+    return new HypercoreStorage(this, this.db.session(), this.treeCache, ptr, EMPTY, null)
   }
 
   async createCore(data) {

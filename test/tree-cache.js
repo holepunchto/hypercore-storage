@@ -42,6 +42,31 @@ test('tree cache is used with a fork', async (t) => {
   t.is(core.store.stats.treeCache.hits, 1, 'stats has hit')
 })
 
+test('tree cache returns pending promise to dedupe reads', async (t) => {
+  const core = await createCore(t)
+  const node = treeNode(0, 1)
+
+  await putTreeNodes(core, [node])
+
+  const rx = core.read(0)
+  const first = rx.getTreeNode(0)
+  const second = rx.getTreeNode(0)
+  rx.tryFlush()
+
+  const [firstResult, secondResult] = await Promise.all([first, second])
+
+  t.alike(firstResult, node, 'first concurrent read resolves node')
+  t.alike(secondResult, node, 'second concurrent read resolves node')
+
+  t.is(core.store.stats.treeCache.misses, 1, 'only one underlying miss for both concurrent reads')
+  t.is(core.store.stats.treeCache.parallel, 1, 'parallel stat incremented for the pending read')
+  t.is(core.store.stats.treeCache.hits, 0, 'no cache hits yet')
+
+  const [third] = await readTreeNodes(core, 1, 0)
+  t.alike(third, node, 'later read returns cached value')
+  t.is(core.store.stats.treeCache.hits, 1, 'later read counts as a hit')
+})
+
 test('tree cache is bypassed for atomized reads', async (t) => {
   const core = await createCore(t)
   const first = treeNode(0, 1)

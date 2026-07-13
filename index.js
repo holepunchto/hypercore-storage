@@ -800,6 +800,7 @@ class CorestoreStorage {
     await this._flush()
     await this.db.close()
     await this.rocks.close()
+    this.treeCache.destroy()
     if (this.deviceFile) await this.deviceFile.close()
   }
 

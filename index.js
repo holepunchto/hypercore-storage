@@ -534,7 +534,8 @@ class CorestoreStorage {
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
 
-    this.treeCache = new Xache({ maxAge: 200, maxSize: 7000 })
+    const { treeCache = { maxSize: 8192 } } = opts
+    this.treeCache = new Xache(treeCache)
   }
 
   get opened() {

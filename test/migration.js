@@ -14,7 +14,7 @@ test('migrate v2 -> v3 - core migration (macos)', { skip }, async (t) => {
   const dir = await t.tmp()
   await fs.cp(fixturePath, dir, { recursive: true })
 
-  const storage = new HypercoreStorage(dir, { allowBackup: true })
+  const storage = new HypercoreStorage(dir, { allowBackup: true }, null)
   const EMPTY = new View()
 
   const discoveryKey = b4a.alloc(32)

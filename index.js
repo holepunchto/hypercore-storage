@@ -4,6 +4,7 @@ const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
+const Xache = require('xache')
 
 const View = require('./lib/view.js')
 
@@ -84,7 +85,7 @@ class Atom {
 }
 
 class HypercoreStorage {
-  constructor(store, db, core, view, atom) {
+  constructor(store, db, treeCache, core, view, atom) {
     this.store = store
     this.db = db
     this.core = core
@@ -92,6 +93,7 @@ class HypercoreStorage {
     this.atom = atom
 
     this.view.readStart()
+    this.treeCache = treeCache
   }
 
   get readOnly() {
@@ -201,6 +203,7 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.snapshot(),
+      this.treeCache,
       this.core,
       this.view.snapshot(),
       this.atom
@@ -218,7 +221,15 @@ class HypercoreStorage {
     if (this.atom && this.atom !== atom) {
       throw new Error('Cannot atomize and atomized session with a new atom')
     }
-    return new HypercoreStorage(this.store, this.db.session(), this.core, atom.view, atom)
+
+    return new HypercoreStorage(
+      this.store,
+      this.db.session(),
+      this.treeCache,
+      this.core,
+      atom.view,
+      atom
+    )
   }
 
   createAtom() {
@@ -267,7 +278,7 @@ class HypercoreStorage {
       dependencies: []
     }
 
-    const coreRx = new CoreRX(core, this.db, this.view)
+    const coreRx = new CoreRX(core, this.db, this.view, this.treeCache, this.store.stats, -1)
 
     const dependencyPromise = coreRx.getDependency()
     coreRx.tryFlush()
@@ -278,6 +289,7 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.session(),
+      this.treeCache,
       core,
       this.atom ? this.view : new View(),
       this.atom
@@ -341,6 +353,7 @@ class HypercoreStorage {
     return new HypercoreStorage(
       this.store,
       this.db.session(),
+      this.treeCache,
       core,
       this.atom ? this.view : new View(),
       this.atom
@@ -412,8 +425,11 @@ class HypercoreStorage {
     await tx.flush()
   }
 
-  read() {
-    return new CoreRX(this.core, this.db, this.view)
+  read(fork = -1) {
+    let treeCache = null
+    if (!this.atom) treeCache = this.treeCache
+
+    return new CoreRX(this.core, this.db, this.view, treeCache, this.store.stats, fork)
   }
 
   write() {
@@ -430,7 +446,7 @@ class HypercoreStorage {
   }
 
   static async export(ptr, db, { batches = false } = {}) {
-    const rx = new CoreRX(ptr, db, EMPTY)
+    const rx = new CoreRX(ptr, db, EMPTY, null, null, -1)
 
     const core = {
       head: null,
@@ -507,8 +523,19 @@ class CorestoreStorage {
 
     const dbPath = path.join(this.path, 'db')
 
+    this.stats = {
+      treeCache: {
+        hits: 0,
+        misses: 0,
+        parallel: 0,
+        skips: 0
+      }
+    }
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
+
+    const { treeCache = { maxSize: 8192 } } = opts
+    this.treeCache = new Xache(treeCache)
   }
 
   get opened() {
@@ -530,7 +557,7 @@ class CorestoreStorage {
 
   async audit() {
     for await (const { core } of this.createCoreStream()) {
-      const coreRx = new CoreRX(core, this.db, EMPTY)
+      const coreRx = new CoreRX(core, this.db, EMPTY, this.treeCache, this.stats, -1)
       const authPromise = coreRx.getAuth()
 
       coreRx.tryFlush()
@@ -548,7 +575,7 @@ class CorestoreStorage {
   }
 
   async deleteCore(ptr) {
-    const rx = new CoreRX(ptr, this.db, EMPTY)
+    const rx = new CoreRX(ptr, this.db, EMPTY, this.treeCache, this.stats, -1)
 
     const authPromise = rx.getAuth()
     const sessionsPromise = rx.getSessions()
@@ -782,6 +809,7 @@ class CorestoreStorage {
     await this._flush()
     await this.db.close()
     await this.rocks.close()
+    this.treeCache.destroy()
     if (this.deviceFile) await this.deviceFile.close()
   }
 
@@ -1053,7 +1081,14 @@ class CorestoreStorage {
     const ptr = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY)
+      const rx = new CoreRX(
+        { dataPointer, corePointer: 0, dependencies: [] },
+        this.db,
+        EMPTY,
+        this.treeCache,
+        this.stats,
+        -1
+      )
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -1074,7 +1109,14 @@ class CorestoreStorage {
     const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view)
+      const rx = new CoreRX(
+        { dataPointer, corePointer: 0, dependencies: [] },
+        this.db,
+        view,
+        this.treeCache,
+        this.stats,
+        -1
+      )
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -1083,7 +1125,7 @@ class CorestoreStorage {
       dataPointer = dependency.dataPointer
     }
 
-    const result = new HypercoreStorage(this, this.db.session(), core, EMPTY, null)
+    const result = new HypercoreStorage(this, this.db.session(), this.treeCache, core, EMPTY, null)
 
     if (version < VERSION) await this._migrateCore(result, discoveryKey, version, create)
     return result
@@ -1136,7 +1178,7 @@ class CorestoreStorage {
 
     tx.apply()
 
-    return new HypercoreStorage(this, this.db.session(), ptr, EMPTY, null)
+    return new HypercoreStorage(this, this.db.session(), this.treeCache, ptr, EMPTY, null)
   }
 
   async createCore(data) {

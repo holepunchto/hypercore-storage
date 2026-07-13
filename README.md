@@ -14,9 +14,19 @@ The following API is what Hypercore 11 binds to to do I/O.
 const Storage = require('hypercore-storage')
 ```
 
-#### `store = new Storage(dbOrPath)`
+#### `store = new Storage(dbOrPath, opts = {})`
 
 Make a new storage engine.
+
+`opts` includes:
+
+```
+{
+  treeCache: {    // Same options as `xache`
+    maxSize: 8192 // Max number of tree nodes to cache
+  }
+}
+```
 
 #### `core = await store.createCore({ key, discoveyKey, manifest?, keyPair?, encryptionKey?, userData? })`
 

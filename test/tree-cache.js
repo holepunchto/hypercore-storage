@@ -21,6 +21,8 @@ test('tree cache is bypassed without a fork', async (t) => {
 
   t.alike(await readTreeNodes(core, 1, -1), [node])
   t.is(cacheReads, 0, 'does not read from cache')
+  t.is(core.store.stats.treeCache.hits, 0, 'stats show no hits')
+  t.is(core.store.stats.treeCache.skips, 1, 'stats skips inc')
 })
 
 test('tree cache is used with a fork', async (t) => {
@@ -30,10 +32,14 @@ test('tree cache is used with a fork', async (t) => {
   await putTreeNodes(core, [node])
 
   const [result1] = await readTreeNodes(core, 1, 0)
+  t.is(core.store.stats.treeCache.misses, 1, 'initial miss')
+  t.is(core.store.stats.treeCache.hits, 0, 'no hit')
+  t.alike(result1, node, 'returns node')
+
   const [result2] = await readTreeNodes(core, 1, 0)
-  t.alike(result1, node)
-  t.alike(result2, node)
+  t.alike(result2, node, '2nd read returns node')
   t.is(result1, result2, 'caches same tree node')
+  t.is(core.store.stats.treeCache.hits, 1, 'stats has hit')
 })
 
 test('tree cache is bypassed for atomized reads', async (t) => {
@@ -43,6 +49,7 @@ test('tree cache is bypassed for atomized reads', async (t) => {
 
   await putTreeNodes(core, [first])
   t.alike(await readTreeNodes(core, 1, 0), [first], 'caches parent node')
+  t.is(core.store.stats.treeCache.misses, 1, 'initial miss')
 
   const atom = core.createAtom()
   const atomCore = core.atomize(atom)
@@ -55,7 +62,9 @@ test('tree cache is bypassed for atomized reads', async (t) => {
     [second],
     'reads atomized node instead of cached parent node'
   )
+  t.is(core.store.stats.treeCache.skips, 1, 'atom skips')
   t.alike(await readTreeNodes(core, 1, 0), [first], 'parent cache remains unchanged')
+  t.is(core.store.stats.treeCache.hits, 1, 're-reading hits')
 })
 
 test('tree cache isolates overwritten nodes by fork', async (t) => {
@@ -66,10 +75,14 @@ test('tree cache isolates overwritten nodes by fork', async (t) => {
 
   await putTreeNodes(core, [first])
   t.alike(await readTreeNodes(core, 1, 0), [first], 'cached first node')
+  t.is(core.store.stats.treeCache.misses, 1, 'first miss')
+  t.is(core.store.stats.treeCache.hits, 0, 'no hit')
 
   await putTreeNodes(core, [second])
   t.alike(await readTreeNodes(core, 1, 1), [second], 'next fork reads overwritten node')
+  t.is(core.store.stats.treeCache.misses, 2, 'fork causes miss')
   t.alike(await readTreeNodes(core, 1, 0), [first], 'previous fork retains cached node')
+  t.is(core.store.stats.treeCache.hits, 1, 'old fork hits')
 })
 
 test('tree cache isolates deleted nodes by fork', async (t) => {

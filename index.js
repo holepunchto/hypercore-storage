@@ -429,7 +429,7 @@ class HypercoreStorage {
     let treeCache = null
     if (!this.atom) treeCache = this.treeCache
 
-    return new CoreRX(this.core, this.db, this.view, treeCache, fork)
+    return new CoreRX(this.core, this.db, this.view, treeCache, fork, this.store.stats)
   }
 
   write() {
@@ -523,6 +523,14 @@ class CorestoreStorage {
 
     const dbPath = path.join(this.path, 'db')
 
+    this.stats = {
+      treeCache: {
+        hits: 0,
+        misses: 0,
+        parallel: 0,
+        skips: 0
+      }
+    }
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
 

@@ -1080,7 +1080,14 @@ class CorestoreStorage {
     const ptr = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, EMPTY, this.treeCache, this.stats, -1)
+      const rx = new CoreRX(
+        { dataPointer, corePointer: 0, dependencies: [] },
+        this.db,
+        EMPTY,
+        this.treeCache,
+        this.stats,
+        -1
+      )
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise
@@ -1101,7 +1108,14 @@ class CorestoreStorage {
     const core = { corePointer, dataPointer, dependencies: [] }
 
     while (true) {
-      const rx = new CoreRX({ dataPointer, corePointer: 0, dependencies: [] }, this.db, view, this.treeCache, this.stats, -1)
+      const rx = new CoreRX(
+        { dataPointer, corePointer: 0, dependencies: [] },
+        this.db,
+        view,
+        this.treeCache,
+        this.stats,
+        -1
+      )
       const dependencyPromise = rx.getDependency()
       rx.tryFlush()
       const dependency = await dependencyPromise

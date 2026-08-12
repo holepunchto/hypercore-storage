@@ -1,6 +1,6 @@
 const test = require('brittle')
 const b4a = require('b4a')
-const { create } = require('./helpers')
+const { create, getGroup } = require('./helpers')
 
 const Storage = require('../')
 
@@ -140,6 +140,88 @@ test('groups - multiple groups', async (t) => {
   }
 
   await s.close()
+})
+
+test('groups - core group is keyed by the core pointer', async (t) => {
+  const s = await create(t)
+
+  const group = await s.createGroup(b4a.alloc(32, 0))
+
+  // drift the core and data counters apart, sessions allocate a data pointer
+  // without allocating a core
+  const drifter = await s.createCore({
+    key: b4a.alloc(32, 1),
+    discoveryKey: b4a.alloc(32, 1)
+  })
+  await drifter.createSession('drift', null)
+
+  const core = await s.createCore({
+    key: b4a.alloc(32, 2),
+    discoveryKey: b4a.alloc(32, 2)
+  })
+
+  const other = await s.createCore({
+    key: b4a.alloc(32, 3),
+    discoveryKey: b4a.alloc(32, 3)
+  })
+
+  // precondition, the group of "core" must not be stored in "other"s slot
+  t.not(core.core.corePointer, core.core.dataPointer)
+  t.is(core.core.dataPointer, other.core.corePointer)
+
+  const tx = core.write()
+  tx.setGroup(group)
+  await tx.flush()
+
+  t.alike(await getGroup(core), group, 'group is readable on the core that set it')
+  t.is(await getGroup(other), null, 'group did not leak into another core')
+  t.is(await getGroup(drifter), null, 'group did not leak into another core')
+
+  await s.close()
+})
+
+test('groups - core group persists', async (t) => {
+  const dir = await t.tmp()
+
+  const group = { key: b4a.alloc(32, 0), pointer: 0 }
+  const discoveryKey = b4a.alloc(32, 2)
+
+  {
+    const s = new Storage(dir)
+
+    t.alike(await s.createGroup(group.key), group)
+
+    const drifter = await s.createCore({
+      key: b4a.alloc(32, 1),
+      discoveryKey: b4a.alloc(32, 1)
+    })
+    await drifter.createSession('drift', null)
+
+    const core = await s.createCore({ key: b4a.alloc(32, 2), discoveryKey })
+
+    const tx = core.write()
+    tx.setGroup(group)
+    await tx.flush()
+
+    await s.close()
+  }
+
+  {
+    const s = new Storage(dir)
+
+    const core = await s.resumeCore(discoveryKey)
+    t.alike(await getGroup(core), group)
+
+    const other = await s.createCore({
+      key: b4a.alloc(32, 3),
+      discoveryKey: b4a.alloc(32, 3)
+    })
+
+    t.is(core.core.dataPointer, other.core.corePointer)
+    t.is(await getGroup(other), null, 'group did not leak into another core')
+
+    await s.close()
+  }
 })
 
 test('wakeup - persists', async (t) => {

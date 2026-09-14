@@ -1283,7 +1283,8 @@ function createColumnFamily(db, opts = {}) {
     optimizeFiltersForMemory = false,
     blobFileSize = 256 * 1024 * 1024,
     blobGarbageCollectionAgeCutOff = 0.25,
-    blobGarbageCollectionForceThreshold = 1.0
+    blobGarbageCollectionForceThreshold = 1.0,
+    writeBufferSize = 64 * 1024 * 1024
   } = opts
 
   const col = new RocksDB.ColumnFamily(COLUMN_FAMILY, {
@@ -1297,7 +1298,8 @@ function createColumnFamily(db, opts = {}) {
     optimizeFiltersForMemory,
     blockCache,
     blobGarbageCollectionAgeCutOff,
-    blobGarbageCollectionForceThreshold
+    blobGarbageCollectionForceThreshold,
+    writeBufferSize
   })
 
   return db.columnFamily(col)

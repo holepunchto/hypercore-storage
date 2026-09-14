@@ -499,6 +499,7 @@ class CorestoreStorage {
     this.allowBackup = !!opts.allowBackup
     this.deviceFile = null
     this.wait = !!opts.wait
+    this.onresume = opts.onresume || null
 
     // tmp sync fix for simplicty since not super deployed yet
     if (this.bootstrap && !this.readOnly) tmpFixStorage(this.path)
@@ -1057,6 +1058,9 @@ class CorestoreStorage {
       discoveryKey = await this.getDefaultDiscoveryKey()
       if (!discoveryKey) return null
     }
+
+    // fires before the lookup so callers see the key even if the core is missing
+    if (this.onresume !== null) this.onresume(discoveryKey)
 
     const rx = new CorestoreRX(this.db, EMPTY)
     const corePromise = rx.getCore(discoveryKey)

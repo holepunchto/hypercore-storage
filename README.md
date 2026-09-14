@@ -24,7 +24,9 @@ Make a new storage engine.
 {
   treeCache: {    // Same options as `xache`
     maxSize: 8192 // Max number of tree nodes to cache
-  }
+  },
+  onresume: null  // Called with the discovery key when `resumeCore` is invoked,
+                  // before the lookup, so it fires even if the core does not exist
 }
 ```
 

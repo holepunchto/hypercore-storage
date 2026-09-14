@@ -1,5 +1,7 @@
 const test = require('brittle')
 const b4a = require('b4a')
+const tmp = require('test-tmp')
+const Storage = require('../')
 const { create } = require('./helpers')
 
 test('make storage and core', async function (t) {
@@ -19,6 +21,24 @@ test('make storage and core', async function (t) {
   const r = await s.resumeCore(b4a.alloc(32))
 
   t.ok(!!r)
+
+  await r.close()
+  await s.close()
+})
+
+test('onresume hook fires for existing and missing cores', async function (t) {
+  const resumed = []
+  const s = new Storage(await tmp(t), { onresume: (discoveryKey) => resumed.push(discoveryKey) })
+
+  t.is(await s.resumeCore(b4a.alloc(32, 1)), null)
+  t.alike(resumed, [b4a.alloc(32, 1)])
+
+  const c = await s.createCore({ key: b4a.alloc(32), discoveryKey: b4a.alloc(32) })
+  await c.close()
+
+  const r = await s.resumeCore(b4a.alloc(32))
+  t.ok(!!r)
+  t.alike(resumed, [b4a.alloc(32, 1), b4a.alloc(32)])
 
   await r.close()
   await s.close()

@@ -589,9 +589,15 @@ class CorestoreStorage {
     // no core stored here
     if (!auth) return
 
+    const corestoreRx = new CorestoreRX(this.db, EMPTY)
+    const recordPromise = corestoreRx.getCore(auth.discoveryKey)
+    corestoreRx.tryFlush()
+    const record = await recordPromise
+
     const tx = this.db.write({ autoDestroy: true })
 
     tx.tryDelete(store.core(auth.discoveryKey))
+    if (record && record.alias) tx.tryDelete(store.coreByAlias(record.alias))
 
     // clear core
     const start = core.core(ptr.corePointer)

@@ -2,7 +2,8 @@ const test = require('brittle')
 const b4a = require('b4a')
 const tmp = require('test-tmp')
 const Storage = require('../')
-const { create } = require('./helpers')
+const { create, writeBlocks, readBlocks } = require('./helpers')
+const { core: keys } = require('../lib/keys.js')
 
 test('make storage and core', async function (t) {
   const s = await create(t)
@@ -269,3 +270,40 @@ test('can get info from store efficiently', async function (t) {
 
   await s.close()
 })
+
+test('deleteCore removes all of its data and leaves other cores alone', async function (t) {
+  const s = await create(t)
+
+  const a = await s.createCore({ key: b4a.alloc(32, 1), discoveryKey: b4a.alloc(32, 1) })
+  const b = await s.createCore({ key: b4a.alloc(32, 2), discoveryKey: b4a.alloc(32, 2) })
+
+  await writeBlocks(a, 3)
+  await writeBlocks(b, 3)
+
+  const named = await a.createSession('named', null)
+  await writeBlocks(named, 2, { pre: 'named-' })
+
+  const ptr = a.core
+  const namedDataPointer = named.core.dataPointer
+
+  await named.close()
+  await a.close()
+
+  await s.deleteCore(ptr)
+
+  t.is(await s.hasCore(b4a.alloc(32, 1)), false)
+  t.is(await count(s, keys.core(ptr.corePointer), keys.core(ptr.corePointer + 1)), 0)
+  t.is(await count(s, keys.data(ptr.dataPointer), keys.data(ptr.dataPointer + 1)), 0)
+  t.is(await count(s, keys.data(namedDataPointer), keys.data(namedDataPointer + 1)), 0)
+
+  t.alike(await readBlocks(b, 3), [b4a.from('block0'), b4a.from('block1'), b4a.from('block2')])
+
+  await b.close()
+  await s.close()
+})
+
+async function count(s, gte, lt) {
+  let n = 0
+  for await (const _ of s.db.iterator({ gte, lt })) n++
+  return n
+}

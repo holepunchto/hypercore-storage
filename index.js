@@ -598,6 +598,9 @@ class CorestoreStorage {
     const end = core.core(ptr.corePointer + 1)
     tx.tryDeleteRange(start, end)
 
+    // clear the default session's data, the sessions below only list named ones
+    tx.tryDeleteRange(core.data(ptr.dataPointer), core.data(ptr.dataPointer + 1))
+
     if (sessions) {
       for (const { dataPointer } of sessions) {
         const start = core.data(dataPointer)

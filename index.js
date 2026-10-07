@@ -436,6 +436,10 @@ class HypercoreStorage {
     return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
+  flushWAL() {
+    return this.db.flushWAL()
+  }
+
   close() {
     if (this.view !== null) {
       this.view.readStop()

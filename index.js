@@ -1,4 +1,5 @@
 const RocksDB = require('rocksdb-native')
+const b4a = require('b4a')
 const rrp = require('resolve-reject-promise')
 const ScopeLock = require('scope-lock')
 const DeviceFile = require('device-file')
@@ -594,10 +595,18 @@ class CorestoreStorage {
     corestoreRx.tryFlush()
     const record = await recordPromise
 
+    // only drop the alias if it still points at this core
+    const aliasRx = new CorestoreRX(this.db, EMPTY)
+    const aliasPromise = record && record.alias ? aliasRx.getCoreByAlias(record.alias) : null
+    aliasRx.tryFlush()
+    const aliased = await aliasPromise
+
     const tx = this.db.write({ autoDestroy: true })
 
     tx.tryDelete(store.core(auth.discoveryKey))
-    if (record && record.alias) tx.tryDelete(store.coreByAlias(record.alias))
+    if (aliased && b4a.equals(aliased, auth.discoveryKey)) {
+      tx.tryDelete(store.coreByAlias(record.alias))
+    }
 
     // clear core
     const start = core.core(ptr.corePointer)
@@ -860,6 +869,23 @@ class CorestoreStorage {
     const discoveryKeyPromise = rx.getCoreByAlias(alias)
     rx.tryFlush()
     return discoveryKeyPromise
+  }
+
+  // only deletes the alias if it still points at discoveryKey
+  async deleteAlias(alias, discoveryKey) {
+    if (this.version === 0) await this._migrateStore()
+
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const currentPromise = rx.getCoreByAlias(alias)
+    rx.tryFlush()
+    const current = await currentPromise
+
+    if (current === null || !b4a.equals(current, discoveryKey)) return false
+
+    const tx = this.db.write({ autoDestroy: true })
+    tx.tryDelete(store.coreByAlias(alias))
+    await tx.flush()
+    return true
   }
 
   async getSeed() {

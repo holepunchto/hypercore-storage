@@ -78,3 +78,31 @@ test('deleteCore - other aliases in the namespace survive', async function (t) {
   t.alike(await s.getAlias({ name: 'core-2', namespace }), cores[2].discoveryKey)
   t.is((await toArray(s.createDiscoveryKeyStream(namespace))).length, 2)
 })
+
+test('deleteAlias - drops the alias and leaves the core alone', async function (t) {
+  const s = await create(t)
+  const namespace = b4a.alloc(32, 7)
+  const alias = { name: 'bee', namespace }
+  const discoveryKey = b4a.alloc(32, 1)
+
+  const core = await s.createCore({ key: crypto.randomBytes(32), discoveryKey, alias })
+  await writeBlocks(core, 2)
+  await core.close()
+
+  t.is(
+    await s.deleteAlias(alias, b4a.alloc(32, 9)),
+    false,
+    'a mismatching discovery key is refused'
+  )
+  t.alike(await s.getAlias(alias), discoveryKey, 'alias untouched')
+
+  t.is(await s.deleteAlias(alias, discoveryKey), true)
+
+  t.is(await s.getAlias(alias), null, 'alias is gone')
+  t.is(await s.hasCore(discoveryKey), true, 'core record survives')
+  t.alike(await toArray(s.createDiscoveryKeyStream()), [discoveryKey], 'core still listed')
+
+  t.is(await s.deleteAlias(alias, discoveryKey), false, 'deleting a missing alias is a noop')
+
+  await s.close()
+})

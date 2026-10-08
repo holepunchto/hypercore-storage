@@ -337,6 +337,10 @@ core.register({
       name: 'timestamp',
       type: 'uint64',
       required: false
+    },
+    {
+      name: 'fsyncsNeeded',
+      type: 'uint'
     }
   ]
 })

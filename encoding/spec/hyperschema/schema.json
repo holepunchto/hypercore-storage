@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "schema": [
     {
       "name": "allocated",
@@ -83,6 +83,7 @@
     {
       "name": "head",
       "namespace": "corestore",
+      "framed": false,
       "versions": [
         {
           "type": "@corestore/head-v1",
@@ -405,6 +406,11 @@
           "required": false,
           "type": "uint64",
           "version": 2
+        },
+        {
+          "name": "fsyncsNeeded",
+          "type": "uint",
+          "version": 3
         }
       ]
     },
@@ -476,6 +482,12 @@
           "version": 1
         }
       ]
+    }
+  ],
+  "namespaces": [
+    {
+      "name": "corestore",
+      "external": "../../external.js"
     }
   ]
 }

@@ -53,6 +53,15 @@ Check if a core exists.
 
 List all cores. Stream data looks like this `{ discoveryKey, core }` where core contains the core header.
 
+#### `await store.flushFsync(target)`
+
+Wait until the WAL has been fsynced at least up to `target` (a value from `core.fsyncsNeeded()`).
+Concurrent callers share the same fsync, which is paced to run at most every 25ms.
+
+#### `store.fsyncs`
+
+The latest fsync generation known to be on disk. Persisted and restored on open.
+
 #### `await store.close()`
 
 Close the storage instance.
@@ -202,6 +211,15 @@ Create a stream of all user data. `opts` is a query object with the following po
   reverse: false // reverse results. Not currently supported
 }
 ```
+
+#### `target = core.fsyncsNeeded()`
+
+Returns the fsync generation that will cover everything written so far. Store it with the head
+(`fsyncsNeeded`) and pass it to `core.fsync(target)` once you need the writes to be durable.
+
+#### `await core.fsync(target)`
+
+Same as `store.flushFsync(target)`.
 
 #### `await core.close()`
 

@@ -68,6 +68,10 @@ corestore.register({
     {
       name: 'defaultDiscoveryKey',
       type: 'fixed32'
+    },
+    {
+      name: 'fsyncs',
+      type: 'uint'
     }
   ]
 })

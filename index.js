@@ -524,10 +524,9 @@ class CorestoreStorage {
     this.migrating = null
 
     // fsync state
-    this.flock = new ScopeLock({ debounce: true })
-    this.fsyncing = null
     this.fsyncs = -1
     this.fsyncsStarted = 0
+    this.fsyncing = null
     this.lastFsyncAt = 0
 
     if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
@@ -570,11 +569,6 @@ class CorestoreStorage {
     await this.db.ready()
   }
 
-  async _openFsyncs() {
-    this.fsyncs = (await this._getFsyncs()) || 0
-    this.fsyncsStarted = this.fsyncs
-  }
-
   compact(opts) {
     return this.db.compactRange(opts)
   }
@@ -587,57 +581,46 @@ class CorestoreStorage {
   }
 
   async fsync(target) {
-    if (!(await this.flock.lock())) {
-      return // debounced
-    }
-
-    if (this.fsyncs >= target) {
-      this.flock.unlock()
+    if (this.fsyncing !== null) {
+      if (target <= this.fsyncing.gen) return this.fsyncing.promise
+      await this.fsyncing.promise.catch(noop)
       return
     }
 
-    this.fsyncing = this._fsync()
-    const current = this.fsyncing
+    const gen = this.fsyncsStarted + 1
+    const promise = this._fsync(gen)
+    this.fsyncing = { gen, promise }
 
     try {
-      await this.fsyncing
+      await promise
     } finally {
       this.fsyncing = null
-      this.flock.unlock()
     }
-
-    return current
   }
 
-  async _fsync() {
+  async _fsync(gen) {
     const gap = MIN_FSYNC_GAP - (Date.now() - this.lastFsyncAt)
     if (gap > 0) await sleep(gap)
 
-    const gen = ++this.fsyncsStarted
+    this.fsyncsStarted = gen
     await this.db.flushWAL()
+
     this.lastFsyncAt = Date.now()
 
-    await this._setFsyncs(gen)
+    const view = await this._enter()
+    try {
+      const head = await this._getHead(view)
+      const tx = new CorestoreTX(view)
+
+      head.fsyncs = gen
+
+      tx.setHead(head)
+      tx.apply()
+    } finally {
+      await this._exit()
+    }
 
     this.fsyncs = gen
-
-    return gen
-  }
-
-  async _setFsyncs(gen) {
-    // enter requires lock, we are under flock so write directly
-    const tx = this.db.write({ autoDestroy: true })
-    CorestoreTX.setFsyncs(tx, gen)
-
-    await tx.flush()
-  }
-
-  async _getFsyncs() {
-    const rx = new CorestoreRX(this.db, EMPTY)
-    const fsyncsPromise = rx.getFsyncs()
-    rx.tryFlush()
-
-    return fsyncsPromise
   }
 
   async audit() {
@@ -747,13 +730,11 @@ class CorestoreStorage {
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
-      const fsyncsPromise = rx.getFsyncs()
 
       rx.tryFlush()
       const head = await headPromise
-      const fsyncs = (await fsyncsPromise) || 0
 
-      this.fsyncs = this.fsyncsStarted = fsyncs
+      this.fsyncs = this.fsyncsStarted = head ? head.fsyncs : 0
 
       const version = head === null ? 0 : head.version
       if (version === VERSION) {
@@ -1347,7 +1328,8 @@ function initStoreHead() {
     cores: 0,
     groups: 0,
     seed: null,
-    defaultDiscoveryKey: null
+    defaultDiscoveryKey: null,
+    fsyncs: 0
   }
 }
 

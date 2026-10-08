@@ -263,7 +263,14 @@ test('can get info from store efficiently', async function (t) {
         keyPair: null,
         encryptionKey: null
       },
-      head: { fork: 0, length: 2, rootHash: b4a.alloc(32, 0), signature: null, timestamp: 0 },
+      head: {
+        fork: 0,
+        length: 2,
+        rootHash: b4a.alloc(32, 0),
+        signature: null,
+        timestamp: 0,
+        fsyncsNeeded: 0
+      },
       hints: null
     })
   }

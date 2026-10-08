@@ -5,11 +5,13 @@ const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
 const Xache = require('xache')
+const assert = require('nanoassert')
 
 const View = require('./lib/view.js')
 
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
+const MIN_FSYNC_GAP = 25
 
 const { store, core } = require('./lib/keys.js')
 
@@ -436,8 +438,13 @@ class HypercoreStorage {
     return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
-  flushWAL() {
-    return this.db.flushWAL()
+  fsyncsNeeded() {
+    assert(this.store.fsyncs !== -1, 'Storage not opened')
+    return this.store.fsyncsStarted + 1
+  }
+
+  fsync(target) {
+    return this.store.flushFsync(target)
   }
 
   close() {
@@ -516,6 +523,13 @@ class CorestoreStorage {
     this.version = 0
     this.migrating = null
 
+    // fsync state
+    this.flock = new ScopeLock({ debounce: true })
+    this.fsyncing = null
+    this.fsyncs = -1
+    this.fsyncsStarted = 0
+    this.lastFsyncAt = 0
+
     if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
       const corestoreFile = path.join(this.path, 'CORESTORE')
 
@@ -553,11 +567,77 @@ class CorestoreStorage {
 
   async ready() {
     if (this.version === 0) await this._migrateStore()
-    return this.db.ready()
+    await this.db.ready()
+  }
+
+  async _openFsyncs() {
+    this.fsyncs = (await this._getFsyncs()) || 0
+    this.fsyncsStarted = this.fsyncs
   }
 
   compact(opts) {
     return this.db.compactRange(opts)
+  }
+
+  async flushFsync(target) {
+    while (this.fsyncs < target) {
+      if (this.db.closed) throw new Error('Storage has closed')
+      await this.fsync(target)
+    }
+  }
+
+  async fsync(target) {
+    if (!(await this.flock.lock())) {
+      return // debounced
+    }
+
+    if (this.fsyncs >= target) {
+      this.flock.unlock()
+      return
+    }
+
+    this.fsyncing = this._fsync()
+    const current = this.fsyncing
+
+    try {
+      await this.fsyncing
+    } finally {
+      this.fsyncing = null
+      this.flock.unlock()
+    }
+
+    return current
+  }
+
+  async _fsync() {
+    const gap = MIN_FSYNC_GAP - (Date.now() - this.lastFsyncAt)
+    if (gap > 0) await sleep(gap)
+
+    const gen = ++this.fsyncsStarted
+    await this.db.flushWAL()
+    this.lastFsyncAt = Date.now()
+
+    await this._setFsyncs(gen)
+
+    this.fsyncs = gen
+
+    return gen
+  }
+
+  async _setFsyncs(gen) {
+    // enter requires lock, we are under flock so write directly
+    const tx = this.db.write({ autoDestroy: true })
+    CorestoreTX.setFsyncs(tx, gen)
+
+    await tx.flush()
+  }
+
+  async _getFsyncs() {
+    const rx = new CorestoreRX(this.db, EMPTY)
+    const fsyncsPromise = rx.getFsyncs()
+    rx.tryFlush()
+
+    return fsyncsPromise
   }
 
   async audit() {
@@ -667,9 +747,13 @@ class CorestoreStorage {
 
       const rx = new CorestoreRX(this.db, view)
       const headPromise = rx.getHead()
+      const fsyncsPromise = rx.getFsyncs()
 
       rx.tryFlush()
       const head = await headPromise
+      const fsyncs = (await fsyncsPromise) || 0
+
+      this.fsyncs = this.fsyncsStarted = fsyncs
 
       const version = head === null ? 0 : head.version
       if (version === VERSION) {
@@ -1406,4 +1490,8 @@ async function getInfoFromBatch(db, c, discoveryKey, getAuth, getHead, getHints)
     head: await headPromise,
     hints: await hintsPromise
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }

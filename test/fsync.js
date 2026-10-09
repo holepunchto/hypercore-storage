@@ -3,7 +3,7 @@ const b4a = require('b4a')
 const Storage = require('../')
 const { create } = require('./helpers')
 
-test('fsyncs', async function (t) {
+test('fsync', async function (t) {
   const s = await create(t)
   await s.ready()
 
@@ -22,7 +22,7 @@ test('fsyncs', async function (t) {
   await s.close()
 })
 
-test('fsyncs is debounced', async function (t) {
+test('fsync is debounced', async function (t) {
   const dir = await t.tmp()
 
   const s = new Storage(dir)
@@ -33,15 +33,15 @@ test('fsyncs is debounced', async function (t) {
   const c = await s.createCore({ key: b4a.alloc(32, 3), discoveryKey: b4a.alloc(32, 3) })
 
   const proms = [
-    a.ensureFsynced(),
-    a.ensureFsynced(),
-    a.ensureFsynced(),
-    b.ensureFsynced(),
-    b.ensureFsynced(),
-    b.ensureFsynced(),
-    c.ensureFsynced(),
-    c.ensureFsynced(),
-    c.ensureFsynced()
+    a.fsync(),
+    a.fsync(),
+    a.fsync(),
+    b.fsync(),
+    b.fsync(),
+    b.fsync(),
+    c.fsync(),
+    c.fsync(),
+    c.fsync()
   ]
 
   await Promise.all(proms)
@@ -49,7 +49,7 @@ test('fsyncs is debounced', async function (t) {
   // debounced
   t.is(s.fsyncs, 2)
 
-  await a.ensureFsynced()
+  await a.fsync()
 
   t.is(s.fsyncs, 3)
 

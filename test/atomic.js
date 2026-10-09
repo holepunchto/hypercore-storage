@@ -185,8 +185,7 @@ test('atomized flow with all non-delete operations on a single core', async (t) 
     length: 3,
     rootHash: b4a.from('a'.repeat(64), 'hex'),
     signature: b4a.from('b'.repeat(64), 'hex'),
-    timestamp: 0,
-    fsyncsNeeded: 0
+    timestamp: 0
   }
   const expDependency = {
     dataPointer: 1,

@@ -268,8 +268,7 @@ test('can get info from store efficiently', async function (t) {
         length: 2,
         rootHash: b4a.alloc(32, 0),
         signature: null,
-        timestamp: 0,
-        fsyncsNeeded: 0
+        timestamp: 0
       },
       hints: null
     })

@@ -441,7 +441,7 @@ class HypercoreStorage {
     return this.store.fsyncsStarted + 1
   }
 
-  fsync(target) {
+  fsync(target = this.store.fsyncsStarted + 1) {
     return this.store.flushFsync(target)
   }
 

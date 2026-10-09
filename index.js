@@ -439,7 +439,6 @@ class HypercoreStorage {
   }
 
   fsyncsNeeded() {
-    assert(this.store.fsyncs !== -1, 'Storage not opened')
     return this.store.fsyncsStarted + 1
   }
 
@@ -524,7 +523,7 @@ class CorestoreStorage {
     this.migrating = null
 
     // fsync state
-    this.fsyncs = -1
+    this.fsyncs = 0
     this.fsyncsStarted = 0
     this.fsyncing = null
     this.lastFsyncAt = 0
@@ -606,20 +605,6 @@ class CorestoreStorage {
     await this.db.flushWAL()
 
     this.lastFsyncAt = Date.now()
-
-    const view = await this._enter()
-    try {
-      const head = await this._getHead(view)
-      const tx = new CorestoreTX(view)
-
-      head.fsyncs = gen
-
-      tx.setHead(head)
-      tx.apply()
-    } finally {
-      await this._exit()
-    }
-
     this.fsyncs = gen
   }
 
@@ -733,8 +718,6 @@ class CorestoreStorage {
 
       rx.tryFlush()
       const head = await headPromise
-
-      this.fsyncs = this.fsyncsStarted = head ? head.fsyncs : 0
 
       const version = head === null ? 0 : head.version
       if (version === VERSION) {
@@ -1328,8 +1311,7 @@ function initStoreHead() {
     cores: 0,
     groups: 0,
     seed: null,
-    defaultDiscoveryKey: null,
-    fsyncs: 0
+    defaultDiscoveryKey: null
   }
 }
 

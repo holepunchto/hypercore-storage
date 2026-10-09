@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 2,
   "schema": [
     {
       "name": "allocated",
@@ -77,18 +77,12 @@
           "name": "defaultDiscoveryKey",
           "type": "fixed32",
           "version": 1
-        },
-        {
-          "name": "fsyncs",
-          "type": "uint",
-          "version": 3
         }
       ]
     },
     {
       "name": "head",
       "namespace": "corestore",
-      "framed": false,
       "versions": [
         {
           "type": "@corestore/head-v1",
@@ -411,11 +405,6 @@
           "required": false,
           "type": "uint64",
           "version": 2
-        },
-        {
-          "name": "fsyncsNeeded",
-          "type": "uint",
-          "version": 3
         }
       ]
     },
@@ -487,12 +476,6 @@
           "version": 1
         }
       ]
-    }
-  ],
-  "namespaces": [
-    {
-      "name": "corestore",
-      "external": "../../external.js"
     }
   ]
 }

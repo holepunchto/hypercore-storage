@@ -104,3 +104,33 @@ test('fsync needed is tracked per core and pruned on completion', async function
   await b.close()
   await s.close()
 })
+
+test('fsync is triggered when the needed map hits its size limit', async function (t) {
+  const s = await create(t)
+  await s.ready()
+
+  const cores = []
+  for (let i = 0; i < 4096; i++) {
+    const key = b4a.alloc(32)
+    key.writeUInt32BE(i)
+    cores.push(await s.createCore({ key, discoveryKey: key }))
+  }
+
+  for (let i = 0; i < 4095; i++) cores[i].markFsync()
+
+  t.is(s.needed.size, 4095)
+  t.is(s.fsyncing, null)
+
+  cores[4095].markFsync()
+
+  t.is(s.needed.size, 4096)
+  t.not(s.fsyncing, null)
+
+  await s.fsyncing.promise
+
+  t.is(s.fsyncs, 1)
+  t.is(s.needed.size, 0)
+
+  for (const c of cores) await c.close()
+  await s.close()
+})

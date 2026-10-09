@@ -11,6 +11,7 @@ const View = require('./lib/view.js')
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
 const MIN_FSYNC_GAP = 25
+const MAX_FSYNC_NEEDED = 4096
 
 const { store, core } = require('./lib/keys.js')
 
@@ -447,6 +448,11 @@ class HypercoreStorage {
   markFsync() {
     const needed = this.store.fsyncsStarted + 1
     this.store.needed.set(this.core.corePointer, needed)
+
+    if (this.store.needed.size >= MAX_FSYNC_NEEDED) {
+      this.store.flushFsync(needed).catch(noop)
+    }
+
     return needed
   }
 

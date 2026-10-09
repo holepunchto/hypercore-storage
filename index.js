@@ -438,7 +438,16 @@ class HypercoreStorage {
   }
 
   fsyncsNeeded() {
-    return this.store.fsyncsStarted + 1
+    const needed = this.store.needed.get(this.core.corePointer)
+    if (needed !== undefined) return needed
+
+    return 1 // 1 guarantees fsync called at least once on store open
+  }
+
+  markFsync() {
+    const needed = this.store.fsyncsStarted + 1
+    this.store.needed.set(this.core.corePointer, needed)
+    return needed
   }
 
   fsync(target = this.store.fsyncsStarted + 1) {
@@ -526,6 +535,7 @@ class CorestoreStorage {
     this.fsyncsStarted = 0
     this.fsyncing = null
     this.lastFsyncAt = 0
+    this.needed = new Map()
 
     if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
       const corestoreFile = path.join(this.path, 'CORESTORE')
@@ -605,6 +615,10 @@ class CorestoreStorage {
 
     this.lastFsyncAt = Date.now()
     this.fsyncs = gen
+
+    for (const [corePointer, needed] of this.needed) {
+      if (needed <= gen) this.needed.delete(corePointer)
+    }
   }
 
   async audit() {

@@ -5,7 +5,6 @@ const DeviceFile = require('device-file')
 const path = require('path')
 const fs = require('fs')
 const Xache = require('xache')
-const assert = require('nanoassert')
 
 const View = require('./lib/view.js')
 

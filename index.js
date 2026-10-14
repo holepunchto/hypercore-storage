@@ -596,10 +596,7 @@ class CorestoreStorage {
     const record = await recordPromise
 
     // only drop the alias if it still points at this core
-    const aliasRx = new CorestoreRX(this.db, EMPTY)
-    const aliasPromise = record && record.alias ? aliasRx.getCoreByAlias(record.alias) : null
-    aliasRx.tryFlush()
-    const aliased = await aliasPromise
+    const aliased = record && record.alias ? await this.getAlias(record.alias) : null
 
     const tx = this.db.write({ autoDestroy: true })
 
@@ -875,10 +872,7 @@ class CorestoreStorage {
   async deleteAlias(alias, discoveryKey) {
     if (this.version === 0) await this._migrateStore()
 
-    const rx = new CorestoreRX(this.db, EMPTY)
-    const currentPromise = rx.getCoreByAlias(alias)
-    rx.tryFlush()
-    const current = await currentPromise
+    const current = await this.getAlias(alias)
 
     if (current === null || !b4a.equals(current, discoveryKey)) return false
 

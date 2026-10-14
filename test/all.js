@@ -17,6 +17,7 @@ async function runTests() {
 
   // Fixtures
   await import('./migration.js')
+  await import('./delete.js')
 
   test.resume()
 }

@@ -7,7 +7,7 @@ const fs = require('fs')
 const Xache = require('xache')
 
 const View = require('./lib/view.js')
-const SyncTracker = require('./lib/sync-tracker.js')
+const FsyncTracker = require('./lib/fsync-tracker.js')
 
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
@@ -547,7 +547,7 @@ class CorestoreStorage {
     }
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
-    this.fsyncs = new SyncTracker(this.db)
+    this.fsyncs = new FsyncTracker(this.db)
 
     const { treeCache = { maxSize: 8192 } } = opts
     this.treeCache = new Xache(treeCache)

@@ -7,11 +7,10 @@ const fs = require('fs')
 const Xache = require('xache')
 
 const View = require('./lib/view.js')
+const SyncTracker = require('./lib/sync-tracker.js')
 
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
-const MIN_FSYNC_GAP = 25
-const MAX_FSYNC_NEEDED = 4096
 
 const { store, core } = require('./lib/keys.js')
 
@@ -439,25 +438,15 @@ class HypercoreStorage {
   }
 
   fsyncsNeeded() {
-    const needed = this.store.needed.get(this.core.corePointer)
-    if (needed !== undefined) return needed
-
-    return 1 // 1 guarantees fsync called at least once on store open
+    return this.store.fsyncs.needed(this.core.corePointer)
   }
 
   markFsync() {
-    const needed = this.store.fsyncsStarted + 1
-    this.store.needed.set(this.core.corePointer, needed)
-
-    if (this.store.needed.size >= MAX_FSYNC_NEEDED) {
-      this.store.flushFsync(needed).catch(noop)
-    }
-
-    return needed
+    return this.store.fsyncs.mark(this.core.corePointer)
   }
 
-  fsync(target = this.store.fsyncsStarted + 1) {
-    return this.store.flushFsync(target)
+  fsync(target) {
+    return this.store.fsyncs.flush(target)
   }
 
   close() {
@@ -536,13 +525,6 @@ class CorestoreStorage {
     this.version = 0
     this.migrating = null
 
-    // fsync state
-    this.fsyncs = 0
-    this.fsyncsStarted = 0
-    this.fsyncing = null
-    this.lastFsyncAt = 0
-    this.needed = new Map()
-
     if ((this.bootstrap && !this.readOnly && !this.allowBackup) || this.wait) {
       const corestoreFile = path.join(this.path, 'CORESTORE')
 
@@ -565,6 +547,7 @@ class CorestoreStorage {
     }
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
+    this.fsyncs = new SyncTracker(this.db)
 
     const { treeCache = { maxSize: 8192 } } = opts
     this.treeCache = new Xache(treeCache)
@@ -585,46 +568,6 @@ class CorestoreStorage {
 
   compact(opts) {
     return this.db.compactRange(opts)
-  }
-
-  async flushFsync(target) {
-    while (this.fsyncs < target) {
-      if (this.db.closed) throw new Error('Storage has closed')
-      await this.fsync(target)
-    }
-  }
-
-  async fsync(target) {
-    if (this.fsyncing !== null) {
-      if (target <= this.fsyncing.gen) return this.fsyncing.promise
-      await this.fsyncing.promise.catch(noop)
-      return
-    }
-
-    const gen = this.fsyncsStarted + 1
-    const promise = this._fsync(gen)
-    this.fsyncing = { gen, promise }
-
-    try {
-      await promise
-    } finally {
-      this.fsyncing = null
-    }
-  }
-
-  async _fsync(gen) {
-    const gap = MIN_FSYNC_GAP - (Date.now() - this.lastFsyncAt)
-    if (gap > 0) await sleep(gap)
-
-    this.fsyncsStarted = gen
-    await this.db.flushWAL()
-
-    this.lastFsyncAt = Date.now()
-    this.fsyncs = gen
-
-    for (const [corePointer, needed] of this.needed) {
-      if (needed <= gen) this.needed.delete(corePointer)
-    }
   }
 
   async audit() {
@@ -1473,8 +1416,4 @@ async function getInfoFromBatch(db, c, discoveryKey, getAuth, getHead, getHints)
     head: await headPromise,
     hints: await hintsPromise
   }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

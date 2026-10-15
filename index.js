@@ -8,6 +8,7 @@ const fs = require('fs')
 const Xache = require('xache')
 
 const View = require('./lib/view.js')
+const FsyncTracker = require('./lib/fsync-tracker.js')
 
 const VERSION = 2
 const COLUMN_FAMILY = 'corestore'
@@ -437,6 +438,18 @@ class HypercoreStorage {
     return new CoreTX(this.core, this.db, this.atom ? this.view : null, [])
   }
 
+  fsyncsNeeded() {
+    return this.store.fsyncs.needed(this.core.corePointer)
+  }
+
+  markFsync() {
+    return this.store.fsyncs.mark(this.core.corePointer)
+  }
+
+  fsync(target) {
+    return this.store.fsyncs.flush(target)
+  }
+
   close() {
     if (this.view !== null) {
       this.view.readStop()
@@ -535,6 +548,7 @@ class CorestoreStorage {
     }
     this.rocks = storage === null ? db : new RocksDB(dbPath, { ...opts, lock: this.deviceFile })
     this.db = createColumnFamily(this.rocks, opts)
+    this.fsyncs = new FsyncTracker(this.db)
 
     const { treeCache = { maxSize: 8192 } } = opts
     this.treeCache = new Xache(treeCache)
@@ -550,7 +564,7 @@ class CorestoreStorage {
 
   async ready() {
     if (this.version === 0) await this._migrateStore()
-    return this.db.ready()
+    await this.db.ready()
   }
 
   compact(opts) {

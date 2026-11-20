@@ -3,6 +3,7 @@ const b4a = require('b4a')
 const { createCore, create, writeBlocks, readBlocks } = require('./helpers')
 
 const HypercoreStorage = require('../')
+const { core: keys } = require('../lib/keys.js')
 
 test('read and write hypercore blocks', async (t) => {
   const core = await createCore(t)
@@ -1076,5 +1077,39 @@ test('compact core', async (t) => {
 
   await core.close()
   await session.close()
+  await s.close()
+})
+
+test('compact core reclaims space of cleared blocks', async (t) => {
+  const s = await create(t)
+  const core = await s.createCore({
+    key: b4a.alloc(32),
+    discoveryKey: b4a.alloc(32)
+  })
+
+  const start = keys.data(core.core.dataPointer)
+  const end = keys.data(core.core.dataPointer + 1)
+
+  await writeBlocks(core, 2)
+  await s.db.flush()
+
+  const before = await s.db.approximateSize(start, end)
+  t.ok(before > 0, 'blocks take up space on disk')
+
+  {
+    const tx = core.write()
+    tx.deleteBlockRange(0, -1)
+    await tx.flush()
+  }
+
+  await s.db.flush()
+
+  t.ok((await s.db.approximateSize(start, end)) >= before, 'clear alone does not reclaim space')
+
+  await core.compact()
+
+  t.is(await s.db.approximateSize(start, end), 0, 'compact reclaims space of cleared blocks')
+
+  await core.close()
   await s.close()
 })

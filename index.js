@@ -576,7 +576,7 @@ class CorestoreStorage {
     }
   }
 
-  async deleteCore(ptr) {
+  async deleteCore(ptr, { compact = false } = {}) {
     const rx = new CoreRX(ptr, this.db, EMPTY, this.treeCache, this.stats, -1)
 
     const authPromise = rx.getAuth()
@@ -605,23 +605,28 @@ class CorestoreStorage {
       tx.tryDelete(store.coreByAlias(record.alias))
     }
 
-    // clear core
-    const start = core.core(ptr.corePointer)
-    const end = core.core(ptr.corePointer + 1)
-    tx.tryDeleteRange(start, end)
-
-    // clear the default session's data, the sessions below only list named ones
-    tx.tryDeleteRange(core.data(ptr.dataPointer), core.data(ptr.dataPointer + 1))
+    const ranges = [
+      [core.core(ptr.corePointer), core.core(ptr.corePointer + 1)],
+      [core.data(ptr.dataPointer), core.data(ptr.dataPointer + 1)]
+    ]
 
     if (sessions) {
       for (const { dataPointer } of sessions) {
-        const start = core.data(dataPointer)
-        const end = core.data(dataPointer + 1)
-        tx.tryDeleteRange(start, end)
+        ranges.push([core.data(dataPointer), core.data(dataPointer + 1)])
       }
     }
 
-    return tx.flush()
+    for (const [start, end] of ranges) tx.tryDeleteRange(start, end)
+
+    await tx.flush()
+
+    if (!compact) return
+
+    // range deletes only drop tombstones, so compact the deleted ranges to
+    // give the space back, blobs included
+    await Promise.all(
+      ranges.map(([start, end]) => this.db.compactRange(start, end, { reclaim: true }))
+    )
   }
 
   static isCoreStorage(db) {

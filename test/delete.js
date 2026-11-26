@@ -106,3 +106,26 @@ test('deleteAlias - drops the alias and leaves the core alone', async function (
 
   await s.close()
 })
+
+test('deleteCore - compact reclaims the deleted ranges', async function (t) {
+  const s = await create(t)
+  t.teardown(() => s.close())
+
+  const discoveryKey = crypto.randomBytes(32)
+  const otherKey = crypto.randomBytes(32)
+
+  const core = await s.createCore({ key: crypto.randomBytes(32), discoveryKey })
+  const other = await s.createCore({ key: crypto.randomBytes(32), discoveryKey: otherKey })
+
+  await writeBlocks(core, 50)
+  await writeBlocks(other, 5)
+
+  await s.deleteCore(core.core, { compact: true })
+  await core.close()
+
+  t.is(await s.hasCore(discoveryKey), false, 'core record is gone')
+  t.is(await s.hasCore(otherKey), true, 'other core survives')
+  t.is((await readBlocks(other, 5)).length, 5, 'other core still readable')
+
+  await other.close()
+})

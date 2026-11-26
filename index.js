@@ -213,8 +213,8 @@ class HypercoreStorage {
 
   compact() {
     return Promise.all([
-      this.db.compactRange(core.core(this.core.corePointer), core.core(this.core.corePointer)),
-      this.db.compactRange(core.data(this.core.dataPointer), core.data(this.core.dataPointer))
+      this.db.compactRange(core.core(this.core.corePointer), core.core(this.core.corePointer + 1)),
+      this.db.compactRange(core.data(this.core.dataPointer), core.data(this.core.dataPointer + 1))
     ])
   }
 

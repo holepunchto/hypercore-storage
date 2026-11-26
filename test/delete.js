@@ -108,24 +108,47 @@ test('deleteAlias - drops the alias and leaves the core alone', async function (
 })
 
 test('deleteCore - compact reclaims the deleted ranges', async function (t) {
-  const s = await create(t)
-  t.teardown(() => s.close())
+  // over minBlobSize, so the values go to blob files shared with the other core
+  const blocks = { pre: 'x'.repeat(8192) }
 
-  const discoveryKey = crypto.randomBytes(32)
-  const otherKey = crypto.randomBytes(32)
+  const expected = []
+  for (let i = 0; i < 5; i++) expected.push(b4a.from(blocks.pre + 'block' + i))
 
-  const core = await s.createCore({ key: crypto.randomBytes(32), discoveryKey })
-  const other = await s.createCore({ key: crypto.randomBytes(32), discoveryKey: otherKey })
+  for (const compact of [false, true]) {
+    const s = await create(t)
 
-  await writeBlocks(core, 50)
-  await writeBlocks(other, 5)
+    const discoveryKey = crypto.randomBytes(32)
+    const otherKey = crypto.randomBytes(32)
 
-  await s.deleteCore(core.core, { compact: true })
-  await core.close()
+    const core = await s.createCore({ key: crypto.randomBytes(32), discoveryKey })
+    const other = await s.createCore({ key: crypto.randomBytes(32), discoveryKey: otherKey })
 
-  t.is(await s.hasCore(discoveryKey), false, 'core record is gone')
-  t.is(await s.hasCore(otherKey), true, 'other core survives')
-  t.is((await readBlocks(other, 5)).length, 5, 'other core still readable')
+    await writeBlocks(core, 50, blocks)
+    await writeBlocks(other, 5, blocks)
 
-  await other.close()
+    await s.db.flush()
+    const before = await diskUsage(s)
+
+    await core.close()
+    await s.deleteCore(core.core, { compact })
+
+    const after = await diskUsage(s)
+
+    if (compact) t.ok(after < before / 2, 'the deleted blocks are off disk')
+    else t.ok(after > before * 0.9, 'the deleted blocks are still on disk')
+
+    t.is(await s.hasCore(discoveryKey), false, 'core record is gone')
+    t.is(await s.hasCore(otherKey), true, 'other core survives')
+    t.alike(await readBlocks(other, 5), expected, 'other core still readable')
+
+    await other.close()
+    await s.close()
+  }
 })
+
+async function diskUsage(s) {
+  const sst = await s.db.getProperty('rocksdb.total-sst-files-size')
+  const blobs = await s.db.getProperty('rocksdb.total-blob-file-size')
+
+  return Number(sst) + Number(blobs)
+}

@@ -218,6 +218,16 @@ class HypercoreStorage {
     ])
   }
 
+  // blocks only, as that is where the bytes are, and the blocks of this
+  // session only, as older indexes may be backed by a dependency
+  compactBlockRange(start, end) {
+    return this.db.compactRange(
+      core.block(this.core.dataPointer, start),
+      core.block(this.core.dataPointer, end),
+      { reclaim: true }
+    )
+  }
+
   atomize(atom) {
     if (this.atom && this.atom !== atom) {
       throw new Error('Cannot atomize and atomized session with a new atom')

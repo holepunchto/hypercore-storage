@@ -152,3 +152,42 @@ async function diskUsage(s) {
 
   return Number(sst) + Number(blobs)
 }
+
+test('compactBlockRange - reclaims the cleared blocks only', async function (t) {
+  // under minBlobSize, so the values are stored inline in the table files
+  const blocks = { pre: 'x'.repeat(1024) }
+
+  const s = await create(t)
+
+  const core = await s.createCore({
+    key: crypto.randomBytes(32),
+    discoveryKey: crypto.randomBytes(32)
+  })
+
+  await writeBlocks(core, 400, blocks)
+
+  await s.db.flush()
+  const before = await diskUsage(s)
+
+  const tx = core.write()
+  tx.deleteBlockRange(0, 200)
+  await tx.flush()
+
+  await s.db.flush()
+  t.ok((await diskUsage(s)) > before * 0.9, 'deleting alone leaves the blocks on disk')
+
+  await core.compactBlockRange(0, 200)
+  t.ok((await diskUsage(s)) < before * 0.75, 'compacting the range gives the space back')
+
+  const expected = []
+  for (let i = 200; i < 205; i++) expected.push(b4a.from(blocks.pre + 'block' + i))
+
+  const rx = core.read()
+  const kept = [200, 201, 202, 203, 204].map((i) => rx.getBlock(i))
+  rx.tryFlush()
+
+  t.alike(await Promise.all(kept), expected, 'the blocks outside the range survive')
+
+  await core.close()
+  await s.close()
+})
